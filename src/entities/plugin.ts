@@ -8,11 +8,10 @@ import {
 } from '../../../../codify/codify-schemas';
 
 export class Plugin {
-
   planStorage: Map<string, any>;
 
   constructor(
-    public resources: Map<string, Resource<unknown>>
+    public resources: Map<string, Resource<ResourceConfig>>
   ) {
     this.planStorage = new Map();
   }
@@ -42,11 +41,10 @@ export class Plugin {
     const plan = await this.resources.get(data.type)!.plan(data);
     this.planStorage.set(plan.id, plan);
 
-    return plan.toPlanResponse();
+    return plan.toResponse();
   }
 
   async apply(): Promise<void> {
-
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

@@ -2,15 +2,22 @@
   "compilerOptions": {
     "declaration": true,
     "module": "commonjs",
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "removeComments": true,
+    "strictNullChecks": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
     "outDir": "dist",
     "rootDir": "src",
     "strict": true,
     "target": "es2022"
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts"
   ],
   "exclude": [
+    "node_modules",
     "src/**/*.test.ts"
   ]
 }

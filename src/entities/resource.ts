@@ -1,5 +1,5 @@
-import { ResourceConfig, ResourceOperation } from 'codify-schemas';
-import { ChangeSet } from './change-set';
+import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
+import { ChangeSet, ParameterChange } from './change-set';
 import { Plan } from './plan';
 
 export abstract class Resource<T extends ResourceConfig> {
@@ -11,9 +11,28 @@ export abstract class Resource<T extends ResourceConfig> {
     await this.validate(desiredConfig);
 
     const currentConfig = await this.getCurrentConfig();
-    const changeSet = await this.calculateChangeSet(currentConfig, desiredConfig);
+    if (!currentConfig) {
+      return Plan.create(ChangeSet.createForNullCurrentConfig(desiredConfig), desiredConfig);
+    }
 
-    return Plan.create(changeSet, desiredConfig);
+    // TODO: After adding in state files, need to calculate deletes here
+    //  Where current config exists and state config exists but desired config doesn't
+
+    // Explanation: This calculates the change set of the parameters between the
+    // two configs and then passes it to the subclass to calculate the overall
+    // operation for the resource
+    const parameterChangeSet = ChangeSet.calculateParameterChangeSet(currentConfig, desiredConfig);
+    const resourceOperation = parameterChangeSet
+      .filter((change) => change.operation !== ParameterOperation.NOOP)
+      .reduce((operation: ResourceOperation, curr: ParameterChange) => {
+        const newOperation = this.calculateOperation(curr);
+        return ChangeSet.combineResourceOperations(operation, newOperation);
+      }, ResourceOperation.NOOP);
+
+    return Plan.create(
+      new ChangeSet(resourceOperation, parameterChangeSet),
+      desiredConfig
+    );
   }
 
   async apply(plan: Plan): Promise<any> {
@@ -32,9 +51,9 @@ export abstract class Resource<T extends ResourceConfig> {
 
   abstract validate(config: ResourceConfig): Promise<boolean>;
 
-  abstract getCurrentConfig(): Promise<T>;
+  abstract getCurrentConfig(): Promise<T | null>;
 
-  abstract calculateChangeSet(prev: T, next: T): Promise<ChangeSet>;
+  abstract calculateOperation(change: ParameterChange): ResourceOperation.MODIFY | ResourceOperation.RECREATE;
 
   abstract applyCreate(changeSet: ChangeSet): Promise<void>;
 

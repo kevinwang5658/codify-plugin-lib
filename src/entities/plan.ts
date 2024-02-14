@@ -34,9 +34,7 @@ export class Plan {
       operation: this.changeSet.operation,
       resourceName: this.resourceConfig.name,
       resourceType: this.resourceConfig.type,
-      parameters: [],
-      // TODO: Need to calculate this based on resourceConfig and changeSet
-      //  It should include the union of both sets of parameters
+      parameters: this.changeSet.parameterChanges,
     }
   }
 }

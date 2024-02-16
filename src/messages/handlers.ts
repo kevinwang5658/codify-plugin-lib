@@ -1,5 +1,6 @@
 import Ajv2020, { ValidateFunction } from 'ajv/dist/2020';
 import { Plugin } from '../entities/plugin';
+import addFormats from 'ajv-formats';
 import {
   IpcMessage,
   IpcMessageSchema,
@@ -23,19 +24,20 @@ const SupportedRequests: Record<string, { requestValidator: ValidateFunction; re
   'apply': {
     requestValidator: ApplyRequestDataSchema,
     responseValidator: ApplyRequestDataSchema, // Replace with response validator
-    handler: (plugin: Plugin, data: any) => plugin.onInitialize()
+    handler: (plugin: Plugin, data: any) => plugin.apply(data)
   }
 }
 
 export class MessageHandler {
-  ajv: Ajv2020;
-  plugin: Plugin;
-  messageSchemaValidator: ValidateFunction;
-  requestValidators: Map<string, ValidateFunction>;
-  responseValidators: Map<string, ValidateFunction>;
+  private ajv: Ajv2020;
+  private readonly plugin: Plugin;
+  private messageSchemaValidator: ValidateFunction;
+  private requestValidators: Map<string, ValidateFunction>;
+  private responseValidators: Map<string, ValidateFunction>;
 
   constructor(plugin: Plugin) {
     this.ajv = new Ajv2020({ strict: true });
+    addFormats(this.ajv);
     this.ajv.addSchema(ResourceSchema);
     this.plugin = plugin;
 
@@ -60,7 +62,7 @@ export class MessageHandler {
     }
 
     const requestValidator = this.requestValidators.get(message.cmd)!;
-    if (!requestValidator(message)) {
+    if (!requestValidator(message.data)) {
       throw new Error(`Malformed message data: ${JSON.stringify(this.ajv.errors, null, 2)}`)
     }
 

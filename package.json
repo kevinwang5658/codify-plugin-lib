@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
     "codify-schemas": "../../codify/codify-schemas"
   },
   "devDependencies": {
@@ -23,6 +24,7 @@
     "@types/node": "^18",
     "@types/semver": "^7.5.4",
     "@types/sinon": "^17.0.3",
+    "@types/sinon-chai": "^3.2.12",
     "chai": "^4",
     "chai-as-promised": "^7.1.1",
     "eslint": "^8.51.0",
@@ -31,6 +33,7 @@
     "mocha": "^10",
     "mock-fs": "^5.2.0",
     "sinon": "^17.0.1",
+    "sinon-chai": "^3.7.0",
     "oclif": "^4.0.0",
     "shx": "^0.3.3",
     "ts-node": "^10.9.1",

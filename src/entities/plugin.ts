@@ -1,5 +1,6 @@
 import { Resource } from './resource';
 import {
+  ApplyRequestData,
   PlanRequestData,
   PlanResponseData,
   ResourceConfig,
@@ -44,7 +45,7 @@ export class Plugin {
     return plan.toResponse();
   }
 
-  async apply(): Promise<void> {
+  async apply(data: ApplyRequestData): Promise<void> {
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

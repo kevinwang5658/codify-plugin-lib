@@ -2,7 +2,7 @@ import { ChangeSet } from './change-set';
 import {
   PlanResponseData,
   ResourceConfig,
-} from '../../../../codify/codify-schemas';
+} from 'codify-schemas';
 import { randomUUID } from 'crypto';
 
 export class Plan {

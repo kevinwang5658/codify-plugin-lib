@@ -6,7 +6,7 @@ import {
   ResourceConfig,
   ValidateRequestData,
   ValidateResponseData
-} from '../../../../codify/codify-schemas';
+} from 'codify-schemas';
 
 export class Plugin {
   planStorage: Map<string, any>;

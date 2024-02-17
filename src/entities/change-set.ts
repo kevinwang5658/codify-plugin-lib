@@ -1,4 +1,4 @@
-import { ParameterOperation, ResourceConfig, ResourceOperation } from '../../../../codify/codify-schemas';
+import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
 
 export interface ParameterChange {
   name: string;

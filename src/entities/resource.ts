@@ -3,6 +3,13 @@ import { ChangeSet, ParameterChange } from './change-set';
 import { Plan } from './plan';
 
 export abstract class Resource<T extends ResourceConfig> {
+
+  constructor(
+    private dependencies: Resource<any>[] = [],
+  ) {}
+
+  abstract getTypeId(): string;
+
   async onInitialize(): Promise<void> {}
 
   // TODO: Add state in later.

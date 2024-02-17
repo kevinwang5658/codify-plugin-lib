@@ -1,6 +1,6 @@
 import { describe } from 'mocha';
 import { Resource } from './resource';
-import { ResourceConfig, ResourceOperation } from '../../../../codify/codify-schemas';
+import { ResourceConfig, ResourceOperation } from 'codify-schemas';
 import { ChangeSet, ParameterChange } from './change-set';
 import { spy } from 'sinon';
 import { expect } from 'chai';
@@ -32,6 +32,10 @@ class TestResource extends Resource<TestConfig> {
 
   validate(config: ResourceConfig): Promise<boolean> {
     return Promise.resolve(false);
+  }
+
+  getTypeId(): string {
+    return '';
   }
 }
 

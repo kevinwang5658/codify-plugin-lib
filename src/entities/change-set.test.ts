@@ -1,6 +1,6 @@
 import { ChangeSet } from './change-set';
 import { expect } from 'chai';
-import { ParameterOperation, ResourceOperation } from '../../../../codify/codify-schemas';
+import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 
 describe('Change set tests', () => {
   it ('Correctly diffs two resource configs (modify)', () => {

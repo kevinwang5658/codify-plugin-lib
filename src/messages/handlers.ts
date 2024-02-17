@@ -1,4 +1,4 @@
-import Ajv2020, { ValidateFunction } from 'ajv/dist/2020';
+import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020';
 import { Plugin } from '../entities/plugin';
 import addFormats from 'ajv-formats';
 import {
@@ -7,24 +7,27 @@ import {
   ResourceSchema,
   ValidateRequestDataSchema,
   ValidateResponseDataSchema,
-  MessageStatus, PlanRequestDataSchema, PlanResponseDataSchema, ApplyRequestDataSchema
+  MessageStatus,
+  PlanRequestDataSchema,
+  PlanResponseDataSchema,
+  ApplyRequestDataSchema
 } from 'codify-schemas';
 
-const SupportedRequests: Record<string, { requestValidator: ValidateFunction; responseValidator: ValidateFunction; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
+const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
   'validate': {
     requestValidator: ValidateRequestDataSchema,
     responseValidator: ValidateResponseDataSchema,
-    handler: (plugin: Plugin, data: any) => plugin.validate(data)
+    handler: async (plugin: Plugin, data: any) => plugin.validate(data)
   },
   'plan': {
     requestValidator: PlanRequestDataSchema,
     responseValidator: PlanResponseDataSchema,
-    handler: (plugin: Plugin, data: any) => plugin.plan(data)
+    handler: async (plugin: Plugin, data: any) => plugin.plan(data)
   },
   'apply': {
     requestValidator: ApplyRequestDataSchema,
     responseValidator: ApplyRequestDataSchema, // Replace with response validator
-    handler: (plugin: Plugin, data: any) => plugin.apply(data)
+    handler: async (plugin: Plugin, data: any) => plugin.apply(data)
   }
 }
 
@@ -54,7 +57,7 @@ export class MessageHandler {
 
   async onMessage(message: unknown): Promise<void> {
     if (!this.validateMessage(message)) {
-      throw new Error(`Message is malformed: ${JSON.stringify(this.ajv.errors, null, 2)}`);
+      throw new Error(`Message is malformed: ${JSON.stringify(this.messageSchemaValidator.errors, null, 2)}`);
     }
 
     if (!this.requestValidators.has(message.cmd)) {
@@ -63,7 +66,7 @@ export class MessageHandler {
 
     const requestValidator = this.requestValidators.get(message.cmd)!;
     if (!requestValidator(message.data)) {
-      throw new Error(`Malformed message data: ${JSON.stringify(this.ajv.errors, null, 2)}`)
+      throw new Error(`Malformed message data: ${JSON.stringify(requestValidator.errors, null, 2)}`)
     }
 
     let result: unknown;
@@ -81,7 +84,7 @@ export class MessageHandler {
 
     const responseValidator = this.responseValidators.get(message.cmd);
     if (responseValidator && !responseValidator(result)) {
-      throw new Error(`Malformed response data: ${JSON.stringify(this.ajv.errors, null, 2)}`)
+      throw new Error(`Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}`)
     }
 
     process.send!({

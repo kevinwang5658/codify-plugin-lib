@@ -4,7 +4,6 @@ export class CodifyTestUtils {
   static sendMessageToProcessAwaitResponse(process: ChildProcess, message: any): Promise<any> {
     return new Promise((resolve, reject) => {
       process.on('message', (response) => {
-        process.kill();
         resolve(response)
       });
       process.on('error', (err) => reject(err))

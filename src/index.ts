@@ -6,6 +6,7 @@ export * from './entities/plugin'
 export * from './entities/change-set'
 export * from './entities/plan'
 export * from './utils/test-utils'
+export * from './utils/utils'
 
 
 export async function runPlugin(plugin: Plugin) {

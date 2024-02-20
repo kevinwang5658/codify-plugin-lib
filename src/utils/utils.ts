@@ -1,11 +1,14 @@
 import promiseSpawn from '@npmcli/promise-spawn';
 import { SpawnOptions } from 'child_process';
 
+export enum SpawnStatus {
+  SUCCESS,
+  ERROR,
+}
+
 export interface SpawnResult {
-  code: number;
-  signal: NodeJS.Signals | null;
-  stdout: string;
-  stderr: string;
+  status: SpawnStatus,
+  data: string;
 }
 
 type CodifySpawnOptions = {
@@ -19,13 +22,29 @@ export async function codifySpawn(
   opts?: CodifySpawnOptions,
   extras?: Record<any, any>,
 ): Promise<SpawnResult> {
-  const stdio = isDebug() ? 'inherit' : 'pipe';
-  return promiseSpawn(
-    cmd,
-    args,
-    { ...opts, stdio, stdioString: true },
-    extras
-  );
+  try {
+    const stdio = isDebug() ? 'inherit' : 'pipe';
+    const result = await promiseSpawn(
+      cmd,
+      args,
+      { ...opts, stdio, stdioString: true, shell: true },
+      extras
+    );
+
+    const status = (result.code === 0 && !result.stderr)
+      ? SpawnStatus.SUCCESS
+      : SpawnStatus.ERROR;
+
+    return {
+      status,
+      data: status === SpawnStatus.SUCCESS ? result.stdout : result.stderr
+    }
+  } catch (e) {
+    return {
+      status: SpawnStatus.ERROR,
+      data: e as string,
+    }
+  }
 }
 
 export function isDebug(): boolean {

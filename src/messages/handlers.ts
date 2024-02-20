@@ -10,7 +10,7 @@ import {
   MessageStatus,
   PlanRequestDataSchema,
   PlanResponseDataSchema,
-  ApplyRequestDataSchema
+  ApplyRequestDataSchema, ApplyResponseDataSchema
 } from 'codify-schemas';
 
 const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
@@ -26,8 +26,11 @@ const SupportedRequests: Record<string, { requestValidator: SchemaObject; respon
   },
   'apply': {
     requestValidator: ApplyRequestDataSchema,
-    responseValidator: ApplyRequestDataSchema, // Replace with response validator
-    handler: async (plugin: Plugin, data: any) => plugin.apply(data)
+    responseValidator: ApplyResponseDataSchema,
+    handler: async (plugin: Plugin, data: any) => {
+      await plugin.apply(data);
+      return null;
+    }
   }
 }
 

@@ -4,6 +4,7 @@ import { ResourceConfig, ResourceOperation } from 'codify-schemas';
 import { ChangeSet, ParameterChange } from './change-set';
 import { spy } from 'sinon';
 import { expect } from 'chai';
+import { Plan } from './plan';
 
 class TestResource extends Resource<TestConfig> {
   applyCreate(changeSet: ChangeSet): Promise<void> {
@@ -142,5 +143,41 @@ describe('Resource tests', () => {
 
     expect(result.changeSet.operation).to.eq(ResourceOperation.CREATE);
     expect(result.changeSet.parameterChanges.length).to.eq(3);
+  })
+
+  it('chooses the create apply properly', async () => {
+    const resource = new class extends TestResource {
+      getTypeId(): string {
+        return 'resource'
+      }
+    }
+
+    const resourceSpy = spy(resource);
+    const result = await resourceSpy.apply(
+      Plan.create(
+        new ChangeSet(ResourceOperation.CREATE, []),
+        { type: 'resource' }
+      )
+    )
+
+    expect(resourceSpy.applyCreate.calledOnce).to.be.true;
+  })
+
+  it('chooses the destroy apply properly', async () => {
+    const resource = new class extends TestResource {
+      getTypeId(): string {
+        return 'resource'
+      }
+    }
+
+    const resourceSpy = spy(resource);
+    const result = await resourceSpy.apply(
+      Plan.create(
+        new ChangeSet(ResourceOperation.DESTROY, []),
+        { type: 'resource' }
+      )
+    )
+
+    expect(resourceSpy.applyDestroy.calledOnce).to.be.true;
   })
 })

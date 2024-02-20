@@ -7,9 +7,10 @@ import {
   ValidateRequestData,
   ValidateResponseData
 } from 'codify-schemas';
+import { Plan } from './plan';
 
 export class Plugin {
-  planStorage: Map<string, any>;
+  planStorage: Map<string, Plan>;
 
   constructor(
     public resources: Map<string, Resource<ResourceConfig>>
@@ -46,6 +47,18 @@ export class Plugin {
   }
 
   async apply(data: ApplyRequestData): Promise<void> {
+    const { planId } = data;
+    const plan = this.planStorage.get(planId);
+    if (!plan) {
+      throw new Error(`Plan with id: ${planId} was not found`);
+    }
+
+    const resource = this.resources.get(plan.getResourceType());
+    if (!resource) {
+      throw new Error('Malformed plan with resource that cannot be found');
+    }
+
+    await resource.apply(plan);
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

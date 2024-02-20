@@ -42,9 +42,9 @@ export abstract class Resource<T extends ResourceConfig> {
     );
   }
 
-  async apply(plan: Plan): Promise<any> {
-    if (plan.getResourceType()) {
-      throw new Error('Internal error: Plan set to wrong resource during apply');
+  async apply(plan: Plan): Promise<void> {
+    if (plan.getResourceType() !== this.getTypeId()) {
+      throw new Error(`Internal error: Plan set to wrong resource during apply. Expected ${this.getTypeId()} but got: ${plan.getResourceType()}`);
     }
 
     const changeSet = plan.changeSet;

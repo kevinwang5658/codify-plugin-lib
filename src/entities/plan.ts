@@ -5,18 +5,18 @@ import {
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
 
-export class Plan {
+export class Plan<T extends ResourceConfig> {
   id: string;
   changeSet: ChangeSet;
-  resourceConfig: ResourceConfig
+  resourceConfig: T
 
-  constructor(id: string, changeSet: ChangeSet, resourceConfig: ResourceConfig) {
+  constructor(id: string, changeSet: ChangeSet, resourceConfig: T) {
     this.id = id;
     this.changeSet = changeSet;
     this.resourceConfig = resourceConfig;
   }
 
-  static create(changeSet: ChangeSet, resourceConfig: ResourceConfig) {
+  static create<T extends ResourceConfig>(changeSet: ChangeSet, resourceConfig: T): Plan<T> {
     return new Plan(
       randomUUID(),
       changeSet,

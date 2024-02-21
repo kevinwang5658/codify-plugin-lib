@@ -10,7 +10,7 @@ import {
 import { Plan } from './plan';
 
 export class Plugin {
-  planStorage: Map<string, Plan>;
+  planStorage: Map<string, Plan<ResourceConfig>>;
 
   constructor(
     public resources: Map<string, Resource<ResourceConfig>>

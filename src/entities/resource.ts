@@ -14,7 +14,7 @@ export abstract class Resource<T extends ResourceConfig> {
 
   // TODO: Add state in later.
   //  Calculate change set from current config -> state -> desired in the future
-  async plan(desiredConfig: T): Promise<Plan> {
+  async plan(desiredConfig: T): Promise<Plan<T>> {
     await this.validate(desiredConfig);
 
     const currentConfig = await this.getCurrentConfig();
@@ -42,7 +42,7 @@ export abstract class Resource<T extends ResourceConfig> {
     );
   }
 
-  async apply(plan: Plan): Promise<void> {
+  async apply(plan: Plan<T>): Promise<void> {
     if (plan.getResourceType() !== this.getTypeId()) {
       throw new Error(`Internal error: Plan set to wrong resource during apply. Expected ${this.getTypeId()} but got: ${plan.getResourceType()}`);
     }
@@ -61,11 +61,11 @@ export abstract class Resource<T extends ResourceConfig> {
 
   abstract calculateOperation(change: ParameterChange): ResourceOperation.MODIFY | ResourceOperation.RECREATE;
 
-  abstract applyCreate(plan: Plan): Promise<void>;
+  abstract applyCreate(plan: Plan<T>): Promise<void>;
 
-  abstract applyModify(plan: Plan): Promise<void>;
+  abstract applyModify(plan: Plan<T>): Promise<void>;
 
-  abstract applyRecreate(plan: Plan): Promise<void>;
+  abstract applyRecreate(plan: Plan<T>): Promise<void>;
 
-  abstract applyDestroy(plan:Plan): Promise<void>;
+  abstract applyDestroy(plan:Plan<T>): Promise<void>;
 }

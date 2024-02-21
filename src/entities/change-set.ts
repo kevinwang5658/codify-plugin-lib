@@ -60,7 +60,7 @@ export class ChangeSet {
         continue;
       }
 
-      if (filteredPrev[k] !== filteredNext[k]) {
+      if (!ChangeSet.isSame(filteredPrev[k], filteredNext[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -113,5 +113,16 @@ export class ChangeSet {
     const indexNext = orderOfOperations.indexOf(next);
 
     return orderOfOperations[Math.max(indexPrev, indexNext)];
+  }
+
+  static isSame(a: unknown, b: unknown): boolean {
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const sortedPrev = a.map((x) => x).sort();
+      const sortedNext = b.map((x) => x).sort();
+
+      return JSON.stringify(sortedPrev) === JSON.stringify(sortedNext);
+    }
+
+    return a === b;
   }
 }

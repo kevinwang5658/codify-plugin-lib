@@ -17,7 +17,7 @@ export abstract class Resource<T extends ResourceConfig> {
   async plan(desiredConfig: T): Promise<Plan<T>> {
     await this.validate(desiredConfig);
 
-    const currentConfig = await this.getCurrentConfig();
+    const currentConfig = await this.getCurrentConfig(desiredConfig);
     if (!currentConfig) {
       return Plan.create(ChangeSet.createForNullCurrentConfig(desiredConfig), desiredConfig);
     }
@@ -55,9 +55,9 @@ export abstract class Resource<T extends ResourceConfig> {
     }
   }
 
-  abstract validate(config: ResourceConfig): Promise<boolean>;
+  abstract validate(config: unknown): Promise<boolean>;
 
-  abstract getCurrentConfig(): Promise<T | null>;
+  abstract getCurrentConfig(desiredConfig: T): Promise<T | null>;
 
   abstract calculateOperation(change: ParameterChange): ResourceOperation.MODIFY | ResourceOperation.RECREATE;
 

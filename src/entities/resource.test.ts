@@ -7,19 +7,19 @@ import { expect } from 'chai';
 import { Plan } from './plan';
 
 class TestResource extends Resource<TestConfig> {
-  applyCreate(plan: Plan): Promise<void> {
+  applyCreate(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyDestroy(plan: Plan): Promise<void> {
+  applyDestroy(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyModify(plan: Plan): Promise<void> {
+  applyModify(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyRecreate(plan: Plan): Promise<void> {
+  applyRecreate(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -156,7 +156,7 @@ describe('Resource tests', () => {
     const result = await resourceSpy.apply(
       Plan.create(
         new ChangeSet(ResourceOperation.CREATE, []),
-        { type: 'resource' }
+        { type: 'resource', propA: 'a', propB: 0 }
       )
     )
 
@@ -174,7 +174,7 @@ describe('Resource tests', () => {
     const result = await resourceSpy.apply(
       Plan.create(
         new ChangeSet(ResourceOperation.DESTROY, []),
-        { type: 'resource' }
+        { type: 'resource', propA: 'a', propB: 0 }
       )
     )
 

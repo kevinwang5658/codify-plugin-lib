@@ -2,8 +2,8 @@ import promiseSpawn from '@npmcli/promise-spawn';
 import { SpawnOptions } from 'child_process';
 
 export enum SpawnStatus {
-  SUCCESS,
-  ERROR,
+  SUCCESS = 'success',
+  ERROR = 'error',
 }
 
 export interface SpawnResult {
@@ -23,15 +23,19 @@ export async function codifySpawn(
   extras?: Record<any, any>,
 ): Promise<SpawnResult> {
   try {
-    const stdio = isDebug() ? 'inherit' : 'pipe';
     const result = await promiseSpawn(
       cmd,
       args ?? [],
-      { ...opts, stdio, stdioString: true, shell: true },
-      extras
+      { ...opts, stdio: 'pipe', stdioString: true, shell: true },
+      extras,
     );
 
-    const status = (result.code === 0 && !result.stderr)
+    if (isDebug()) {
+      console.log(`codifySpawn result for: ${cmd}`);
+      console.log(JSON.stringify(result, null, 2))
+    }
+
+    const status = result.code === 0
       ? SpawnStatus.SUCCESS
       : SpawnStatus.ERROR;
 
@@ -48,5 +52,5 @@ export async function codifySpawn(
 }
 
 export function isDebug(): boolean {
-  return process.env.DEBUG != null && process.env.DEBUG.includes('codify');
+  return process.env.DEBUG != null && process.env.DEBUG.includes('codify'); // TODO: replace with debug library
 }

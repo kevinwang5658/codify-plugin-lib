@@ -47,12 +47,11 @@ export abstract class Resource<T extends ResourceConfig> {
       throw new Error(`Internal error: Plan set to wrong resource during apply. Expected ${this.getTypeId()} but got: ${plan.getResourceType()}`);
     }
 
-    const changeSet = plan.changeSet;
     switch (plan.changeSet.operation) {
-      case ResourceOperation.CREATE: return this.applyCreate(changeSet);
-      case ResourceOperation.MODIFY: return this.applyModify(changeSet);
-      case ResourceOperation.RECREATE: return this.applyRecreate(changeSet);
-      case ResourceOperation.DESTROY: return this.applyDestroy(changeSet);
+      case ResourceOperation.CREATE: return this.applyCreate(plan);
+      case ResourceOperation.MODIFY: return this.applyModify(plan);
+      case ResourceOperation.RECREATE: return this.applyRecreate(plan);
+      case ResourceOperation.DESTROY: return this.applyDestroy(plan);
     }
   }
 
@@ -62,11 +61,11 @@ export abstract class Resource<T extends ResourceConfig> {
 
   abstract calculateOperation(change: ParameterChange): ResourceOperation.MODIFY | ResourceOperation.RECREATE;
 
-  abstract applyCreate(changeSet: ChangeSet): Promise<void>;
+  abstract applyCreate(plan: Plan): Promise<void>;
 
-  abstract applyModify(changeSet: ChangeSet): Promise<void>;
+  abstract applyModify(plan: Plan): Promise<void>;
 
-  abstract applyRecreate(changeSet: ChangeSet): Promise<void>;
+  abstract applyRecreate(plan: Plan): Promise<void>;
 
-  abstract applyDestroy(changeSet: ChangeSet): Promise<void>;
+  abstract applyDestroy(plan:Plan): Promise<void>;
 }

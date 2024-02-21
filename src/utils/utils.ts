@@ -18,15 +18,15 @@ type CodifySpawnOptions = {
 
 export async function codifySpawn(
   cmd: string,
-  args: string[],
-  opts?: CodifySpawnOptions,
+  args?: string[],
+  opts?: Omit<CodifySpawnOptions, 'stdio' | 'stdioString' | 'shell'>,
   extras?: Record<any, any>,
 ): Promise<SpawnResult> {
   try {
     const stdio = isDebug() ? 'inherit' : 'pipe';
     const result = await promiseSpawn(
       cmd,
-      args,
+      args ?? [],
       { ...opts, stdio, stdioString: true, shell: true },
       extras
     );

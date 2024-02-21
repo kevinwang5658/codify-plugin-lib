@@ -7,19 +7,19 @@ import { expect } from 'chai';
 import { Plan } from './plan';
 
 class TestResource extends Resource<TestConfig> {
-  applyCreate(changeSet: ChangeSet): Promise<void> {
+  applyCreate(plan: Plan): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyDestroy(changeSet: ChangeSet): Promise<void> {
+  applyDestroy(plan: Plan): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyModify(changeSet: ChangeSet): Promise<void> {
+  applyModify(plan: Plan): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyRecreate(changeSet: ChangeSet): Promise<void> {
+  applyRecreate(plan: Plan): Promise<void> {
     return Promise.resolve(undefined);
   }
 

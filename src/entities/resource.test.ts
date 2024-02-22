@@ -1,6 +1,6 @@
 import { describe } from 'mocha';
 import { Resource } from './resource';
-import { ResourceConfig, ResourceOperation } from 'codify-schemas';
+import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
 import { ChangeSet, ParameterChange } from './change-set';
 import { spy } from 'sinon';
 import { expect } from 'chai';
@@ -15,7 +15,7 @@ class TestResource extends Resource<TestConfig> {
     return Promise.resolve(undefined);
   }
 
-  applyModify(plan: Plan<TestConfig>): Promise<void> {
+  applyModifyParameter(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -179,5 +179,36 @@ describe('Resource tests', () => {
     )
 
     expect(resourceSpy.applyDestroy.calledOnce).to.be.true;
+  })
+
+  it('calls modify the correct number of times', async () => {
+    const resource = new class extends TestResource {
+      getTypeId(): string {
+        return 'resource'
+      }
+    }
+
+    const resourceSpy = spy(resource);
+    const result = await resourceSpy.apply(
+      Plan.create(
+        new ChangeSet(ResourceOperation.MODIFY, [
+          {
+            name: 'propA',
+            newValue: 'a',
+            previousValue: 'b',
+            operation: ParameterOperation.ADD,
+          },
+          {
+            name: 'propB',
+            newValue: 0,
+            previousValue: -1,
+            operation: ParameterOperation.ADD,
+          },
+        ]),
+        { type: 'resource', propA: 'a', propB: 0 }
+      )
+    );
+
+    expect(resourceSpy.applyModifyParameter.calledTwice).to.be.true;
   })
 })

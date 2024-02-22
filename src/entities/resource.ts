@@ -48,8 +48,17 @@ export abstract class Resource<T extends ResourceConfig> {
     }
 
     switch (plan.changeSet.operation) {
+      case ResourceOperation.MODIFY: {
+        const parameterChanges = plan.changeSet.parameterChanges
+          .filter((c) => c.operation !== ParameterOperation.NOOP);
+
+        for (const parameterChange of parameterChanges) {
+          await this.applyModifyParameter(parameterChange, plan);
+        }
+
+        return;
+      }
       case ResourceOperation.CREATE: return this.applyCreate(plan);
-      case ResourceOperation.MODIFY: return this.applyModify(plan);
       case ResourceOperation.RECREATE: return this.applyRecreate(plan);
       case ResourceOperation.DESTROY: return this.applyDestroy(plan);
     }
@@ -63,7 +72,7 @@ export abstract class Resource<T extends ResourceConfig> {
 
   abstract applyCreate(plan: Plan<T>): Promise<void>;
 
-  abstract applyModify(plan: Plan<T>): Promise<void>;
+  abstract applyModifyParameter(parameterChange: ParameterChange, plan: Plan<T>): Promise<void>;
 
   abstract applyRecreate(plan: Plan<T>): Promise<void>;
 

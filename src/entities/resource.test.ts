@@ -5,6 +5,7 @@ import { ChangeSet, ParameterChange } from './change-set';
 import { spy } from 'sinon';
 import { expect } from 'chai';
 import { Plan } from './plan';
+import { StatefulParameter } from './stateful-parameter';
 
 class TestResource extends Resource<TestConfig> {
   applyCreate(plan: Plan<TestConfig>): Promise<void> {
@@ -15,7 +16,7 @@ class TestResource extends Resource<TestConfig> {
     return Promise.resolve(undefined);
   }
 
-  applyModifyParameter(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+  applyModify(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -181,7 +182,7 @@ describe('Resource tests', () => {
     expect(resourceSpy.applyDestroy.calledOnce).to.be.true;
   })
 
-  it('calls modify the correct number of times', async () => {
+  it('calls apply modify', async () => {
     const resource = new class extends TestResource {
       getTypeId(): string {
         return 'resource'
@@ -209,6 +210,142 @@ describe('Resource tests', () => {
       )
     );
 
-    expect(resourceSpy.applyModifyParameter.calledTwice).to.be.true;
+    expect(resourceSpy.applyModify.calledOnce).to.be.true;
+  })
+
+  it('supports the creation of stateful parameters', async () => {
+    const statefulParameter = new class implements StatefulParameter<TestConfig, 'propA'> {
+      get name(): "propA" {
+        return 'propA';
+      }
+
+      applyAdd(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve(undefined);
+      }
+
+      applyModify(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve(undefined);
+      }
+
+      applyRemove(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve(undefined);
+      }
+
+      getCurrent(): Promise<TestConfig["propA"]> {
+        return Promise.resolve(undefined);
+      }
+    }
+
+    const statefulParameterSpy = spy(statefulParameter);
+
+    const resource = new class extends TestResource {
+
+      constructor() {
+        super();
+        this.registerStatefulParameter(statefulParameterSpy)
+      }
+
+      getTypeId(): string {
+        return 'resource'
+      }
+    }
+
+    const resourceSpy = spy(resource);
+    const result = await resourceSpy.apply(
+      Plan.create(
+        new ChangeSet(ResourceOperation.CREATE, [
+          {
+            name: 'propA',
+            newValue: 'a',
+            previousValue: null,
+            operation: ParameterOperation.ADD,
+          },
+          {
+            name: 'propB',
+            newValue: 0,
+            previousValue: null,
+            operation: ParameterOperation.ADD,
+          },
+          {
+            name: 'propC',
+            newValue: 'b',
+            previousValue: null,
+            operation: ParameterOperation.ADD,
+          },
+        ]),
+        { type: 'resource', propA: 'a', propB: 0, propC: 'b' }
+      )
+    );
+
+    expect(statefulParameterSpy.applyAdd.calledOnce).to.be.true;
+    expect(resourceSpy.applyCreate.calledOnce).to.be.true;
+  })
+
+  it('supports the modification of stateful parameters', async () => {
+    const statefulParameter = new class implements StatefulParameter<TestConfig, 'propA'> {
+      get name(): "propA" {
+        return 'propA';
+      }
+
+      applyAdd(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve(undefined);
+      }
+
+      applyModify(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve(undefined);
+      }
+
+      applyRemove(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve(undefined);
+      }
+
+      getCurrent(): Promise<TestConfig["propA"]> {
+        return Promise.resolve(undefined);
+      }
+    }
+
+    const statefulParameterSpy = spy(statefulParameter);
+
+    const resource = new class extends TestResource {
+
+      constructor() {
+        super();
+        this.registerStatefulParameter(statefulParameterSpy)
+      }
+
+      getTypeId(): string {
+        return 'resource'
+      }
+    }
+
+    const resourceSpy = spy(resource);
+    const result = await resourceSpy.apply(
+      Plan.create(
+        new ChangeSet(ResourceOperation.MODIFY, [
+          {
+            name: 'propA',
+            newValue: 'a',
+            previousValue: 'b',
+            operation: ParameterOperation.MODIFY,
+          },
+          {
+            name: 'propB',
+            newValue: 0,
+            previousValue: null,
+            operation: ParameterOperation.ADD,
+          },
+          {
+            name: 'propC',
+            newValue: 'b',
+            previousValue: 'b',
+            operation: ParameterOperation.NOOP,
+          },
+        ]),
+        { type: 'resource', propA: 'a', propB: 0, propC: 'b' }
+      )
+    );
+
+    expect(statefulParameterSpy.applyModify.calledOnce).to.be.true;
+    expect(resourceSpy.applyModify.calledOnce).to.be.true;
   })
 })

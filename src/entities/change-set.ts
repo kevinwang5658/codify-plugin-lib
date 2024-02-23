@@ -3,8 +3,8 @@ import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-sc
 export interface ParameterChange {
   name: string;
   operation: ParameterOperation;
-  previousValue: unknown | null;
-  newValue: unknown | null;
+  previousValue: any | null;
+  newValue: any | null;
 }
 
 export class ChangeSet {

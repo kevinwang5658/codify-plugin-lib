@@ -26,8 +26,10 @@ export abstract class Resource<T extends ResourceConfig> {
     }
 
     // Fetch the status of stateful parameters separately
-    for(const statefulParameter of this.statefulParameters.values()) {
-      const parameterCurrentStatus = await statefulParameter.getCurrent();
+    const desiredConfigStatefulParameters = [...this.statefulParameters.values()]
+      .filter((sp) => desiredConfig[sp.name] !== undefined)
+    for(const statefulParameter of desiredConfigStatefulParameters) {
+      const parameterCurrentStatus = await statefulParameter.getCurrent(desiredConfig[statefulParameter.name]);
       if (parameterCurrentStatus) {
         currentConfig[statefulParameter.name] = parameterCurrentStatus;
       }

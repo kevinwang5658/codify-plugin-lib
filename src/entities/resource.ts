@@ -45,7 +45,9 @@ export abstract class Resource<T extends ResourceConfig> {
     const resourceOperation = parameterChangeSet
       .filter((change) => change.operation !== ParameterOperation.NOOP)
       .reduce((operation: ResourceOperation, curr: ParameterChange) => {
-        const newOperation = this.calculateOperation(curr);
+        const newOperation = !this.statefulParameters.has(curr.name)
+          ? this.calculateOperation(curr)
+          : ResourceOperation.MODIFY; // All stateful parameters are modify only
         return ChangeSet.combineResourceOperations(operation, newOperation);
       }, ResourceOperation.NOOP);
 

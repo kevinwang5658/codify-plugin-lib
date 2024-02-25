@@ -32,14 +32,16 @@ type CodifySpawnOptions = {
 export async function codifySpawn(
   cmd: string,
   args?: string[],
-  opts?: Omit<CodifySpawnOptions, 'stdio' | 'stdioString' | 'shell'> & { throws?: boolean },
+  opts?: Omit<CodifySpawnOptions, 'stdio' | 'stdioString'> & { throws?: boolean },
   extras?: Record<any, any>,
 ): Promise<SpawnResult> {
   try {
+    // TODO: Need to benchmark the effects of using sh vs zsh for shell.
+    //  Seems like zsh shells run slower
     const result = await promiseSpawn(
       cmd,
       args ?? [],
-      { ...opts, stdio: 'pipe', stdioString: true, shell: true },
+      { ...opts, stdio: 'pipe', stdioString: true, shell: opts?.shell ?? process.env.SHELL },
       extras,
     );
 
@@ -57,12 +59,13 @@ export async function codifySpawn(
       data: status === SpawnStatus.SUCCESS ? result.stdout : result.stderr
     }
   } catch (error) {
-    if (opts?.throws ?? true) {
-      throw error;
+    const shouldThrow = opts?.throws ?? true;
+    if (isDebug() || shouldThrow) {
+      console.error(`CodifySpawn Error for command ${cmd} ${args}`, error);
     }
 
-    if (isDebug()) {
-      console.error(`CodifySpawn Error for command ${cmd} ${args}`, error);
+    if (shouldThrow) {
+      throw error;
     }
 
     return {

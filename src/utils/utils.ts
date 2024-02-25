@@ -16,6 +16,19 @@ type CodifySpawnOptions = {
   stdioString?: boolean;
 } & SpawnOptions
 
+/**
+ *
+ * @param cmd Command to run. Ex: `rm -rf`
+ * @param args Optional additional arguments to append
+ * @param opts Standard options for node spawn. Additional argument:
+ * throws determines if a shell will throw a JS error. Defaults to true
+ * @param extras From PromiseSpawn
+ *
+ * @see promiseSpawn
+ * @see spawn
+ *
+ * @returns SpawnResult { status: SUCCESS | ERROR; data: string }
+ */
 export async function codifySpawn(
   cmd: string,
   args?: string[],
@@ -44,15 +57,17 @@ export async function codifySpawn(
       data: status === SpawnStatus.SUCCESS ? result.stdout : result.stderr
     }
   } catch (error) {
-    if (opts?.throws) {
+    if (opts?.throws ?? true) {
       throw error;
-    } else {
-      console.error(`CodifySpawn Error for command ${cmd} ${args}`, error);
+    }
 
-      return {
-        status: SpawnStatus.ERROR,
-        data: error as string,
-      }
+    if (isDebug()) {
+      console.error(`CodifySpawn Error for command ${cmd} ${args}`, error);
+    }
+
+    return {
+      status: SpawnStatus.ERROR,
+      data: error as string,
     }
   }
 }

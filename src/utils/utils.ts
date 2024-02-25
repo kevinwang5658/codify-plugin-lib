@@ -19,7 +19,7 @@ type CodifySpawnOptions = {
 export async function codifySpawn(
   cmd: string,
   args?: string[],
-  opts?: Omit<CodifySpawnOptions, 'stdio' | 'stdioString' | 'shell'>,
+  opts?: Omit<CodifySpawnOptions, 'stdio' | 'stdioString' | 'shell'> & { throws?: boolean },
   extras?: Record<any, any>,
 ): Promise<SpawnResult> {
   try {
@@ -43,10 +43,16 @@ export async function codifySpawn(
       status,
       data: status === SpawnStatus.SUCCESS ? result.stdout : result.stderr
     }
-  } catch (e) {
-    return {
-      status: SpawnStatus.ERROR,
-      data: e as string,
+  } catch (error) {
+    if (opts?.throws) {
+      throw error;
+    } else {
+      console.error(`CodifySpawn Error for command ${cmd} ${args}`, error);
+
+      return {
+        status: SpawnStatus.ERROR,
+        data: error as string,
+      }
     }
   }
 }

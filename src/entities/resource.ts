@@ -1,7 +1,7 @@
 import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
-import { ChangeSet, ParameterChange } from './change-set';
-import { Plan } from './plan';
-import { StatefulParameter } from './stateful-parameter';
+import { ChangeSet, ParameterChange } from './change-set.js';
+import { Plan } from './plan.js';
+import { StatefulParameter } from './stateful-parameter.js';
 
 export abstract class Resource<T extends ResourceConfig> {
 
@@ -65,14 +65,14 @@ export abstract class Resource<T extends ResourceConfig> {
     switch (plan.changeSet.operation) {
       case ResourceOperation.MODIFY: {
         const parameterChanges = plan.changeSet.parameterChanges
-          .filter((c) => c.operation !== ParameterOperation.NOOP);
+          .filter((c: ParameterChange) => c.operation !== ParameterOperation.NOOP);
 
-        const statelessParameterChanges = parameterChanges.filter((pc) => !this.statefulParameters.has(pc.name))
+        const statelessParameterChanges = parameterChanges.filter((pc: ParameterChange) => !this.statefulParameters.has(pc.name))
         if (statelessParameterChanges.length > 0) {
           await this.applyModify(plan);
         }
 
-        const statefulParameterChanges = parameterChanges.filter((pc) => this.statefulParameters.has(pc.name))
+        const statefulParameterChanges = parameterChanges.filter((pc: ParameterChange) => this.statefulParameters.has(pc.name))
         for (const parameterChange of statefulParameterChanges) {
           const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
           switch (parameterChange.operation) {
@@ -96,7 +96,7 @@ export abstract class Resource<T extends ResourceConfig> {
       case ResourceOperation.CREATE: {
         await this.applyCreate(plan);
         const statefulParameterChanges = plan.changeSet.parameterChanges
-          .filter((pc) => this.statefulParameters.has(pc.name))
+          .filter((pc: ParameterChange) => this.statefulParameters.has(pc.name))
 
         for (const parameterChange of statefulParameterChanges) {
           const statefulParameter = this.statefulParameters.get(parameterChange.name)!;

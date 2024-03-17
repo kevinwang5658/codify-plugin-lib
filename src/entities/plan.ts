@@ -1,4 +1,4 @@
-import { ChangeSet } from './change-set';
+import { ChangeSet } from './change-set.js';
 import {
   PlanResponseData,
   ResourceConfig,

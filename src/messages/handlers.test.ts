@@ -1,7 +1,7 @@
 import { MessageHandler } from './handlers';
-import { createStubInstance } from 'sinon';
 import { Plugin } from '../entities/plugin';
-import { expect } from 'chai';
+import { describe, it, expect } from 'vitest';
+import { createStubInstance } from 'sinon';
 
 describe('Message handler tests', () => {
   it('handles plan requests', async () => {

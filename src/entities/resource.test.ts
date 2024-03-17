@@ -1,11 +1,10 @@
-import { describe } from 'mocha';
 import { Resource } from './resource';
 import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
 import { ChangeSet, ParameterChange } from './change-set';
 import { spy } from 'sinon';
-import { expect } from 'chai';
 import { Plan } from './plan';
 import { StatefulParameter } from './stateful-parameter';
+import { describe, it, expect } from 'vitest'
 
 class TestResource extends Resource<TestConfig> {
   applyCreate(plan: Plan<TestConfig>): Promise<void> {

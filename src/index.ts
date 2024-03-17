@@ -1,13 +1,14 @@
-import { Plugin } from './entities/plugin';
-import { MessageHandler } from './messages/handlers';
+import { Plugin } from './entities/plugin.js';
+import { MessageHandler } from './messages/handlers.js';
 
-export * from './entities/resource'
-export * from './entities/plugin'
-export * from './entities/change-set'
-export * from './entities/plan'
-export * from './utils/test-utils'
-export * from './utils/utils'
+export * from './entities/resource.js'
+export * from './entities/plugin.js'
+export * from './entities/change-set.js'
+export * from './entities/plan.js'
+export * from './entities/stateful-parameter.js'
 
+export * from './utils/test-utils.js'
+export * from './utils/utils.js'
 
 export async function runPlugin(plugin: Plugin) {
   await plugin.onInitialize();

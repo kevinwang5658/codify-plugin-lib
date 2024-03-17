@@ -1,4 +1,4 @@
-import { Resource } from './resource';
+import { Resource } from './resource.js';
 import {
   ApplyRequestData,
   PlanRequestData,
@@ -7,7 +7,7 @@ import {
   ValidateRequestData,
   ValidateResponseData
 } from 'codify-schemas';
-import { Plan } from './plan';
+import { Plan } from './plan.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<ResourceConfig>>;

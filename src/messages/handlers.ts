@@ -1,4 +1,3 @@
-import Ajv, { SchemaObject, ValidateFunction } from 'ajv';
 import { Plugin } from '../entities/plugin.js';
 import addFormats from 'ajv-formats';
 import {
@@ -13,6 +12,7 @@ import {
   ApplyRequestDataSchema,
   ApplyResponseDataSchema
 } from 'codify-schemas';
+import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
 
 const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
   'validate': {
@@ -36,14 +36,14 @@ const SupportedRequests: Record<string, { requestValidator: SchemaObject; respon
 }
 
 export class MessageHandler {
-  private ajv: any;
+  private ajv: Ajv2020.default;
   private readonly plugin: Plugin;
   private messageSchemaValidator: ValidateFunction;
   private requestValidators: Map<string, ValidateFunction>;
   private responseValidators: Map<string, ValidateFunction>;
 
   constructor(plugin: Plugin) {
-    this.ajv = new Ajv.default({ strict: true, code: { esm: true } });
+    this.ajv = new Ajv2020.default({ strict: true });
     addFormats.default(this.ajv);
     this.ajv.addSchema(ResourceSchema);
     this.plugin = plugin;

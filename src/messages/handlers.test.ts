@@ -1,11 +1,12 @@
-import { MessageHandler } from './handlers';
-import { Plugin } from '../entities/plugin';
+import { MessageHandler } from './handlers.js';
+import { Plugin } from '../entities/plugin.js';
 import { describe, it, expect } from 'vitest';
-import { createStubInstance } from 'sinon';
+import { vi } from 'vitest'
+import { mock } from 'vitest-mock-extended'
 
 describe('Message handler tests', () => {
   it('handles plan requests', async () => {
-    const plugin = createStubInstance(Plugin);
+    const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
@@ -21,11 +22,11 @@ describe('Message handler tests', () => {
       })
     } catch (e) {}
 
-    expect(plugin.plan.calledOnce).to.be.true;
+    expect(plugin.plan.mock.calls.length).to.eq(1);
   })
 
   it('rejects bad plan requests', async () => {
-    const plugin = createStubInstance(Plugin);
+    const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
@@ -33,7 +34,6 @@ describe('Message handler tests', () => {
       await handler.onMessage({
         cmd: 'plan',
         data: {
-          type: 'resourceType',
           name: '1name',
           prop1: 'A',
           prop2: 'B',
@@ -41,11 +41,11 @@ describe('Message handler tests', () => {
       })
     } catch (e) {}
 
-    expect(plugin.plan.called).to.be.false;
+    expect(plugin.plan.mock.calls.length).to.eq(0);
   })
 
   it('handles apply requests', async () => {
-    const plugin = createStubInstance(Plugin);
+    const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
@@ -58,11 +58,11 @@ describe('Message handler tests', () => {
       })
     } catch (e) {}
 
-    expect(plugin.apply.calledOnce).to.be.true;
+    expect(plugin.apply.mock.calls.length).to.be.eq(1);
   })
 
-  it('rejects bad plan requests', async () => {
-    const plugin = createStubInstance(Plugin);
+  it('rejects bad apply requests', async () => {
+    const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
@@ -73,11 +73,11 @@ describe('Message handler tests', () => {
       })
     } catch (e) {}
 
-    expect(plugin.apply.called).to.be.false;
+    expect(plugin.apply.mock.calls.length).to.be.eq(0);
   })
 
   it('handles validate requests', async () => {
-    const plugin = createStubInstance(Plugin);
+    const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
@@ -103,11 +103,11 @@ describe('Message handler tests', () => {
       })
     } catch (e) {}
 
-    expect(plugin.validate.calledOnce).to.be.true;
+    expect(plugin.validate.mock.calls.length).to.eq(1);
   })
 
   it('rejects bad validate requests', async () => {
-    const plugin = createStubInstance(Plugin);
+    const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
@@ -118,7 +118,7 @@ describe('Message handler tests', () => {
       })
     } catch (e) {}
 
-    expect(plugin.apply.called).to.be.false;
+    expect(plugin.apply.mock.calls.length).to.be.eq(0);
   })
 
 });

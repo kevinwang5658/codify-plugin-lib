@@ -13,13 +13,15 @@ export abstract class Resource<T extends ResourceConfig> {
 
   abstract getTypeId(): string;
 
+  getDependencyTypeIds(): string[] {
+    return this.dependencies.map((d) => d.getTypeId())
+  }
+
   async onInitialize(): Promise<void> {}
 
   // TODO: Add state in later.
   //  Calculate change set from current config -> state -> desired in the future
   async plan(desiredConfig: T): Promise<Plan<T>> {
-    await this.validate(desiredConfig);
-
     const currentConfig = await this.getCurrentConfig(desiredConfig);
     if (!currentConfig) {
       return Plan.create(ChangeSet.createForNullCurrentConfig(desiredConfig), desiredConfig);
@@ -114,7 +116,7 @@ export abstract class Resource<T extends ResourceConfig> {
     this.statefulParameters.set(parameter.name as string, parameter);
   }
 
-  abstract validate(config: unknown): Promise<boolean>;
+  abstract validate(config: unknown): Promise<string | undefined>;
 
   abstract getCurrentConfig(desiredConfig: T): Promise<T | null>;
 

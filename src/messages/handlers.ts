@@ -1,20 +1,27 @@
 import { Plugin } from '../entities/plugin.js';
 import addFormats from 'ajv-formats';
 import {
+  ApplyRequestDataSchema,
+  ApplyResponseDataSchema,
+  InitializeRequestDataSchema,
+  InitializeResponseDataSchema,
   IpcMessage,
   IpcMessageSchema,
-  ResourceSchema,
-  ValidateRequestDataSchema,
-  ValidateResponseDataSchema,
   MessageStatus,
   PlanRequestDataSchema,
   PlanResponseDataSchema,
-  ApplyRequestDataSchema,
-  ApplyResponseDataSchema
+  ResourceSchema,
+  ValidateRequestDataSchema,
+  ValidateResponseDataSchema
 } from 'codify-schemas';
 import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
 
 const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
+  'initialize': {
+    requestValidator: InitializeRequestDataSchema,
+    responseValidator: InitializeResponseDataSchema,
+    handler: async (plugin: Plugin) => plugin.initialize()
+  },
   'validate': {
     requestValidator: ValidateRequestDataSchema,
     responseValidator: ValidateResponseDataSchema,

@@ -1,6 +1,7 @@
 import { Resource } from './resource.js';
 import {
   ApplyRequestData,
+  InitializeResponseData,
   PlanRequestData,
   PlanResponseData,
   ResourceConfig,
@@ -18,21 +19,38 @@ export class Plugin {
     this.planStorage = new Map();
   }
 
-  async onInitialize(): Promise<void> {
+  async initialize(): Promise<InitializeResponseData> {
+    for (const resource of this.resources.values()) {
+      await resource.onInitialize();
+    }
 
+    return {
+      resourceDefinitions: [...this.resources.values()]
+        .map((r) => ({
+          type: r.getTypeId(),
+          dependencies: r.getDependencyTypeIds(),
+        }))
+    }
   }
 
   async validate(data: ValidateRequestData): Promise<ValidateResponseData> {
+    const totalErrors = [];
     for (const config of data.configs) {
       if (!this.resources.has(config.type)) {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
-      await this.resources.get(config.type)!.validate(config);
+      const error = await this.resources.get(config.type)!.validate(config);
+      if (error) {
+        totalErrors.push(error);
+      }
     }
 
     await this.crossValidateResources(data.configs);
-    return null;
+    return {
+      isValid: true,
+      errors: totalErrors.length !== 0 ? totalErrors : null,
+    }
   }
 
   async plan(data: PlanRequestData): Promise<PlanResponseData> {

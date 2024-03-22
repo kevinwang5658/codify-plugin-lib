@@ -1,10 +1,10 @@
-import { Resource } from './resource';
+import { Resource } from './resource.js';
 import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
-import { ChangeSet, ParameterChange } from './change-set';
+import { ChangeSet, ParameterChange } from './change-set.js';
 import { spy } from 'sinon';
-import { Plan } from './plan';
-import { StatefulParameter } from './stateful-parameter';
-import { describe, it, expect } from 'vitest'
+import { Plan } from './plan.js';
+import { StatefulParameter } from './stateful-parameter.js';
+import { describe, expect, it } from 'vitest'
 
 class TestResource extends Resource<TestConfig> {
   applyCreate(plan: Plan<TestConfig>): Promise<void> {
@@ -27,12 +27,12 @@ class TestResource extends Resource<TestConfig> {
     return ResourceOperation.MODIFY;
   }
 
-  async getCurrentConfig(): Promise<TestConfig> {
-    return Promise.resolve(undefined);
+  async getCurrentConfig(): Promise<TestConfig | null> {
+    return null;
   }
 
-  validate(config: ResourceConfig): Promise<boolean> {
-    return Promise.resolve(false);
+  async validate(config: ResourceConfig): Promise<string | undefined> {
+    return undefined;
   }
 
   getTypeId(): string {
@@ -127,7 +127,7 @@ describe('Resource tests', () => {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrentConfig(): Promise<TestConfig> {
+      async getCurrentConfig(): Promise<TestConfig | null> {
         return null;
       }
     }
@@ -230,8 +230,8 @@ describe('Resource tests', () => {
         return Promise.resolve(undefined);
       }
 
-      getCurrent(): Promise<TestConfig["propA"]> {
-        return Promise.resolve(undefined);
+      async getCurrent(): Promise<TestConfig["propA"]> {
+        return '';
       }
     }
 
@@ -298,8 +298,8 @@ describe('Resource tests', () => {
         return Promise.resolve(undefined);
       }
 
-      getCurrent(): Promise<TestConfig["propA"]> {
-        return Promise.resolve(undefined);
+      async getCurrent(): Promise<TestConfig["propA"]> {
+        return '';
       }
     }
 

@@ -1,6 +1,6 @@
 {
   "name": "codify-plugin-lib",
-  "version": "1.0.32",
+  "version": "1.0.34",
   "description": "",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",

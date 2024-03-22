@@ -3,6 +3,8 @@ import { ChangeSet, ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 
+export type ErrorMessage = string;
+
 export abstract class Resource<T extends ResourceConfig> {
 
   private statefulParameters: Map<string, StatefulParameter<T, keyof T>> = new Map();
@@ -116,7 +118,7 @@ export abstract class Resource<T extends ResourceConfig> {
     this.statefulParameters.set(parameter.name as string, parameter);
   }
 
-  abstract validate(config: unknown): Promise<string | undefined>;
+  abstract validate(config: unknown): Promise<ErrorMessage[] | undefined>;
 
   abstract getCurrentConfig(desiredConfig: T): Promise<T | null>;
 

@@ -68,16 +68,16 @@ export class MessageHandler {
 
   async onMessage(message: unknown): Promise<void> {
     if (!this.validateMessage(message)) {
-      throw new Error(`Message is malformed: ${JSON.stringify(this.messageSchemaValidator.errors, null, 2)}`);
+      throw new Error(`Plugin: ${this.plugin}. Message is malformed: ${JSON.stringify(this.messageSchemaValidator.errors, null, 2)}`);
     }
 
     if (!this.requestValidators.has(message.cmd)) {
-      throw new Error(`Unsupported message: ${message.cmd}`);
+      throw new Error(`Plugin: ${this.plugin}. Unsupported message: ${message.cmd}`);
     }
 
     const requestValidator = this.requestValidators.get(message.cmd)!;
     if (!requestValidator(message.data)) {
-      throw new Error(`Malformed message data: ${JSON.stringify(requestValidator.errors, null, 2)}`)
+      throw new Error(`Plugin: ${this.plugin}. cmd: ${message.cmd}. Malformed message data: ${JSON.stringify(requestValidator.errors, null, 2)}`)
     }
 
     let result: unknown;
@@ -95,7 +95,7 @@ export class MessageHandler {
 
     const responseValidator = this.responseValidators.get(message.cmd);
     if (responseValidator && !responseValidator(result)) {
-      throw new Error(`Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}`)
+      throw new Error(`Plugin: ${this.plugin}. Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}`)
     }
 
     process.send!({

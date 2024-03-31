@@ -42,14 +42,14 @@ export class Plugin {
 
       const error = await this.resources.get(config.type)!.validate(config);
       if (error) {
-        totalErrors.push(error);
+        totalErrors.push(...error);
       }
     }
 
     await this.crossValidateResources(data.configs);
     return {
       isValid: true,
-      errors: totalErrors.length !== 0 ? totalErrors : null,
+      errors: totalErrors,
     }
   }
 

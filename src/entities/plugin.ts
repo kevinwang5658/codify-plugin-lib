@@ -65,11 +65,11 @@ export class Plugin {
   }
 
   async apply(data: ApplyRequestData): Promise<void> {
-    const { planId } = data;
-    const plan = this.planStorage.get(planId);
-    if (!plan) {
-      throw new Error(`Plan with id: ${planId} was not found`);
+    if (!data.planId && !data.plan) {
+      throw new Error(`For applies either plan or planId must be supplied`);
     }
+
+    const plan = this.resolvePlan(data);
 
     const resource = this.resources.get(plan.getResourceType());
     if (!resource) {
@@ -77,6 +77,20 @@ export class Plugin {
     }
 
     await resource.apply(plan);
+  }
+
+  private resolvePlan(data: ApplyRequestData): Plan<ResourceConfig> {
+    const { planId, plan: planRequest } = data;
+
+    if (planId) {
+      if (!this.planStorage.has(planId)) {
+        throw new Error(`Plan with id: ${planId} was not found`);
+      }
+
+      return this.planStorage.get(planId)!
+    }
+
+    return Plan.fromResponse(data.plan);
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

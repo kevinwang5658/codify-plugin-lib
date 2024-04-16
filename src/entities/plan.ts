@@ -1,8 +1,5 @@
 import { ChangeSet } from './change-set.js';
-import {
-  PlanResponseData,
-  ResourceConfig,
-} from 'codify-schemas';
+import { ApplyRequestData, PlanResponseData, ResourceConfig, } from 'codify-schemas';
 import { randomUUID } from 'crypto';
 
 export class Plan<T extends ResourceConfig> {
@@ -26,6 +23,31 @@ export class Plan<T extends ResourceConfig> {
 
   getResourceType(): string {
     return this.resourceConfig.type;
+  }
+
+  static fromResponse(data: ApplyRequestData['plan']): Plan<ResourceConfig> {
+    if (!data) {
+      throw new Error('Data is empty');
+    }
+
+    return new Plan(
+      randomUUID(),
+      new ChangeSet(
+        data.operation,
+        data.parameters.map(value => ({
+          ...value,
+          previousValue: null,
+        })),
+      ),
+      {
+        type: data.resourceType,
+        name: data.resourceName,
+        ...(data.parameters.reduce(
+          (prev, { name, newValue }) => Object.assign(prev, { [name]: newValue }),
+          {}
+        ))
+      },
+    );
   }
 
   toResponse(): PlanResponseData {

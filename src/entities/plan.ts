@@ -1,16 +1,26 @@
-import { ChangeSet } from './change-set.js';
-import { ApplyRequestData, PlanResponseData, ResourceConfig, } from 'codify-schemas';
+import { ChangeSet, ParameterChange } from './change-set.js';
+import {
+  ApplyRequestData,
+  ParameterOperation,
+  PlanResponseData,
+  ResourceConfig,
+  ResourceOperation,
+} from 'codify-schemas';
 import { randomUUID } from 'crypto';
+
+export interface ParameterOption {
+
+}
 
 export class Plan<T> {
   id: string;
   changeSet: ChangeSet;
-  desiredParameters: T & ResourceConfig;
+  desiredConfig: T & ResourceConfig;
 
-  constructor(id: string, changeSet: ChangeSet, resourceConfig: T & ResourceConfig) {
+  constructor(id: string, changeSet: ChangeSet, desiredConfig: T & ResourceConfig) {
     this.id = id;
     this.changeSet = changeSet;
-    this.desiredParameters = resourceConfig;
+    this.desiredConfig = desiredConfig;
   }
 
   static create<T>(changeSet: ChangeSet, desiredConfig: T & ResourceConfig): Plan<T> {
@@ -21,8 +31,37 @@ export class Plan<T> {
     )
   }
 
-  // static create<T extends StringIndexedObject>(desiredConfig: T, currentConfig: T, resourceConfiguration: ResourceConfiguration<T>): Plan<T> {
-  //   const { parameterOptions, statefulParameters } = resourceConfiguration;
+  static createNew<T extends ResourceConfig>(desiredConfig: T, currentConfig: T | null): Plan<T> {
+    const { parameterOptions, statefulParameters } = resourceConfiguration;
+
+    // TODO: After adding in state files, need to calculate deletes here
+    //  Where current config exists and state config exists but desired config doesn't
+
+    // Explanation: This calculates the change set of the parameters between the
+    // two configs and then passes it to ChangeSet to calculate the overall
+    // operation for the resource
+    const parameterChangeSet = ChangeSet.calculateParameterChangeSet(desiredConfig, currentConfig, { statefulMode: false }); // TODO: Change this in the future for stateful mode
+    const resourceOperation = parameterChangeSet
+      .filter((change) => change.operation !== ParameterOperation.NOOP)
+      .reduce((operation: ResourceOperation, curr: ParameterChange) => {
+        let newOperation: ResourceOperation;
+        if (this.statefulParameters.has(curr.name)) {
+          newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
+        } else if (this.options.parameterOptions?.[curr.name]?.planOperation !== undefined) {
+          newOperation = this.options.parameterOptions?.[curr.name]?.planOperation!;
+        } else {
+          newOperation = ResourceOperation.RECREATE; // Re-create should handle the majority of use cases
+        }
+
+        return ChangeSet.combineResourceOperations(operation, newOperation);
+      }, ResourceOperation.NOOP);
+
+    return new Plan(
+      randomUUID(),
+      new ChangeSet(resourceOperation, parameterChangeSet),
+      desiredConfig
+    );
+  }
   //
   //
   //   // Explanation: This calculates the change set of the parameters between the
@@ -46,7 +85,7 @@ export class Plan<T> {
   // }
 
   getResourceType(): string {
-    return this.desiredParameters.type;
+    return this.desiredConfig.type;
   }
 
   static fromResponse(data: ApplyRequestData['plan']): Plan<ResourceConfig> {
@@ -78,8 +117,8 @@ export class Plan<T> {
     return {
       planId: this.id,
       operation: this.changeSet.operation,
-      resourceName: this.desiredParameters.name,
-      resourceType: this.desiredParameters.type,
+      resourceName: this.desiredConfig.name,
+      resourceType: this.desiredConfig.type,
       parameters: this.changeSet.parameterChanges,
     }
   }

@@ -20,13 +20,13 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   private readonly options: ResourceConfiguration<T>;
 
-  protected constructor(config: ResourceConfiguration<T>) {
-    this.validateConstructorParams(config);
+  protected constructor(configuration: ResourceConfiguration<T>) {
+    this.validateResourceConfiguration(configuration);
 
-    this.typeId = config.name;
+    this.typeId = configuration.name;
     this.statefulParameters = new Map(Object.entries(/*config.statefulParameters ?? */{}));
-    this.dependencies = config.dependencies ?? [];
-    this.options = config;
+    this.dependencies = configuration.dependencies ?? [];
+    this.options = configuration;
   }
 
   getDependencyTypeIds(): string[] {
@@ -39,55 +39,38 @@ export abstract class Resource<T extends StringIndexedObject> {
   //  Calculate change set from current config -> state -> desired in the future
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
   async plan(desiredConfig: T & ResourceConfig): Promise<Plan<T>> {
-    const { resourceInfo, parameters } = splitUserConfig(desiredConfig);
+    const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
 
-    const currentConfig = await this.getCurrentConfig(parameters);
-    if (!currentConfig) {
+    const currentParameters = await this.getCurrent(desiredParameters);
+    if (!currentParameters) {
       return Plan.create(ChangeSet.newCreate(desiredConfig), desiredConfig);
     }
 
     // Check that the config doesn't contain any stateful parameters
-    if (Object.keys(currentConfig).some((k) => this.statefulParameters.has(k))) {
+    if (Object.keys(currentParameters).some((k) => this.statefulParameters.has(k))) {
       throw new Error(`Resource ${this.typeId} is returning stateful parameters in getCurrentConfig`);
     }
 
     // Fetch the status of stateful parameters separately
     const statefulParameters = [...this.statefulParameters.values()]
-      .filter((sp) => parameters[sp.name] !== undefined)
+      .filter((sp) => desiredParameters[sp.name] !== undefined)
 
     for(const statefulParameter of statefulParameters) {
-      const parameterConfig = await statefulParameter.getCurrent(parameters[statefulParameter.name]);
+      const parameterConfig = await statefulParameter.getCurrent(desiredParameters[statefulParameter.name]);
       if (parameterConfig) {
-        currentConfig[statefulParameter.name] = parameterConfig;
+        currentParameters[statefulParameter.name] = parameterConfig;
       }
     }
 
-    // TODO: After adding in state files, need to calculate deletes here
-    //  Where current config exists and state config exists but desired config doesn't
+    return Plan.createNew(
+      desiredConfig,
+      { ...currentParameters, ...resourceMetadata },
+    )
 
-    // Explanation: This calculates the change set of the parameters between the
-    // two configs and then passes it to ChangeSet to calculate the overall
-    // operation for the resource
-    const parameterChangeSet = ChangeSet.calculateParameterChangeSet(currentConfig, parameters, { statefulMode: false }); // TODO: Change this in the future for stateful mode
-    const resourceOperation = parameterChangeSet
-      .filter((change) => change.operation !== ParameterOperation.NOOP)
-      .reduce((operation: ResourceOperation, curr: ParameterChange) => {
-        let newOperation: ResourceOperation;
-        if (this.statefulParameters.has(curr.name)) {
-          newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-        } else if (this.options.parameterOptions?.[curr.name]?.planOperation !== undefined) {
-          newOperation = this.options.parameterOptions?.[curr.name]?.planOperation!;
-        } else {
-          newOperation = ResourceOperation.RECREATE; // Re-create should handle the majority of use cases
-        }
-
-        return ChangeSet.combineResourceOperations(operation, newOperation);
-      }, ResourceOperation.NOOP);
-
-    return Plan.create(
-      new ChangeSet(resourceOperation, parameterChangeSet),
-      desiredConfig
-    );
+    // return Plan.create(
+    //   new ChangeSet(resourceOperation, parameterChangeSet),
+    //   desiredConfig
+    // );
   }
 
   async apply(plan: Plan<T>): Promise<void> {
@@ -172,10 +155,10 @@ export abstract class Resource<T extends StringIndexedObject> {
     await this.applyDestroy(plan);
   }
 
-  private validateConstructorParams(data: ResourceConfiguration<T>) {
+  private validateResourceConfiguration(data: ResourceConfiguration<T>) {
     // A parameter cannot be both stateful and stateless
-    if (data.parameterOptions && data.statefulParameters) {
-      const parameters = [...Object.keys(data.parameterOptions)];
+    if (data.parameterConfigurations && data.statefulParameters) {
+      const parameters = [...Object.keys(data.parameterConfigurations)];
       const statefulParameterSet = new Set(Object.keys(data.statefulParameters));
 
       const intersection = parameters.some((p) => statefulParameterSet.has(p));
@@ -187,7 +170,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   abstract validate(config: unknown): Promise<ErrorMessage[] | undefined>;
 
-  abstract getCurrentConfig(desiredConfig: T): Promise<T | null>;
+  abstract getCurrent(desiredConfig: T): Promise<T | null>;
 
   abstract applyCreate(plan: Plan<T>): Promise<void>;
 

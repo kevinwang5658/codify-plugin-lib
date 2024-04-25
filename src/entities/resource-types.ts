@@ -7,7 +7,7 @@ export type ErrorMessage = string;
 /**
  * Customize properties for specific parameters. This will alter the way the library process changes to the parameter.
  */
-export interface ResourceParameterConfiguration<T> {
+export interface ParameterConfiguration<T> {
   /**
    * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to re-create.
    */
@@ -29,7 +29,7 @@ export interface ResourceConfiguration<T> {
   callStatefulParameterRemoveOnDestroy?: boolean,
   dependencies?: Resource<any>[];
   statefulParameters?: Partial<Record<keyof T, StatefulParameter<T, keyof T>>>;
-  parameterOptions?: Partial<Record<keyof T, ResourceParameterConfiguration<T>>>
+  parameterConfigurations?: Partial<Record<keyof T, ParameterConfiguration<T>>>
 }
 
 export interface ResourceDefinition {

@@ -38,8 +38,12 @@ class TestResource extends Resource<TestConfig> {
     return ResourceOperation.MODIFY;
   }
 
-  async getCurrentConfig(): Promise<TestConfig | null> {
-    return null;
+  async getCurrent(): Promise<TestConfig | null> {
+    return {
+      propA: 'a',
+      propB: 10,
+      propC: 'c',
+    };
   }
 
   async validate(config: unknown): Promise<string[] | undefined> {
@@ -58,7 +62,7 @@ describe('Resource tests', () => {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrentConfig(): Promise<TestConfig> {
+      async getCurrent(): Promise<TestConfig> {
         return {
           type: 'type',
           name: 'name',
@@ -76,7 +80,7 @@ describe('Resource tests', () => {
       propB: 10,
     })
 
-    expect(result.desiredParameters).to.deep.eq({
+    expect(result.desiredConfig).to.deep.eq({
       type: 'type',
       name: 'name',
       propA: 'propA',
@@ -107,7 +111,7 @@ describe('Resource tests', () => {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrentConfig(): Promise<TestConfig> {
+      async getCurrent(): Promise<TestConfig> {
         return {
           type: 'type',
           name: 'name',
@@ -140,7 +144,7 @@ describe('Resource tests', () => {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrentConfig(): Promise<TestConfig | null> {
+      async getCurrent(): Promise<TestConfig | null> {
         return null;
       }
     }

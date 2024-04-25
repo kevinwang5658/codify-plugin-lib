@@ -82,8 +82,8 @@ export function isDebug(): boolean {
 
 export function splitUserConfig<T extends StringIndexedObject>(
   config: T & ResourceConfig
-): { parameters: T;  resourceInfo: ResourceConfig} {
-  const resourceInfo = {
+): { parameters: T;  resourceMetadata: ResourceConfig} {
+  const resourceMetadata = {
     type: config.type,
     name: config.name,
     dependsOn: config.dependsOn,
@@ -92,6 +92,6 @@ export function splitUserConfig<T extends StringIndexedObject>(
   const { type, name, dependsOn, ...parameters } = config;
   return {
     parameters: parameters as T,
-    resourceInfo
+    resourceMetadata,
   };
 }

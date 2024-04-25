@@ -1,7 +1,6 @@
 import promiseSpawn from '@npmcli/promise-spawn';
 import { SpawnOptions } from 'child_process';
-import { ResourceConfig } from 'codify-schemas';
-import { StringIndexedObject } from './common-types.js';
+import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 
 export enum SpawnStatus {
   SUCCESS = 'success',

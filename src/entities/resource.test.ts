@@ -1,11 +1,17 @@
 import { Resource } from './resource.js';
-import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
+import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { ChangeSet, ParameterChange } from './change-set.js';
 import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { describe, expect, it } from 'vitest'
-import { ResourceConfiguration } from './resource-types';
+import { ResourceConfiguration } from './resource-types.js';
+
+interface TestConfig extends StringIndexedObject {
+  propA: string;
+  propB: number;
+  propC?: string;
+}
 
 class TestResource extends Resource<TestConfig> {
   constructor(options: ResourceConfiguration<TestConfig>) {
@@ -20,7 +26,7 @@ class TestResource extends Resource<TestConfig> {
     return Promise.resolve(undefined);
   }
 
-  applyModify(plan: Plan<TestConfig>): Promise<void> {
+  applyModify(parameterName: string, newValue: unknown, previousValue: unknown, plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -36,20 +42,18 @@ class TestResource extends Resource<TestConfig> {
     return null;
   }
 
-  async validate(config: ResourceConfig): Promise<string | undefined> {
+  async validate(config: unknown): Promise<string[] | undefined> {
     return undefined;
   }
-}
-
-interface TestConfig {
-  propA: string;
-  propB: number;
-  propC?: string;
 }
 
 describe('Resource tests', () => {
   it('plans correctly', async () => {
     const resource = new class extends TestResource {
+      constructor() {
+        super({ name: 'type' });
+      }
+
       calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
@@ -78,7 +82,7 @@ describe('Resource tests', () => {
       propA: 'propA',
       propB: 10,
     });
-    expect(result.changeSet.operation).to.eq(ResourceOperation.MODIFY);
+    expect(result.changeSet.operation).to.eq(ResourceOperation.RECREATE);
     expect(result.changeSet.parameterChanges[0]).to.deep.eq({
       name: 'propA',
       previousValue: 'propABefore',
@@ -95,6 +99,10 @@ describe('Resource tests', () => {
 
   it('calls calculateOperation for only modifications and recreates', async () => {
     const resource = new class extends TestResource {
+      constructor() {
+        super({ name: 'type' });
+      }
+
       calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
@@ -124,6 +132,10 @@ describe('Resource tests', () => {
 
   it('creates the resource if it doesnt exist', async () => {
     const resource = new class extends TestResource {
+      constructor() {
+        super({ name: 'type' });
+      }
+
       calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
@@ -148,8 +160,8 @@ describe('Resource tests', () => {
 
   it('chooses the create apply properly', async () => {
     const resource = new class extends TestResource {
-      getTypeId(): string {
-        return 'resource'
+      constructor() {
+        super({ name: 'resource' });
       }
     }
 
@@ -166,8 +178,8 @@ describe('Resource tests', () => {
 
   it('chooses the destroy apply properly', async () => {
     const resource = new class extends TestResource {
-      getTypeId(): string {
-        return 'resource'
+      constructor() {
+        super({ name: 'resource' });
       }
     }
 
@@ -184,8 +196,8 @@ describe('Resource tests', () => {
 
   it('calls apply modify', async () => {
     const resource = new class extends TestResource {
-      getTypeId(): string {
-        return 'resource'
+      constructor() {
+        super({ name: 'resource' });
       }
     }
 
@@ -215,20 +227,18 @@ describe('Resource tests', () => {
 
   it('supports the creation of stateful parameters', async () => {
     const statefulParameter = new class implements StatefulParameter<TestConfig, 'propA'> {
+
+      applyAdd(valueToAdd: 'propA', plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve();
+      }
+      applyModify(newValue: 'propA', previousValue: 'propA', plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve();
+      }
+      applyRemove(valueToRemove: 'propA', plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve();
+      }
       get name(): "propA" {
         return 'propA';
-      }
-
-      applyAdd(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
-        return Promise.resolve(undefined);
-      }
-
-      applyModify(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
-        return Promise.resolve(undefined);
-      }
-
-      applyRemove(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
-        return Promise.resolve(undefined);
       }
 
       async getCurrent(): Promise<TestConfig["propA"]> {
@@ -241,12 +251,12 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
 
       constructor() {
-        super();
-        this.registerStatefulParameter(statefulParameterSpy)
-      }
-
-      getTypeId(): string {
-        return 'resource'
+        super({
+          name: 'resource',
+          statefulParameters: {
+            propA: statefulParameterSpy
+          },
+        });
       }
     }
 
@@ -283,49 +293,37 @@ describe('Resource tests', () => {
 
   it('supports the modification of stateful parameters', async () => {
     const statefulParameter = new class implements StatefulParameter<TestConfig, 'propA'> {
+      applyAdd(valueToAdd: 'propA', plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve();
+      }
+
+      applyModify(newValue: 'propA', previousValue: 'propA', plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve();
+      }
+
+      applyRemove(valueToRemove: 'propA', plan: Plan<TestConfig>): Promise<void> {
+        return Promise.resolve();
+      }
+
       get name(): "propA" {
         return 'propA';
-      }
-
-      applyAdd(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
-        return Promise.resolve(undefined);
-      }
-
-      applyModify(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
-        return Promise.resolve(undefined);
-      }
-
-      applyRemove(parameterChange: ParameterChange, plan: Plan<TestConfig>): Promise<void> {
-        return Promise.resolve(undefined);
       }
 
       async getCurrent(): Promise<TestConfig["propA"]> {
         return '';
       }
     }
-
     const statefulParameterSpy = spy(statefulParameter);
 
     const resource = new class extends TestResource {
 
       constructor() {
         super({
-          name: 'propA',
-          statefulParameters: [
-            statefulParameterSpy,
-          ],
-          abc: 'a',
-          parameterOptions: {
-            propA: {
-              changeOperation: ParameterOperation.MODIFY,
-            }
-          }
+          name: 'resource',
+          statefulParameters: {
+            propA: statefulParameterSpy,
+          },
         });
-        this.registerStatefulParameter(statefulParameterSpy)
-      }
-
-      getTypeId(): string {
-        return 'resource'
       }
     }
 

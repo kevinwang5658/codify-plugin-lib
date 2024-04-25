@@ -1,5 +1,4 @@
-import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { StringIndexedObject } from '../utils/common-types.js';
+import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
 export interface ParameterChange {
   name: string;
@@ -171,7 +170,7 @@ export class ChangeSet {
       if (!ChangeSet.isSame(_prev[k], _next[k])) {
         parameterChangeSet.push({
           name: k,
-          previousValue: v,
+          previousValue: _prev[k],
           newValue: _next[k],
           operation: ParameterOperation.MODIFY,
         });
@@ -182,7 +181,7 @@ export class ChangeSet {
       parameterChangeSet.push({
         name: k,
         previousValue: v,
-        newValue: _next[k],
+        newValue: v,
         operation: ParameterOperation.NOOP,
       })
     }

@@ -13,7 +13,7 @@ export class Plan<T> {
     this.desiredParameters = resourceConfig;
   }
 
-  static create<T extends ResourceConfig>(changeSet: ChangeSet, desiredConfig: T & ResourceConfig): Plan<T> {
+  static create<T>(changeSet: ChangeSet, desiredConfig: T & ResourceConfig): Plan<T> {
     return new Plan(
       randomUUID(),
       changeSet,

@@ -1,9 +1,8 @@
-import { ParameterOperation, ResourceConfig, ResourceOperation } from 'codify-schemas';
+import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { ChangeSet, ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { ErrorMessage, ResourceConfiguration } from './resource-types.js';
-import { StringIndexedObject } from '../utils/common-types.js';
 import { splitUserConfig } from '../utils/utils.js';
 
 /**
@@ -39,7 +38,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   // TODO: Add state in later.
   //  Calculate change set from current config -> state -> desired in the future
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
-  async plan(desiredConfig: T & ResourceConfig): Promise<Plan<ResourceConfig>> {
+  async plan(desiredConfig: T & ResourceConfig): Promise<Plan<T>> {
     const { resourceInfo, parameters } = splitUserConfig(desiredConfig);
 
     const currentConfig = await this.getCurrentConfig(parameters);
@@ -132,8 +131,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statelessParameterChanges = parameterChanges
       .filter((pc: ParameterChange) => !this.statefulParameters.has(pc.name))
-    if (statelessParameterChanges.length > 0) {
-      await this.applyModify(plan);
+    for (const pc of statelessParameterChanges) {
+      await this.applyModify(pc.name, pc.newValue, pc.previousValue, plan);
     }
 
     const statefulParameterChanges = parameterChanges
@@ -192,7 +191,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   abstract applyCreate(plan: Plan<T>): Promise<void>;
 
-  abstract applyModify(plan: Plan<T>): Promise<void>;
+  abstract applyModify(parameterName: string, newValue: unknown, previousValue: unknown, plan: Plan<T>): Promise<void>;
 
   abstract applyDestroy(plan:Plan<T>): Promise<void>;
 }

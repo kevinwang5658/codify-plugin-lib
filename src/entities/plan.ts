@@ -2,27 +2,51 @@ import { ChangeSet } from './change-set.js';
 import { ApplyRequestData, PlanResponseData, ResourceConfig, } from 'codify-schemas';
 import { randomUUID } from 'crypto';
 
-export class Plan<T extends ResourceConfig> {
+export class Plan<T> {
   id: string;
   changeSet: ChangeSet;
-  resourceConfig: T
+  desiredParameters: T & ResourceConfig;
 
-  constructor(id: string, changeSet: ChangeSet, resourceConfig: T) {
+  constructor(id: string, changeSet: ChangeSet, resourceConfig: T & ResourceConfig) {
     this.id = id;
     this.changeSet = changeSet;
-    this.resourceConfig = resourceConfig;
+    this.desiredParameters = resourceConfig;
   }
 
-  static create<T extends ResourceConfig>(changeSet: ChangeSet, resourceConfig: T): Plan<T> {
+  static create<T extends ResourceConfig>(changeSet: ChangeSet, desiredConfig: T & ResourceConfig): Plan<T> {
     return new Plan(
       randomUUID(),
       changeSet,
-      resourceConfig,
+      desiredConfig,
     )
   }
 
+  // static create<T extends StringIndexedObject>(desiredConfig: T, currentConfig: T, resourceConfiguration: ResourceConfiguration<T>): Plan<T> {
+  //   const { parameterOptions, statefulParameters } = resourceConfiguration;
+  //
+  //
+  //   // Explanation: This calculates the change set of the parameters between the
+  //   // two configs and then passes it to ChangeSet to calculate the overall
+  //   // operation for the resource
+  //   const parameterChangeSet = ChangeSet.calculateParameterChangeSet(currentConfig, desiredConfig, { statefulMode: false }); // TODO: Change this in the future for stateful mode
+  //   const resourceOperation = parameterChangeSet
+  //     .filter((change) => change.operation !== ParameterOperation.NOOP)
+  //     .reduce((operation: ResourceOperation, curr: ParameterChange) => {
+  //       let newOperation: ResourceOperation;
+  //       if (statefulParameters.has(curr.name)) {
+  //         newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
+  //       } else if (parameterOptions?.[curr.name]?.planOperation !== undefined) {
+  //         newOperation = parameterOptions?.[curr.name]?.planOperation!;
+  //       } else {
+  //         newOperation = ResourceOperation.RECREATE; // Re-create should handle the majority of use cases
+  //       }
+  //
+  //       return ChangeSet.combineResourceOperations(operation, newOperation);
+  //     }, ResourceOperation.NOOP);
+  // }
+
   getResourceType(): string {
-    return this.resourceConfig.type;
+    return this.desiredParameters.type;
   }
 
   static fromResponse(data: ApplyRequestData['plan']): Plan<ResourceConfig> {
@@ -54,8 +78,8 @@ export class Plan<T extends ResourceConfig> {
     return {
       planId: this.id,
       operation: this.changeSet.operation,
-      resourceName: this.resourceConfig.name,
-      resourceType: this.resourceConfig.type,
+      resourceName: this.desiredParameters.name,
+      resourceType: this.desiredParameters.type,
       parameters: this.changeSet.parameterChanges,
     }
   }

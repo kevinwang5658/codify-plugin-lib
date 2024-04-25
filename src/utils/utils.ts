@@ -1,5 +1,7 @@
 import promiseSpawn from '@npmcli/promise-spawn';
 import { SpawnOptions } from 'child_process';
+import { ResourceConfig } from 'codify-schemas';
+import { StringIndexedObject } from './common-types.js';
 
 export enum SpawnStatus {
   SUCCESS = 'success',
@@ -77,4 +79,20 @@ export async function codifySpawn(
 
 export function isDebug(): boolean {
   return process.env.DEBUG != null && process.env.DEBUG.includes('codify'); // TODO: replace with debug library
+}
+
+export function splitUserConfig<T extends StringIndexedObject>(
+  config: T & ResourceConfig
+): { parameters: T;  resourceInfo: ResourceConfig} {
+  const resourceInfo = {
+    type: config.type,
+    name: config.name,
+    dependsOn: config.dependsOn,
+  };
+
+  const { type, name, dependsOn, ...parameters } = config;
+  return {
+    parameters: parameters as T,
+    resourceInfo
+  };
 }

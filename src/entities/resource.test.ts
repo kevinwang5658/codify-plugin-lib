@@ -5,8 +5,13 @@ import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { describe, expect, it } from 'vitest'
+import { ResourceConfiguration } from './resource-types';
 
 class TestResource extends Resource<TestConfig> {
+  constructor(options: ResourceConfiguration<TestConfig>) {
+    super(options);
+  }
+
   applyCreate(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
@@ -34,13 +39,9 @@ class TestResource extends Resource<TestConfig> {
   async validate(config: ResourceConfig): Promise<string | undefined> {
     return undefined;
   }
-
-  getTypeId(): string {
-    return '';
-  }
 }
 
-interface TestConfig extends ResourceConfig {
+interface TestConfig {
   propA: string;
   propB: number;
   propC?: string;
@@ -71,7 +72,7 @@ describe('Resource tests', () => {
       propB: 10,
     })
 
-    expect(result.resourceConfig).to.deep.eq({
+    expect(result.desiredParameters).to.deep.eq({
       type: 'type',
       name: 'name',
       propA: 'propA',
@@ -308,7 +309,18 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
 
       constructor() {
-        super();
+        super({
+          name: 'propA',
+          statefulParameters: [
+            statefulParameterSpy,
+          ],
+          abc: 'a',
+          parameterOptions: {
+            propA: {
+              changeOperation: ParameterOperation.MODIFY,
+            }
+          }
+        });
         this.registerStatefulParameter(statefulParameterSpy)
       }
 

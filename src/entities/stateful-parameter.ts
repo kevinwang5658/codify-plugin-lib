@@ -6,11 +6,6 @@ export interface StatefulParameterConfiguration<T> {
   isEqual?: (a: any, b: any) => boolean;
 }
 
-export interface ArrayStatefulParameterConfiguration<T> extends StatefulParameterConfiguration<T> {
-  isArrayElementEqual?: (a: any, b: any) => boolean;
-}
-
-
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly name: keyof T;
   readonly configuration: StatefulParameterConfiguration<T>;
@@ -29,7 +24,7 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
-  protected constructor(configuration: ArrayStatefulParameterConfiguration<T>) {
+  protected constructor(configuration: StatefulParameterConfiguration<T>) {
     super(configuration);
   }
 

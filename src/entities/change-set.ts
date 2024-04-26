@@ -1,4 +1,5 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
+import { ParameterConfiguration } from './plan-types.js';
 
 export interface ParameterChange<T extends StringIndexedObject> {
   name: keyof T & string;
@@ -60,12 +61,12 @@ export class ChangeSet<T extends StringIndexedObject> {
   static calculateParameterChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
-    options: { statefulMode: boolean },
+    options: { statefulMode: boolean, parameterConfigurations?: Record<keyof T, ParameterConfiguration> },
   ): ParameterChange<T>[] {
     if (options.statefulMode) {
-      return ChangeSet.calculateStatefulModeChangeSet(desired, current);
+      return ChangeSet.calculateStatefulModeChangeSet(desired, current, options.parameterConfigurations);
     } else {
-      return ChangeSet.calculateStatelessModeChangeSet(desired, current);
+      return ChangeSet.calculateStatelessModeChangeSet(desired, current, options.parameterConfigurations);
     }
   }
 
@@ -84,7 +85,15 @@ export class ChangeSet<T extends StringIndexedObject> {
     return orderOfOperations[Math.max(indexPrev, indexNext)];
   }
 
-  static isSame(a: unknown, b: unknown): boolean {
+  static isSame(
+    a: unknown,
+    b: unknown,
+    isEqual?: (a: unknown, b: unknown) => boolean,
+  ): boolean {
+    if (isEqual) {
+      return isEqual(a, b);
+    }
+
     if (Array.isArray(a) && Array.isArray(b)) {
       const sortedPrev = a.map((x) => x).sort();
       const sortedNext = b.map((x) => x).sort();
@@ -100,6 +109,7 @@ export class ChangeSet<T extends StringIndexedObject> {
   private static calculateStatefulModeChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
+    parameterConfigurations?: Record<keyof T, ParameterConfiguration>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
     
@@ -120,7 +130,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_current[k], _desired[k])) {
+      if (!ChangeSet.isSame(_current[k], _desired[k], parameterConfigurations?.[k]?.isEqual)) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -165,6 +175,7 @@ export class ChangeSet<T extends StringIndexedObject> {
   private static calculateStatelessModeChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
+    parameterConfigurations?: Record<keyof T, ParameterConfiguration>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
 
@@ -183,7 +194,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_current[k], _desired[k])) {
+      if (!ChangeSet.isSame(_current[k], _desired[k], parameterConfigurations?.[k]?.isEqual)) {
         parameterChangeSet.push({
           name: k,
           previousValue: _current[k],

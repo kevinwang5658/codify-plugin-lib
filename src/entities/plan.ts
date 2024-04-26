@@ -47,7 +47,7 @@ export class Plan<T extends StringIndexedObject> {
     const parameterChangeSet = ChangeSet.calculateParameterChangeSet(
       desiredParameters,
       currentParameters,
-      { statefulMode: configuration.statefulMode }
+      { statefulMode: configuration.statefulMode, parameterConfigurations }
     );
 
     let resourceOperation: ResourceOperation;

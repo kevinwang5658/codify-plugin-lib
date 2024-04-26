@@ -42,7 +42,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   // TODO: Add state in later.
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
   //  Add previousConfig as a parameter for plan(desired, previous);
-  async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
+  async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan> {
 
     // Explanation: these are settings for how the plan will be generated
     const planConfiguration: PlanConfiguration = {
@@ -86,7 +86,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     )
   }
 
-  async apply(plan: Plan<T>): Promise<void> {
+  async apply(plan: Plan): Promise<void> {
     if (plan.getResourceType() !== this.typeId) {
       throw new Error(`Internal error: Plan set to wrong resource during apply. Expected ${this.typeId} but got: ${plan.getResourceType()}`);
     }
@@ -108,7 +108,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyCreate(plan: Plan<T>): Promise<void> {
+  private async _applyCreate(plan: Plan): Promise<void> {
     await this.applyCreate(plan);
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
@@ -119,7 +119,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyModify(plan: Plan<T>): Promise<void> {
+  private async _applyModify(plan: Plan): Promise<void> {
     const parameterChanges = plan
       .changeSet
       .parameterChanges
@@ -153,7 +153,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyDestroy(plan: Plan<T>): Promise<void> {
+  private async _applyDestroy(plan: Plan): Promise<void> {
     // If this option is set (defaults to false), then stateful parameters need to be destroyed
     // as well. This means that the stateful parameter wouldn't have been normally destroyed with applyDestroy()
     if (this.options.callStatefulParameterRemoveOnDestroy) {
@@ -224,9 +224,9 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
 
   abstract refresh(keys: Set<keyof T>): Promise<Partial<T> | null>;
 
-  abstract applyCreate(plan: Plan<T>): Promise<void>;
+  abstract applyCreate(plan: Plan): Promise<void>;
 
-  abstract applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, plan: Plan<T>): Promise<void>;
+  abstract applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, plan: Plan): Promise<void>;
 
-  abstract applyDestroy(plan:Plan<T>): Promise<void>;
+  abstract applyDestroy(plan: Plan): Promise<void>;
 }

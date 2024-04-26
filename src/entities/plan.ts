@@ -8,29 +8,34 @@ import {
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
 import { PlanConfiguration } from './plan-types.js';
+import { splitUserConfig } from '../utils/utils.js';
 
-export class Plan<T> {
+export class Plan {
   id: string;
   changeSet: ChangeSet;
-  desiredConfig: Partial<T> & ResourceConfig;
+  resourceMetadata: ResourceConfig
 
-  constructor(id: string, changeSet: ChangeSet, desiredConfig: Partial<T> & ResourceConfig) {
+  constructor(id: string, changeSet: ChangeSet, resourceMetadata: ResourceConfig) {
     this.id = id;
     this.changeSet = changeSet;
-    this.desiredConfig = desiredConfig;
+    this.resourceMetadata = resourceMetadata;
   }
 
-  static create<T>(
-    desiredConfig: Partial<T> & ResourceConfig,
-    currentConfig: Partial<T> & ResourceConfig | null,
+  static create(
+    desiredConfig: ResourceConfig,
+    currentConfig: ResourceConfig | null,
     configuration: PlanConfiguration
-  ): Plan<T> {
+  ): Plan {
     const { parameterConfigurations } = configuration;
     const statefulParameterNames = new Set(
       [...Object.entries(parameterConfigurations)]
         .filter(([k, v]) => v.isStatefulParameter)
         .map(([k, v]) => k)
     );
+
+    const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
+    const { parameters: currentParameters } = currentConfig ? splitUserConfig(currentConfig) : { parameters: {} };
+
 
     // TODO: After adding in state files, need to calculate deletes here
     //  Where current config exists and state config exists but desired config doesn't
@@ -39,8 +44,8 @@ export class Plan<T> {
     // two configs and then passes it to ChangeSet to calculate the overall
     // operation for the resource
     const parameterChangeSet = ChangeSet.calculateParameterChangeSet(
-      desiredConfig,
-      currentConfig,
+      desiredParameters,
+      currentParameters,
       { statefulMode: configuration.statefulMode }
     );
 
@@ -62,15 +67,15 @@ export class Plan<T> {
     return new Plan(
       randomUUID(),
       new ChangeSet(resourceOperation, parameterChangeSet),
-      desiredConfig
+      resourceMetadata,
     );
   }
 
   getResourceType(): string {
-    return this.desiredConfig.type;
+    return this.resourceMetadata.type
   }
 
-  static fromResponse(data: ApplyRequestData['plan']): Plan<ResourceConfig> {
+  static fromResponse(data: ApplyRequestData['plan']): Plan {
     if (!data) {
       throw new Error('Data is empty');
     }
@@ -99,8 +104,8 @@ export class Plan<T> {
     return {
       planId: this.id,
       operation: this.changeSet.operation,
-      resourceName: this.desiredConfig.name,
-      resourceType: this.desiredConfig.type,
+      resourceName: this.resourceMetadata.name,
+      resourceType: this.resourceMetadata.type,
       parameters: this.changeSet.parameterChanges,
     }
   }

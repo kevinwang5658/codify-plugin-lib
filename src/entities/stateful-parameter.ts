@@ -1,28 +1,25 @@
 import { Plan } from './plan.js';
-import { ParameterConfiguration } from './resource-types.js';
 
 type ArrayElement<ArrayType extends readonly unknown[]> =
   ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
 
-export interface StatefulParameterParams<T> {
+export interface StatefulParameterConfiguration<T> {
   name: keyof T;
   isEqual?: (a: any, b: any) => boolean;
 }
 
-export interface StatefulArrayParameterParams<T> extends StatefulParameterParams<T> {
+export interface ArrayStatefulParameterConfiguration<T> extends StatefulParameterConfiguration<T> {
   isArrayElementEqual?: (a: any, b: any) => boolean;
 }
 
 
 export abstract class StatefulParameter<T, V extends T[keyof T]> {
   readonly name: keyof T;
+  readonly configuration: StatefulParameterConfiguration<T>;
 
-  protected constructor(params: StatefulParameterParams<T>) {
-    this.name = params.name;
-  }
-
-  get configuration(): ParameterConfiguration {
-    return {};
+  protected constructor(configuration: StatefulParameterConfiguration<T>) {
+    this.name = configuration.name;
+    this.configuration = configuration
   }
 
   abstract refresh(value?: V): Promise<V>;
@@ -34,8 +31,8 @@ export abstract class StatefulParameter<T, V extends T[keyof T]> {
 }
 
 export abstract class ArrayStatefulParameter<T, V extends T[keyof T] & Array<unknown>> extends StatefulParameter<T, V>{
-  protected constructor(params: StatefulParameterParams<T>) {
-    super(params);
+  protected constructor(configuration: ArrayStatefulParameterConfiguration<T>) {
+    super(configuration);
   }
 
   async applyAdd(valuesToAdd: V, plan: Plan<T>): Promise<void> {

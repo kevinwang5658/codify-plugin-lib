@@ -2,8 +2,9 @@ import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObj
 import { ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
-import { ErrorMessage, ParameterConfiguration, ResourceConfiguration } from './resource-types.js';
+import { ErrorMessage, ResourceConfiguration } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
+import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
 
 /**
  * Description of resource here
@@ -17,7 +18,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly typeId: string;
   readonly statefulParameters: Map<string, StatefulParameter<T, T[keyof T]>>;
   readonly dependencies: Resource<any>[]; // TODO: Change this to a string
-  readonly parameterConfigurations: Partial<Record<keyof T, ParameterConfiguration>>
+  readonly parameterConfigurations: Record<string, ParameterConfiguration>
 
   private readonly options: ResourceConfiguration<T>;
 
@@ -26,13 +27,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     this.typeId = configuration.type;
     this.statefulParameters = new Map(Object.entries(configuration.statefulParameters ?? {}));
-    this.parameterConfigurations = {
-      ...configuration.parameterConfigurations,
-      ...(
-        configuration.statefulParameters
-          ?.reduce((obj, sp) => ({ ...obj, [sp.name]: sp.configuration}), {})
-      )
-    }
+    this.parameterConfigurations = this.generateParameterConfigurations(configuration);
 
     this.dependencies = configuration.dependencies ?? [];
     this.options = configuration;
@@ -48,6 +43,13 @@ export abstract class Resource<T extends StringIndexedObject> {
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
   //  Add previousConfig as a parameter for plan(desired, previous);
   async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
+
+    // Explanation: these are settings for how the plan will be generated
+    const planConfiguration: PlanConfiguration = {
+      statefulMode: false,
+      parameterConfigurations: this.parameterConfigurations,
+    }
+
     const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
 
     // Refresh resource parameters
@@ -60,7 +62,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     const keysToRefresh = new Set(Object.keys(resourceParameters));
     const currentParameters = await this.refresh(keysToRefresh);
     if (!currentParameters) {
-      return Plan.create(desiredConfig, null);
+      return Plan.create(desiredConfig, null, planConfiguration);
     }
 
     this.validateRefreshResults(currentParameters, keysToRefresh);
@@ -80,6 +82,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     return Plan.create(
       desiredConfig,
       { ...currentParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
+      planConfiguration,
     )
   }
 
@@ -163,6 +166,32 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
 
     await this.applyDestroy(plan);
+  }
+
+  private generateParameterConfigurations(
+    resourceConfiguration: ResourceConfiguration<T>
+  ): Record<string, ParameterConfiguration>  {
+    const resourceParameters: Record<string, ParameterConfiguration> = Object.fromEntries(
+      Object.entries(resourceConfiguration.parameterConfigurations ?? {})
+        ?.map(([name, value]) => ([name, { ...value, isStatefulParameter: false }]))
+    )
+
+    const statefulParameters: Record<string, ParameterConfiguration> = resourceConfiguration.statefulParameters
+      ?.reduce((obj, sp) => {
+        return {
+          ...obj,
+          [sp.name]: {
+            ...sp.configuration,
+            isStatefulParameter: true,
+          }
+        }
+      }, {}) ?? {}
+
+    return {
+      ...resourceParameters,
+      ...statefulParameters,
+    }
+
   }
 
   private validateResourceConfiguration(data: ResourceConfiguration<T>) {

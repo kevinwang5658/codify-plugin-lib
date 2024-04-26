@@ -42,14 +42,14 @@ export class ChangeSet {
   }
 
   static calculateParameterChangeSet<T extends StringIndexedObject>(
-    prev: T,
-    next: T,
+    desired: T | null,
+    current: T | null,
     options: { statefulMode: boolean },
   ): ParameterChange[] {
     if (options.statefulMode) {
-      return ChangeSet.calculateStatefulModeChangeSet(prev, next);
+      return ChangeSet.calculateStatefulModeChangeSet(desired, current);
     } else {
-      return ChangeSet.calculateStatelessModeChangeSet(prev, next);
+      return ChangeSet.calculateStatelessModeChangeSet(desired, current);
     }
   }
 
@@ -82,16 +82,17 @@ export class ChangeSet {
   // Explanation: Stateful mode means that codify maintains a stateful to keep track of resources it has added. 
   // When a resource is removed from a stateful config, it will be deleted from the system.
   private static calculateStatefulModeChangeSet<T extends StringIndexedObject>(
-    prev: T,
-    next: T,
+    desired: T | null,
+    current: T | null,
   ): ParameterChange[] {
     const parameterChangeSet = new Array<ParameterChange>();
     
-    const _prev = { ...prev };
-    const _next = { ...next };
+    const _desired = { ...desired };
+    const _current = { ...current };
 
-    for (const [k, v] of Object.entries(_prev)) {
-      if (!_next[k]) {
+
+    for (const [k, v] of Object.entries(_current)) {
+      if (!_desired[k]) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -99,39 +100,39 @@ export class ChangeSet {
           operation: ParameterOperation.REMOVE,
         })
 
-        delete _prev[k];
+        delete _current[k];
         continue;
       }
 
-      if (!ChangeSet.isSame(_prev[k], _next[k])) {
+      if (!ChangeSet.isSame(_current[k], _desired[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
-          newValue: _next[k],
+          newValue: _desired[k],
           operation: ParameterOperation.MODIFY,
         })
 
-        delete _prev[k];
-        delete _next[k];
+        delete _current[k];
+        delete _desired[k];
         continue;
       }
 
       parameterChangeSet.push({
         name: k,
         previousValue: v,
-        newValue: _next[k],
+        newValue: _desired[k],
         operation: ParameterOperation.NOOP,
       })
 
-      delete _prev[k];
-      delete _next[k];
+      delete _current[k];
+      delete _desired[k];
     }
 
-    if (Object.keys(_prev).length !== 0) {
+    if (Object.keys(_current).length !== 0) {
       throw Error('Diff algorithm error');
     }
 
-    for (const [k, v] of Object.entries(_next)) {
+    for (const [k, v] of Object.entries(_desired)) {
       parameterChangeSet.push({
         name: k,
         previousValue: null,
@@ -146,17 +147,16 @@ export class ChangeSet {
   // Explanation: Stateful mode means that codify does not keep track of state. Resources in stateless mode can only
   // be added by Codify and not destroyed.
   private static calculateStatelessModeChangeSet<T extends StringIndexedObject>(
-    prev: T,
-    next: T,
+    desired: T | null,
+    current: T | null,
   ): ParameterChange[] {
     const parameterChangeSet = new Array<ParameterChange>();
 
-    const _prev = { ...prev };
-    const _next = { ...next };
+    const _desired = { ...desired };
+    const _current = { ...current };
 
-
-    for (const [k, v] of Object.entries(_next)) {
-      if (!_prev[k]) {
+    for (const [k, v] of Object.entries(_desired)) {
+      if (!_current[k]) {
         parameterChangeSet.push({
           name: k,
           previousValue: null,
@@ -167,11 +167,11 @@ export class ChangeSet {
         continue;
       }
 
-      if (!ChangeSet.isSame(_prev[k], _next[k])) {
+      if (!ChangeSet.isSame(_current[k], _desired[k])) {
         parameterChangeSet.push({
           name: k,
-          previousValue: _prev[k],
-          newValue: _next[k],
+          previousValue: _current[k],
+          newValue: _desired[k],
           operation: ParameterOperation.MODIFY,
         });
 

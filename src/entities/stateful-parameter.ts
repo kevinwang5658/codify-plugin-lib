@@ -1,4 +1,5 @@
 import { Plan } from './plan.js';
+import { ParameterConfiguration } from './resource-types.js';
 
 type ArrayElement<ArrayType extends readonly unknown[]> =
   ArrayType extends readonly (infer ElementType)[] ? ElementType : never;
@@ -20,7 +21,11 @@ export abstract class StatefulParameter<T, V extends T[keyof T]> {
     this.name = params.name;
   }
 
-  abstract getCurrent(desiredValue: V): Promise<V>;
+  get configuration(): ParameterConfiguration {
+    return {};
+  }
+
+  abstract refresh(value?: V): Promise<V>;
 
   // TODO: Add an additional parameter here for what has actually changed.
   abstract applyAdd(valueToAdd: V, plan: Plan<T>): Promise<void>;

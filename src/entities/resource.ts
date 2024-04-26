@@ -1,9 +1,9 @@
 import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject } from 'codify-schemas';
-import { ChangeSet, ParameterChange } from './change-set.js';
+import { ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
-import { ErrorMessage, ResourceConfiguration } from './resource-types.js';
-import { splitUserConfig } from '../utils/utils.js';
+import { ErrorMessage, ParameterConfiguration, ResourceConfiguration } from './resource-types.js';
+import { setsEqual, splitUserConfig } from '../utils/utils.js';
 
 /**
  * Description of resource here
@@ -15,16 +15,25 @@ import { splitUserConfig } from '../utils/utils.js';
 export abstract class Resource<T extends StringIndexedObject> {
 
   readonly typeId: string;
-  readonly statefulParameters: Map<string, StatefulParameter<T, keyof T>>;
+  readonly statefulParameters: Map<string, StatefulParameter<T, T[keyof T]>>;
   readonly dependencies: Resource<any>[]; // TODO: Change this to a string
+  readonly parameterConfigurations: Partial<Record<keyof T, ParameterConfiguration>>
 
   private readonly options: ResourceConfiguration<T>;
 
   protected constructor(configuration: ResourceConfiguration<T>) {
     this.validateResourceConfiguration(configuration);
 
-    this.typeId = configuration.name;
-    this.statefulParameters = new Map(Object.entries(/*config.statefulParameters ?? */{}));
+    this.typeId = configuration.type;
+    this.statefulParameters = new Map(Object.entries(configuration.statefulParameters ?? {}));
+    this.parameterConfigurations = {
+      ...configuration.parameterConfigurations,
+      ...(
+        configuration.statefulParameters
+          ?.reduce((obj, sp) => ({ ...obj, [sp.name]: sp.configuration}), {})
+      )
+    }
+
     this.dependencies = configuration.dependencies ?? [];
     this.options = configuration;
   }
@@ -36,41 +45,42 @@ export abstract class Resource<T extends StringIndexedObject> {
   async onInitialize(): Promise<void> {}
 
   // TODO: Add state in later.
-  //  Calculate change set from current config -> state -> desired in the future
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
-  async plan(desiredConfig: T & ResourceConfig): Promise<Plan<T>> {
+  //  Add previousConfig as a parameter for plan(desired, previous);
+  async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
     const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
 
-    const currentParameters = await this.getCurrent(desiredParameters);
+    // Refresh resource parameters
+    // This refreshes the parameters that configure the resource itself
+
+    const resourceParameters = Object.fromEntries([
+      ...Object.entries(desiredParameters).filter(([key]) => !this.statefulParameters.has(key)),
+    ]) as Partial<T>;
+
+    const keysToRefresh = new Set(Object.keys(resourceParameters));
+    const currentParameters = await this.refresh(keysToRefresh);
     if (!currentParameters) {
-      return Plan.create(ChangeSet.newCreate(desiredConfig), desiredConfig);
+      return Plan.create(desiredConfig, null);
     }
 
-    // Check that the config doesn't contain any stateful parameters
-    if (Object.keys(currentParameters).some((k) => this.statefulParameters.has(k))) {
-      throw new Error(`Resource ${this.typeId} is returning stateful parameters in getCurrentConfig`);
-    }
+    this.validateRefreshResults(currentParameters, keysToRefresh);
 
-    // Fetch the status of stateful parameters separately
+    // Refresh stateful parameters
+    // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
+
     const statefulParameters = [...this.statefulParameters.values()]
-      .filter((sp) => desiredParameters[sp.name] !== undefined)
+      .filter((sp) => desiredParameters[sp.name] !== undefined) // Checking for undefined is fine here because JSONs can only have null.
 
     for(const statefulParameter of statefulParameters) {
-      const parameterConfig = await statefulParameter.getCurrent(desiredParameters[statefulParameter.name]);
-      if (parameterConfig) {
-        currentParameters[statefulParameter.name] = parameterConfig;
-      }
+      currentParameters[statefulParameter.name] = await statefulParameter.refresh(
+        desiredParameters[statefulParameter.name]
+      );
     }
 
-    return Plan.createNew(
+    return Plan.create(
       desiredConfig,
-      { ...currentParameters, ...resourceMetadata },
+      { ...currentParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
     )
-
-    // return Plan.create(
-    //   new ChangeSet(resourceOperation, parameterChangeSet),
-    //   desiredConfig
-    // );
   }
 
   async apply(plan: Plan<T>): Promise<void> {
@@ -168,13 +178,26 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
+  private validateRefreshResults(refresh: Partial<T>, desiredKeys: Set<keyof T>) {
+    const refreshKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
+
+    if (!setsEqual(desiredKeys, refreshKeys)) {
+      throw new Error(
+        `Resource ${this.options.type}
+refresh() must return back all of the keys that was provided
+Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
+Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
+      );
+    }
+  }
+
   abstract validate(config: unknown): Promise<ErrorMessage[] | undefined>;
 
-  abstract getCurrent(desiredConfig: T): Promise<T | null>;
+  abstract refresh(keys: Set<keyof T>): Promise<Partial<T> | null>;
 
   abstract applyCreate(plan: Plan<T>): Promise<void>;
 
-  abstract applyModify(parameterName: string, newValue: unknown, previousValue: unknown, plan: Plan<T>): Promise<void>;
+  abstract applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, plan: Plan<T>): Promise<void>;
 
   abstract applyDestroy(plan:Plan<T>): Promise<void>;
 }

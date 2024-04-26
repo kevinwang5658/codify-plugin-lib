@@ -15,23 +15,15 @@ export interface ParameterOption {
 export class Plan<T> {
   id: string;
   changeSet: ChangeSet;
-  desiredConfig: T & ResourceConfig;
+  desiredConfig: Partial<T> & ResourceConfig;
 
-  constructor(id: string, changeSet: ChangeSet, desiredConfig: T & ResourceConfig) {
+  constructor(id: string, changeSet: ChangeSet, desiredConfig: Partial<T> & ResourceConfig) {
     this.id = id;
     this.changeSet = changeSet;
     this.desiredConfig = desiredConfig;
   }
 
-  static create<T>(changeSet: ChangeSet, desiredConfig: T & ResourceConfig): Plan<T> {
-    return new Plan(
-      randomUUID(),
-      changeSet,
-      desiredConfig,
-    )
-  }
-
-  static createNew<T extends ResourceConfig>(desiredConfig: T, currentConfig: T | null): Plan<T> {
+  static create<T>(desiredConfig: Partial<T> & ResourceConfig, currentConfig: Partial<T> & ResourceConfig | null): Plan<T> {
     const { parameterOptions, statefulParameters } = resourceConfiguration;
 
     // TODO: After adding in state files, need to calculate deletes here

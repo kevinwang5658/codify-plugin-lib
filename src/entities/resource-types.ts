@@ -7,29 +7,28 @@ export type ErrorMessage = string;
 /**
  * Customize properties for specific parameters. This will alter the way the library process changes to the parameter.
  */
-export interface ParameterConfiguration<T> {
+export interface ParameterConfiguration {
   /**
    * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to re-create.
    */
   planOperation?: ResourceOperation.MODIFY | ResourceOperation.RECREATE;
   type?: 'string' | 'number' | 'boolean' | 'array' | 'object';
   isEqual?: (a: any, b: any) => boolean;
-  statefulParameter?: StatefulParameter<T, keyof T>
 }
 
 /**
  * @param
  */
 export interface ResourceConfiguration<T> {
-  name: string;
+  type: string;
   /**
    * If true, statefulParameter.applyRemove() will be called before resource destruction.
    * Defaults to false.
    */
   callStatefulParameterRemoveOnDestroy?: boolean,
   dependencies?: Resource<any>[];
-  statefulParameters?: Partial<Record<keyof T, StatefulParameter<T, keyof T>>>;
-  parameterConfigurations?: Partial<Record<keyof T, ParameterConfiguration<T>>>
+  statefulParameters?: Array<StatefulParameter<T, T[keyof T]>>;
+  parameterConfigurations?: Partial<Record<keyof T, ParameterConfiguration>>
 }
 
 export interface ResourceDefinition {

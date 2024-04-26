@@ -95,3 +95,7 @@ export function splitUserConfig<T extends StringIndexedObject>(
     resourceMetadata,
   };
 }
+
+export function setsEqual(set1: Set<unknown>, set2: Set<unknown>): boolean {
+  return set1.size === set2.size && [...set1].every((v) => set2.has(v));
+}

@@ -38,7 +38,7 @@ class TestResource extends Resource<TestConfig> {
     return ResourceOperation.MODIFY;
   }
 
-  async getCurrent(): Promise<TestConfig | null> {
+  async refresh(): Promise<TestConfig | null> {
     return {
       propA: 'a',
       propB: 10,
@@ -55,14 +55,14 @@ describe('Resource tests', () => {
   it('plans correctly', async () => {
     const resource = new class extends TestResource {
       constructor() {
-        super({ name: 'type' });
+        super({ type: 'type' });
       }
 
       calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrent(): Promise<TestConfig> {
+      async refresh(): Promise<TestConfig> {
         return {
           type: 'type',
           name: 'name',
@@ -104,14 +104,14 @@ describe('Resource tests', () => {
   it('calls calculateOperation for only modifications and recreates', async () => {
     const resource = new class extends TestResource {
       constructor() {
-        super({ name: 'type' });
+        super({ type: 'type' });
       }
 
       calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrent(): Promise<TestConfig> {
+      async refresh(): Promise<TestConfig> {
         return {
           type: 'type',
           name: 'name',
@@ -137,14 +137,14 @@ describe('Resource tests', () => {
   it('creates the resource if it doesnt exist', async () => {
     const resource = new class extends TestResource {
       constructor() {
-        super({ name: 'type' });
+        super({ type: 'type' });
       }
 
       calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
 
-      async getCurrent(): Promise<TestConfig | null> {
+      async refresh(): Promise<TestConfig | null> {
         return null;
       }
     }
@@ -165,7 +165,7 @@ describe('Resource tests', () => {
   it('chooses the create apply properly', async () => {
     const resource = new class extends TestResource {
       constructor() {
-        super({ name: 'resource' });
+        super({ type: 'resource' });
       }
     }
 
@@ -183,7 +183,7 @@ describe('Resource tests', () => {
   it('chooses the destroy apply properly', async () => {
     const resource = new class extends TestResource {
       constructor() {
-        super({ name: 'resource' });
+        super({ type: 'resource' });
       }
     }
 
@@ -201,7 +201,7 @@ describe('Resource tests', () => {
   it('calls apply modify', async () => {
     const resource = new class extends TestResource {
       constructor() {
-        super({ name: 'resource' });
+        super({ type: 'resource' });
       }
     }
 
@@ -245,7 +245,7 @@ describe('Resource tests', () => {
         return 'propA';
       }
 
-      async getCurrent(): Promise<TestConfig["propA"]> {
+      async refresh(): Promise<TestConfig["propA"]> {
         return '';
       }
     }
@@ -256,7 +256,7 @@ describe('Resource tests', () => {
 
       constructor() {
         super({
-          name: 'resource',
+          type: 'resource',
           statefulParameters: {
             propA: statefulParameterSpy
           },
@@ -313,7 +313,7 @@ describe('Resource tests', () => {
         return 'propA';
       }
 
-      async getCurrent(): Promise<TestConfig["propA"]> {
+      async refresh(): Promise<TestConfig["propA"]> {
         return '';
       }
     }
@@ -323,7 +323,7 @@ describe('Resource tests', () => {
 
       constructor() {
         super({
-          name: 'resource',
+          type: 'resource',
           statefulParameters: {
             propA: statefulParameterSpy,
           },

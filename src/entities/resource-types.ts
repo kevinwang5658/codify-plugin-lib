@@ -1,5 +1,5 @@
 import { StatefulParameter } from './stateful-parameter.js';
-import { ResourceOperation } from 'codify-schemas';
+import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { Resource } from './resource.js';
 
 export type ErrorMessage = string;
@@ -23,7 +23,7 @@ export interface ResourceParameterConfiguration {
 /**
  * @param
  */
-export interface ResourceConfiguration<T> {
+export interface ResourceConfiguration<T extends StringIndexedObject> {
   type: string;
   /**
    * If true, statefulParameter.applyRemove() will be called before resource destruction.

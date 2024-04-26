@@ -1,38 +1,38 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-export interface ParameterChange {
-  name: string;
+export interface ParameterChange<T extends StringIndexedObject> {
+  name: keyof T & string;
   operation: ParameterOperation;
   previousValue: any | null;
   newValue: any | null;
 }
 
-export class ChangeSet {
+export class ChangeSet<T extends StringIndexedObject> {
   operation: ResourceOperation
-  parameterChanges: Array<ParameterChange>
+  parameterChanges: Array<ParameterChange<T>>
 
   constructor(
     operation: ResourceOperation,
-    parameterChanges: Array<ParameterChange>
+    parameterChanges: Array<ParameterChange<T>>
   ) {
     this.operation = operation;
     this.parameterChanges = parameterChanges;
   }
 
-  get desiredParameters(): StringIndexedObject {
+  get desiredParameters(): T {
     return this.parameterChanges
       .reduce((obj, pc) => ({
         ...obj,
         [pc.name]: pc.newValue,
-      }), {});
+      }), {}) as T;
   }
 
-  get currentParameters(): StringIndexedObject {
+  get currentParameters(): T {
     return this.parameterChanges
       .reduce((obj, pc) => ({
         ...obj,
         [pc.name]: pc.previousValue,
-      }), {});
+      }), {}) as T;
   }
 
   // static create<T extends Record<string, unknown>>(prev: T, next: T, options: {
@@ -61,7 +61,7 @@ export class ChangeSet {
     desired: T | null,
     current: T | null,
     options: { statefulMode: boolean },
-  ): ParameterChange[] {
+  ): ParameterChange<T>[] {
     if (options.statefulMode) {
       return ChangeSet.calculateStatefulModeChangeSet(desired, current);
     } else {
@@ -100,8 +100,8 @@ export class ChangeSet {
   private static calculateStatefulModeChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
-  ): ParameterChange[] {
-    const parameterChangeSet = new Array<ParameterChange>();
+  ): ParameterChange<T>[] {
+    const parameterChangeSet = new Array<ParameterChange<T>>();
     
     const _desired = { ...desired };
     const _current = { ...current };
@@ -165,8 +165,8 @@ export class ChangeSet {
   private static calculateStatelessModeChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
-  ): ParameterChange[] {
-    const parameterChangeSet = new Array<ParameterChange>();
+  ): ParameterChange<T>[] {
+    const parameterChangeSet = new Array<ParameterChange<T>>();
 
     const _desired = { ...desired };
     const _current = { ...current };

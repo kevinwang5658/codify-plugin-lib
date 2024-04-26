@@ -5,27 +5,28 @@ import {
   PlanResponseData,
   ResourceConfig,
   ResourceOperation,
+  StringIndexedObject,
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
 import { PlanConfiguration } from './plan-types.js';
 import { splitUserConfig } from '../utils/utils.js';
 
-export class Plan {
+export class Plan<T extends StringIndexedObject> {
   id: string;
-  changeSet: ChangeSet;
+  changeSet: ChangeSet<T>;
   resourceMetadata: ResourceConfig
 
-  constructor(id: string, changeSet: ChangeSet, resourceMetadata: ResourceConfig) {
+  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig) {
     this.id = id;
     this.changeSet = changeSet;
     this.resourceMetadata = resourceMetadata;
   }
 
-  static create(
-    desiredConfig: ResourceConfig,
-    currentConfig: ResourceConfig | null,
+  static create<T extends StringIndexedObject>(
+    desiredConfig: Partial<T> & ResourceConfig,
+    currentConfig: Partial<T> & ResourceConfig | null,
     configuration: PlanConfiguration
-  ): Plan {
+  ): Plan<T> {
     const parameterConfigurations = configuration.parameterConfigurations ?? {};
     const statefulParameterNames = new Set(
       [...Object.entries(parameterConfigurations)]
@@ -57,7 +58,7 @@ export class Plan {
     } else {
       resourceOperation = parameterChangeSet
         .filter((change) => change.operation !== ParameterOperation.NOOP)
-        .reduce((operation: ResourceOperation, curr: ParameterChange) => {
+        .reduce((operation: ResourceOperation, curr: ParameterChange<T>) => {
           let newOperation: ResourceOperation;
           if (statefulParameterNames.has(curr.name)) {
             newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
@@ -72,7 +73,7 @@ export class Plan {
 
     return new Plan(
       randomUUID(),
-      new ChangeSet(resourceOperation, parameterChangeSet),
+      new ChangeSet<T>(resourceOperation, parameterChangeSet),
       resourceMetadata,
     );
   }
@@ -81,14 +82,14 @@ export class Plan {
     return this.resourceMetadata.type
   }
 
-  static fromResponse(data: ApplyRequestData['plan']): Plan {
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan']): Plan<T> {
     if (!data) {
       throw new Error('Data is empty');
     }
 
     return new Plan(
       randomUUID(),
-      new ChangeSet(
+      new ChangeSet<T>(
         data.operation,
         data.parameters.map(value => ({
           ...value,
@@ -106,14 +107,14 @@ export class Plan {
     );
   }
 
-  get desiredConfig(): ResourceConfig {
+  get desiredConfig(): T {
     return {
       ...this.resourceMetadata,
       ...this.changeSet.desiredParameters,
     }
   }
 
-  get currentConfig(): ResourceConfig {
+  get currentConfig(): T {
     return {
       ...this.resourceMetadata,
       ...this.changeSet.currentParameters,

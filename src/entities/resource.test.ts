@@ -18,15 +18,11 @@ class TestResource extends Resource<TestConfig> {
     super(options);
   }
 
-  applyCreate(plan: Plan): Promise<void> {
+  applyCreate(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyDestroy(plan: Plan): Promise<void> {
-    return Promise.resolve(undefined);
-  }
-
-  applyModify(parameterName: string, newValue: unknown, previousValue: unknown, plan: Plan): Promise<void> {
+  applyDestroy(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -93,7 +89,7 @@ describe('Resource tests', () => {
         super({ type: 'type' });
       }
 
-      calculateOperation(change: ParameterChange): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
+      calculateOperation(change: ParameterChange<TestConfig>): ResourceOperation.RECREATE | ResourceOperation.MODIFY {
         return ResourceOperation.MODIFY;
       }
 
@@ -124,7 +120,7 @@ describe('Resource tests', () => {
 
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
-      Plan.create(
+      Plan.create<TestConfig>(
         { type: 'resource', propA: 'a', propB: 0 },
         { type: 'resource' },
         { statefulMode: false },
@@ -143,7 +139,7 @@ describe('Resource tests', () => {
 
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
-      Plan.create(
+      Plan.create<TestConfig>(
         { type: 'resource' },
         { type: 'resource', propA: 'a', propB: 0 },
         { statefulMode: true },
@@ -162,7 +158,7 @@ describe('Resource tests', () => {
 
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
-      Plan.create(
+      Plan.create<TestConfig>(
         { type: 'resource', propA: 'a', propB: 0 },
         { type: 'resource', propA: 'b', propB: -1 },
         { statefulMode: true },
@@ -208,13 +204,13 @@ describe('Resource tests', () => {
         })
       }
 
-      applyAdd(valueToAdd: string, plan: Plan): Promise<void> {
+      applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
         return Promise.resolve();
       }
-      applyModify(newValue: string, previousValue: string, plan: Plan): Promise<void> {
+      applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
         return Promise.resolve();
       }
-      applyRemove(valueToRemove: string, plan: Plan): Promise<void> {
+      applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
         return Promise.resolve();
       }
       async refresh(): Promise<string | null> {
@@ -236,7 +232,7 @@ describe('Resource tests', () => {
 
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
-      Plan.create(
+      Plan.create<TestConfig>(
         { type: 'resource', propA: 'a', propB: 0, propC: 'b' },
         null,
         { statefulMode: false },
@@ -255,13 +251,13 @@ describe('Resource tests', () => {
         })
       }
 
-      applyAdd(valueToAdd: string, plan: Plan): Promise<void> {
+      applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
         return Promise.resolve();
       }
-      applyModify(newValue: string, previousValue: string, plan: Plan): Promise<void> {
+      applyModify(newValue: string, previousValue: string, allowDeletes: false, plan: Plan<TestConfig>): Promise<void> {
         return Promise.resolve();
       }
-      applyRemove(valueToRemove: string, plan: Plan): Promise<void> {
+      applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
         return Promise.resolve();
       }
       async refresh(): Promise<string | null> {

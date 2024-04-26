@@ -42,7 +42,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   // TODO: Add state in later.
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
   //  Add previousConfig as a parameter for plan(desired, previous);
-  async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan> {
+  async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
 
     // Explanation: these are settings for how the plan will be generated
     const planConfiguration: PlanConfiguration = {
@@ -86,7 +86,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     )
   }
 
-  async apply(plan: Plan): Promise<void> {
+  async apply(plan: Plan<T>): Promise<void> {
     if (plan.getResourceType() !== this.typeId) {
       throw new Error(`Internal error: Plan set to wrong resource during apply. Expected ${this.typeId} but got: ${plan.getResourceType()}`);
     }
@@ -108,31 +108,32 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyCreate(plan: Plan): Promise<void> {
+  private async _applyCreate(plan: Plan<T>): Promise<void> {
     await this.applyCreate(plan);
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
-      .filter((pc: ParameterChange) => this.statefulParameters.has(pc.name))
+      .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
       await statefulParameter.applyAdd(parameterChange.newValue, plan);
     }
   }
 
-  private async _applyModify(plan: Plan): Promise<void> {
+  private async _applyModify(plan: Plan<T>): Promise<void> {
     const parameterChanges = plan
       .changeSet
       .parameterChanges
-      .filter((c: ParameterChange) => c.operation !== ParameterOperation.NOOP);
+      .filter((c: ParameterChange<T>) => c.operation !== ParameterOperation.NOOP);
 
     const statelessParameterChanges = parameterChanges
-      .filter((pc: ParameterChange) => !this.statefulParameters.has(pc.name))
+      .filter((pc: ParameterChange<T>) => !this.statefulParameters.has(pc.name))
     for (const pc of statelessParameterChanges) {
-      await this.applyModify(pc.name, pc.newValue, pc.previousValue, plan);
+      // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
+      await this.applyModify(pc.name, pc.newValue, pc.previousValue, false, plan);
     }
 
     const statefulParameterChanges = parameterChanges
-      .filter((pc: ParameterChange) => this.statefulParameters.has(pc.name))
+      .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
 
@@ -142,7 +143,8 @@ export abstract class Resource<T extends StringIndexedObject> {
           break;
         }
         case ParameterOperation.MODIFY: {
-          await statefulParameter.applyModify(parameterChange.newValue, parameterChange.previousValue, plan);
+          // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
+          await statefulParameter.applyModify(parameterChange.newValue, parameterChange.previousValue, false, plan);
           break;
         }
         case ParameterOperation.REMOVE: {
@@ -153,12 +155,12 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyDestroy(plan: Plan): Promise<void> {
+  private async _applyDestroy(plan: Plan<T>): Promise<void> {
     // If this option is set (defaults to false), then stateful parameters need to be destroyed
     // as well. This means that the stateful parameter wouldn't have been normally destroyed with applyDestroy()
     if (this.options.callStatefulParameterRemoveOnDestroy) {
       const statefulParameterChanges = plan.changeSet.parameterChanges
-        .filter((pc: ParameterChange) => this.statefulParameters.has(pc.name))
+        .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
       for (const parameterChange of statefulParameterChanges) {
         const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
         await statefulParameter.applyRemove(parameterChange.previousValue, plan);
@@ -224,9 +226,9 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
 
   abstract refresh(keys: Set<keyof T>): Promise<Partial<T> | null>;
 
-  abstract applyCreate(plan: Plan): Promise<void>;
+  abstract applyCreate(plan: Plan<T>): Promise<void>;
 
-  abstract applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, plan: Plan): Promise<void>;
+  async applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, allowDeletes: boolean, plan: Plan<T>): Promise<void> {};
 
-  abstract applyDestroy(plan: Plan): Promise<void>;
+  abstract applyDestroy(plan: Plan<T>): Promise<void>;
 }

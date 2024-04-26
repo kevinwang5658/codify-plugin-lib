@@ -1,8 +1,8 @@
-import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject } from 'codify-schemas';
+import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject, } from 'codify-schemas';
 import { ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
-import { ErrorMessage, ResourceConfiguration } from './resource-types.js';
+import { ResourceConfiguration, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
 import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
 
@@ -222,7 +222,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  abstract validate(config: unknown): Promise<ErrorMessage[] | undefined>;
+  abstract validate(config: unknown): Promise<ValidationResult>;
 
   abstract refresh(keys: Set<keyof T>): Promise<Partial<T> | null>;
 

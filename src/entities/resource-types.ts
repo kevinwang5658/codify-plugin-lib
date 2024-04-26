@@ -40,3 +40,8 @@ export interface ResourceDefinition {
     type: string;
   }
 }
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors?: unknown[],
+}

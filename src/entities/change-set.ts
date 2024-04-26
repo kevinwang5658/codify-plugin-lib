@@ -19,6 +19,22 @@ export class ChangeSet {
     this.parameterChanges = parameterChanges;
   }
 
+  get desiredParameters(): StringIndexedObject {
+    return this.parameterChanges
+      .reduce((obj, pc) => ({
+        ...obj,
+        [pc.name]: pc.newValue,
+      }), {});
+  }
+
+  get currentParameters(): StringIndexedObject {
+    return this.parameterChanges
+      .reduce((obj, pc) => ({
+        ...obj,
+        [pc.name]: pc.previousValue,
+      }), {});
+  }
+
   // static create<T extends Record<string, unknown>>(prev: T, next: T, options: {
   //   statefulMode: boolean,
   // }): ChangeSet {
@@ -92,7 +108,7 @@ export class ChangeSet {
 
 
     for (const [k, v] of Object.entries(_current)) {
-      if (!_desired[k]) {
+      if (_desired[k] == null) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -156,7 +172,7 @@ export class ChangeSet {
     const _current = { ...current };
 
     for (const [k, v] of Object.entries(_desired)) {
-      if (!_current[k]) {
+      if (_current[k] == null) {
         parameterChangeSet.push({
           name: k,
           previousValue: null,

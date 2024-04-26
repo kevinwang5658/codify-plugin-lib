@@ -85,8 +85,8 @@ export function splitUserConfig<T extends StringIndexedObject>(
 ): { parameters: T;  resourceMetadata: ResourceConfig} {
   const resourceMetadata = {
     type: config.type,
-    name: config.name,
-    dependsOn: config.dependsOn,
+    ...(config.name && { name: config.name }),
+    ...(config.dependsOn && { dependsOn: config.dependsOn }),
   };
 
   const { type, name, dependsOn, ...parameters } = config;

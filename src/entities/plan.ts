@@ -26,7 +26,7 @@ export class Plan {
     currentConfig: ResourceConfig | null,
     configuration: PlanConfiguration
   ): Plan {
-    const { parameterConfigurations } = configuration;
+    const parameterConfigurations = configuration.parameterConfigurations ?? {};
     const statefulParameterNames = new Set(
       [...Object.entries(parameterConfigurations)]
         .filter(([k, v]) => v.isStatefulParameter)
@@ -49,20 +49,26 @@ export class Plan {
       { statefulMode: configuration.statefulMode }
     );
 
-    const resourceOperation = parameterChangeSet
-      .filter((change) => change.operation !== ParameterOperation.NOOP)
-      .reduce((operation: ResourceOperation, curr: ParameterChange) => {
-        let newOperation: ResourceOperation;
-        if (statefulParameterNames.has(curr.name)) {
-          newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-        } else if (parameterConfigurations[curr.name]?.planOperation) {
-          newOperation = parameterConfigurations[curr.name].planOperation!;
-        } else {
-          newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
-        }
-
-        return ChangeSet.combineResourceOperations(operation, newOperation);
-      }, ResourceOperation.NOOP);
+    let resourceOperation: ResourceOperation;
+    if (!currentConfig && desiredConfig) {
+      resourceOperation = ResourceOperation.CREATE;
+    } else if (currentConfig && !desiredConfig) {
+      resourceOperation = ResourceOperation.DESTROY;
+    } else {
+      resourceOperation = parameterChangeSet
+        .filter((change) => change.operation !== ParameterOperation.NOOP)
+        .reduce((operation: ResourceOperation, curr: ParameterChange) => {
+          let newOperation: ResourceOperation;
+          if (statefulParameterNames.has(curr.name)) {
+            newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
+          } else if (parameterConfigurations[curr.name]?.planOperation) {
+            newOperation = parameterConfigurations[curr.name].planOperation!;
+          } else {
+            newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
+          }
+          return ChangeSet.combineResourceOperations(operation, newOperation);
+        }, ResourceOperation.NOOP);
+    }
 
     return new Plan(
       randomUUID(),
@@ -98,6 +104,20 @@ export class Plan {
         ))
       },
     );
+  }
+
+  get desiredConfig(): ResourceConfig {
+    return {
+      ...this.resourceMetadata,
+      ...this.changeSet.desiredParameters,
+    }
+  }
+
+  get currentConfig(): ResourceConfig {
+    return {
+      ...this.resourceMetadata,
+      ...this.changeSet.currentParameters,
+    }
   }
 
   toResponse(): PlanResponseData {

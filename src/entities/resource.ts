@@ -16,7 +16,7 @@ import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
 export abstract class Resource<T extends StringIndexedObject> {
 
   readonly typeId: string;
-  readonly statefulParameters: Map<string, StatefulParameter<T, T[keyof T]>>;
+  readonly statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   readonly dependencies: Resource<any>[]; // TODO: Change this to a string
   readonly parameterConfigurations: Record<string, ParameterConfiguration>
 
@@ -26,7 +26,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.validateResourceConfiguration(configuration);
 
     this.typeId = configuration.type;
-    this.statefulParameters = new Map(Object.entries(configuration.statefulParameters ?? {}));
+    this.statefulParameters = new Map(configuration.statefulParameters?.map((sp) => [sp.name, sp]));
     this.parameterConfigurations = this.generateParameterConfigurations(configuration);
 
     this.dependencies = configuration.dependencies ?? [];
@@ -75,8 +75,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     for(const statefulParameter of statefulParameters) {
       currentParameters[statefulParameter.name] = await statefulParameter.refresh(
-        desiredParameters[statefulParameter.name]
-      );
+        desiredParameters[statefulParameter.name] ?? null
+      ) ?? undefined;
     }
 
     return Plan.create(
@@ -213,7 +213,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     if (!setsEqual(desiredKeys, refreshKeys)) {
       throw new Error(
         `Resource ${this.options.type}
-refresh() must return back all of the keys that was provided
+refresh() must return back exactly the keys that were provided
 Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
 Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       );

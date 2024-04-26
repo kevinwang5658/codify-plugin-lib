@@ -22,5 +22,5 @@ export interface ParameterConfiguration {
 
 export interface PlanConfiguration {
   statefulMode: boolean;
-  parameterConfigurations: Record<string, ParameterConfiguration>;
+  parameterConfigurations?: Record<string, ParameterConfiguration>;
 }

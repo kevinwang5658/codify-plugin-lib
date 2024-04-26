@@ -22,12 +22,12 @@ export abstract class StatefulParameter<T, V extends T[keyof T]> {
     this.configuration = configuration
   }
 
-  abstract refresh(value?: V): Promise<V>;
+  abstract refresh(value: V | null): Promise<V | null>;
 
   // TODO: Add an additional parameter here for what has actually changed.
-  abstract applyAdd(valueToAdd: V, plan: Plan<T>): Promise<void>;
-  abstract applyModify(newValue: V, previousValue: V, plan: Plan<T>): Promise<void>;
-  abstract applyRemove(valueToRemove: V, plan: Plan<T>): Promise<void>;
+  abstract applyAdd(valueToAdd: V, plan: Plan): Promise<void>;
+  abstract applyModify(newValue: V, previousValue: V, plan: Plan): Promise<void>;
+  abstract applyRemove(valueToRemove: V, plan: Plan): Promise<void>;
 }
 
 export abstract class ArrayStatefulParameter<T, V extends T[keyof T] & Array<unknown>> extends StatefulParameter<T, V>{
@@ -35,13 +35,13 @@ export abstract class ArrayStatefulParameter<T, V extends T[keyof T] & Array<unk
     super(configuration);
   }
 
-  async applyAdd(valuesToAdd: V, plan: Plan<T>): Promise<void> {
+  async applyAdd(valuesToAdd: V, plan: Plan): Promise<void> {
     for (const value of valuesToAdd) {
       await this.applyAddItem(value as ArrayElement<V>, plan);
     }
   }
 
-  async applyModify(newValues: V, previousValues: V, plan: Plan<T>): Promise<void> {
+  async applyModify(newValues: V, previousValues: V, plan: Plan): Promise<void> {
     const valuesToAdd = newValues.filter((n) => !previousValues.includes(n));
     const valuesToRemove = previousValues.filter((n) => !newValues.includes(n));
 
@@ -54,12 +54,12 @@ export abstract class ArrayStatefulParameter<T, V extends T[keyof T] & Array<unk
     }
   }
 
-  async applyRemove(valuesToRemove: V, plan: Plan<T>): Promise<void> {
+  async applyRemove(valuesToRemove: V, plan: Plan): Promise<void> {
     for (const value of valuesToRemove) {
       await this.applyRemoveItem(value as ArrayElement<V>, plan);
     }
   }
 
-  abstract applyAddItem(item: ArrayElement<V>, plan: Plan<T>): Promise<void>;
-  abstract applyRemoveItem(item: ArrayElement<V>, plan: Plan<T>): Promise<void>;
+  abstract applyAddItem(item: ArrayElement<V>, plan: Plan): Promise<void>;
+  abstract applyRemoveItem(item: ArrayElement<V>, plan: Plan): Promise<void>;
 }

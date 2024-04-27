@@ -17,10 +17,9 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   readonly typeId: string;
   readonly statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
-  readonly dependencies: Resource<any>[]; // TODO: Change this to a string
+  readonly dependencies: string[]; // TODO: Change this to a string
   readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
-
-  private readonly options: ResourceConfiguration<T>;
+  readonly configuration: ResourceConfiguration<T>;
 
   protected constructor(configuration: ResourceConfiguration<T>) {
     this.validateResourceConfiguration(configuration);
@@ -30,11 +29,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.parameterConfigurations = this.generateParameterConfigurations(configuration);
 
     this.dependencies = configuration.dependencies ?? [];
-    this.options = configuration;
-  }
-
-  getDependencyTypeIds(): string[] {
-    return this.dependencies.map((d) => d.typeId)
+    this.configuration = configuration;
   }
 
   async onInitialize(): Promise<void> {}
@@ -176,7 +171,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   private async _applyDestroy(plan: Plan<T>): Promise<void> {
     // If this option is set (defaults to false), then stateful parameters need to be destroyed
     // as well. This means that the stateful parameter wouldn't have been normally destroyed with applyDestroy()
-    if (this.options.callStatefulParameterRemoveOnDestroy) {
+    if (this.configuration.callStatefulParameterRemoveOnDestroy) {
       const statefulParameterChanges = plan.changeSet.parameterChanges
         .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
       for (const parameterChange of statefulParameterChanges) {
@@ -215,16 +210,18 @@ export abstract class Resource<T extends StringIndexedObject> {
   }
 
   private validateResourceConfiguration(data: ResourceConfiguration<T>) {
-    // A parameter cannot be both stateful and stateless
+    // Stateful parameters are configured within the object not in the resource.
     if (data.parameterConfigurations && data.statefulParameters) {
       const parameters = [...Object.keys(data.parameterConfigurations)];
-      const statefulParameterSet = new Set(Object.keys(data.statefulParameters));
+      const statefulParameterSet = new Set(data.statefulParameters.map((sp) => sp.name));
 
       const intersection = parameters.some((p) => statefulParameterSet.has(p));
       if (intersection) {
         throw new Error(`Resource ${this.typeId} cannot declare a parameter as both stateful and non-stateful`);
       }
     }
+
+
   }
 
   private validateRefreshResults(refresh: Partial<T> | null, desiredKeys: Set<keyof T>) {
@@ -236,7 +233,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     if (!setsEqual(desiredKeys, refreshKeys)) {
       throw new Error(
-        `Resource ${this.options.type}
+        `Resource ${this.configuration.type}
 refresh() must return back exactly the keys that were provided
 Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
 Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`

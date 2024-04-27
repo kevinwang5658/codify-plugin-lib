@@ -34,10 +34,6 @@ export class Plan<T extends StringIndexedObject> {
         .map(([k, v]) => k)
     );
 
-
-    // TODO: After adding in state files, need to calculate deletes here
-    //  Where current config exists and state config exists but desired config doesn't
-
     // Explanation: This calculates the change set of the parameters between the
     // two configs and then passes it to ChangeSet to calculate the overall
     // operation for the resource

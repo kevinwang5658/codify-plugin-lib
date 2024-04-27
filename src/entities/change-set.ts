@@ -126,7 +126,6 @@ export class ChangeSet<T extends StringIndexedObject> {
     const _desired = { ...desired };
     const _current = { ...current };
 
-
     for (const [k, v] of Object.entries(_current)) {
       if (_desired[k] == null) {
         parameterChangeSet.push({

@@ -1,6 +1,5 @@
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
-import { Resource } from './resource.js';
 
 export type ErrorMessage = string;
 
@@ -30,7 +29,7 @@ export interface ResourceConfiguration<T extends StringIndexedObject> {
    * Defaults to false.
    */
   callStatefulParameterRemoveOnDestroy?: boolean,
-  dependencies?: Resource<any>[];
+  dependencies?: string[];
   statefulParameters?: Array<StatefulParameter<T, T[keyof T]>>;
   parameterConfigurations?: Partial<Record<keyof T, ResourceParameterConfiguration>>
 }

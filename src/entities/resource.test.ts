@@ -4,6 +4,7 @@ import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { describe, expect, it } from 'vitest'
 import { ResourceConfiguration, ValidationResult } from './resource-types.js';
+import { StatefulParameter } from './stateful-parameter.js';
 
 export interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -40,7 +41,8 @@ export class TestResource extends Resource<TestConfig> {
 }
 
 describe('Resource tests', () => {
-  it('plans correctly', async () => {
+
+  it('Plans successfully', async () => {
     const resource = new class extends TestResource {
       constructor() {
         super({ type: 'type' });
@@ -212,4 +214,83 @@ describe('Resource tests', () => {
 
     expect(resourceSpy.applyModify.calledTwice).to.be.true;
   })
+
+  it('Validates the resource configuration correct (pass)', () => {
+    const parameter = new class extends StatefulParameter<TestConfig, string> {
+      constructor() {
+        super({
+          name: 'propC',
+        });
+      }
+
+      async refresh(): Promise<string | null> {
+        return null;
+      }
+      applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
+        throw new Error('Method not implemented.');
+      }
+      applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
+        throw new Error('Method not implemented.');
+      }
+      applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
+        throw new Error('Method not implemented.');
+      }
+    }
+
+    expect(() => new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          dependencies: ['homebrew', 'python'],
+          statefulParameters: [
+            parameter
+          ],
+          parameterConfigurations: {
+            propA: { planOperation: ResourceOperation.MODIFY },
+            propC: { isEqual: (a, b) => true },
+          }
+        });
+      }
+    }).to.not.throw;
+  })
+
+  it('Validates the resource configuration correct (fail)', () => {
+    const parameter = new class extends StatefulParameter<TestConfig, string> {
+      constructor() {
+        super({
+          name: 'propC',
+        });
+      }
+
+      async refresh(): Promise<string | null> {
+        return null;
+      }
+      applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
+        throw new Error('Method not implemented.');
+      }
+      applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
+        throw new Error('Method not implemented.');
+      }
+      applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
+        throw new Error('Method not implemented.');
+      }
+    }
+
+    expect(() => new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          dependencies: ['homebrew', 'python'],
+          statefulParameters: [
+            parameter
+          ],
+          parameterConfigurations: {
+            propA: { planOperation: ResourceOperation.MODIFY },
+            propC: { isEqual: (a, b) => true },
+          }
+        });
+      }
+    }).to.not.throw;
+  })
+
 });

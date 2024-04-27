@@ -28,7 +28,7 @@ export class Plugin {
       resourceDefinitions: [...this.resources.values()]
         .map((r) => ({
           type: r.typeId,
-          dependencies: r.getDependencyTypeIds(),
+          dependencies: r.dependencies,
         }))
     }
   }

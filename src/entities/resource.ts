@@ -64,7 +64,8 @@ export abstract class Resource<T extends StringIndexedObject> {
     const keysToRefresh = new Set(Object.keys(resourceParameters));
     const currentParameters = await this.refresh(keysToRefresh);
 
-    if (currentParameters == null && statefulParameters.length === 0) {
+    // Short circuit here. If resource is non-existent, then there's no point checking stateful parameters
+    if (currentParameters == null) {
       return Plan.create(desiredConfig, null, planConfiguration);
     }
 
@@ -72,8 +73,6 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     // Refresh stateful parameters
     // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-    const currentStatefulParameters = {} as Partial<T>;
-
     for(const statefulParameter of statefulParameters) {
       const desiredValue = desiredParameters[statefulParameter.name];
 
@@ -84,12 +83,12 @@ export abstract class Resource<T extends StringIndexedObject> {
         currentValue = currentValue.filter((p) => desiredValue?.includes(p)) as any;
       }
 
-      currentStatefulParameters[statefulParameter.name] = currentValue;
+      currentParameters[statefulParameter.name] = currentValue;
     }
 
     return Plan.create(
       desiredConfig,
-      { ...currentParameters, ...currentStatefulParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
+      { ...currentParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
       planConfiguration,
     )
   }

@@ -113,7 +113,7 @@ describe('Resource parameters tests', () => {
       }
 
       async refresh(): Promise<Partial<TestConfig> | null> {
-        return null;
+        return {};
       }
     }
 
@@ -144,7 +144,7 @@ describe('Resource parameters tests', () => {
       }
 
       async refresh(): Promise<Partial<TestConfig> | null> {
-        return null;
+        return {};
       }
     }
 

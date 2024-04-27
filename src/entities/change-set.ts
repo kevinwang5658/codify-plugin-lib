@@ -130,7 +130,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_current[k], _desired[k], parameterConfigurations?.[k]?.isEqual)) {
+      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k]?.isEqual)) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -194,7 +194,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_current[k], _desired[k], parameterConfigurations?.[k]?.isEqual)) {
+      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k]?.isEqual)) {
         parameterChangeSet.push({
           name: k,
           previousValue: _current[k],

@@ -13,9 +13,7 @@ export interface ParameterConfiguration {
    * @param a
    * @param b
    */
-  isEqual?: (a: any, b: any) => boolean;
-
-  isArrayElementEqual?: (a: any, b: any) => boolean;
+  isEqual?: (desired: any, current: any) => boolean;
 
   isStatefulParameter?: boolean;
 }

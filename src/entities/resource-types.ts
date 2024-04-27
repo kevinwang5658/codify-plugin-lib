@@ -14,10 +14,10 @@ export interface ResourceParameterConfiguration {
   planOperation?: ResourceOperation.MODIFY | ResourceOperation.RECREATE;
   /**
    * Customize the equality comparison for a parameter.
-   * @param a
-   * @param b
+   * @param desired
+   * @param current
    */
-  isEqual?: (a: any, b: any) => boolean;
+  isEqual?: (desired: any, current: any) => boolean;
 }
 
 /**

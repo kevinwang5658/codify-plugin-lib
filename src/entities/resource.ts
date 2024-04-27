@@ -18,7 +18,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly typeId: string;
   readonly statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   readonly dependencies: Resource<any>[]; // TODO: Change this to a string
-  readonly parameterConfigurations: Record<string, ParameterConfiguration>
+  readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
 
   private readonly options: ResourceConfiguration<T>;
 
@@ -45,23 +45,26 @@ export abstract class Resource<T extends StringIndexedObject> {
   async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
 
     // Explanation: these are settings for how the plan will be generated
-    const planConfiguration: PlanConfiguration = {
+    const planConfiguration: PlanConfiguration<T> = {
       statefulMode: false,
       parameterConfigurations: this.parameterConfigurations,
     }
 
     const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
 
-    // Refresh resource parameters
-    // This refreshes the parameters that configure the resource itself
-
     const resourceParameters = Object.fromEntries([
       ...Object.entries(desiredParameters).filter(([key]) => !this.statefulParameters.has(key)),
     ]) as Partial<T>;
 
+    const statefulParameters = [...this.statefulParameters.values()]
+      .filter((sp) => desiredParameters[sp.name] !== undefined) // Checking for undefined is fine here because JSONs can only have null.
+
+    // Refresh resource parameters
+    // This refreshes the parameters that configure the resource itself
     const keysToRefresh = new Set(Object.keys(resourceParameters));
     const currentParameters = await this.refresh(keysToRefresh);
-    if (!currentParameters) {
+
+    if (currentParameters == null && statefulParameters.length === 0) {
       return Plan.create(desiredConfig, null, planConfiguration);
     }
 
@@ -69,19 +72,24 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     // Refresh stateful parameters
     // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-
-    const statefulParameters = [...this.statefulParameters.values()]
-      .filter((sp) => desiredParameters[sp.name] !== undefined) // Checking for undefined is fine here because JSONs can only have null.
+    const currentStatefulParameters = {} as Partial<T>;
 
     for(const statefulParameter of statefulParameters) {
-      currentParameters[statefulParameter.name] = await statefulParameter.refresh(
-        desiredParameters[statefulParameter.name] ?? null
-      ) ?? undefined;
+      const desiredValue = desiredParameters[statefulParameter.name];
+
+      let currentValue = await statefulParameter.refresh(desiredValue ?? null) ?? undefined;
+
+      // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
+      if (Array.isArray(currentValue) && Array.isArray(desiredValue) && !planConfiguration.statefulMode) {
+        currentValue = currentValue.filter((p) => desiredValue?.includes(p)) as any;
+      }
+
+      currentStatefulParameters[statefulParameter.name] = currentValue;
     }
 
     return Plan.create(
       desiredConfig,
-      { ...currentParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
+      { ...currentParameters, ...currentStatefulParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
       planConfiguration,
     )
   }
@@ -172,13 +180,13 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   private generateParameterConfigurations(
     resourceConfiguration: ResourceConfiguration<T>
-  ): Record<string, ParameterConfiguration>  {
-    const resourceParameters: Record<string, ParameterConfiguration> = Object.fromEntries(
+  ): Record<keyof T, ParameterConfiguration>  {
+    const resourceParameters = Object.fromEntries(
       Object.entries(resourceConfiguration.parameterConfigurations ?? {})
         ?.map(([name, value]) => ([name, { ...value, isStatefulParameter: false }]))
-    )
+    ) as Record<keyof T, ParameterConfiguration>
 
-    const statefulParameters: Record<string, ParameterConfiguration> = resourceConfiguration.statefulParameters
+    const statefulParameters = resourceConfiguration.statefulParameters
       ?.reduce((obj, sp) => {
         return {
           ...obj,
@@ -209,7 +217,11 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
   }
 
-  private validateRefreshResults(refresh: Partial<T>, desiredKeys: Set<keyof T>) {
+  private validateRefreshResults(refresh: Partial<T> | null, desiredKeys: Set<keyof T>) {
+    if (!refresh) {
+      return;
+    }
+
     const refreshKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
 
     if (!setsEqual(desiredKeys, refreshKeys)) {

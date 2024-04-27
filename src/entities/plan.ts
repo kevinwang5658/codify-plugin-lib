@@ -8,7 +8,7 @@ import {
   StringIndexedObject,
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
-import { PlanConfiguration } from './plan-types.js';
+import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
 import { splitUserConfig } from '../utils/utils.js';
 
 export class Plan<T extends StringIndexedObject> {
@@ -25,9 +25,9 @@ export class Plan<T extends StringIndexedObject> {
   static create<T extends StringIndexedObject>(
     desiredConfig: Partial<T> & ResourceConfig,
     currentConfig: Partial<T> & ResourceConfig | null,
-    configuration: PlanConfiguration
+    configuration: PlanConfiguration<T>
   ): Plan<T> {
-    const parameterConfigurations = configuration.parameterConfigurations ?? {};
+    const parameterConfigurations = configuration.parameterConfigurations ?? {} as Record<keyof T, ParameterConfiguration>;
     const statefulParameterNames = new Set(
       [...Object.entries(parameterConfigurations)]
         .filter(([k, v]) => v.isStatefulParameter)
@@ -35,7 +35,7 @@ export class Plan<T extends StringIndexedObject> {
     );
 
     const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
-    const { parameters: currentParameters } = currentConfig ? splitUserConfig(currentConfig) : { parameters: {} };
+    const { parameters: currentParameters } = currentConfig != null ? splitUserConfig(currentConfig) : { parameters: null };
 
 
     // TODO: After adding in state files, need to calculate deletes here

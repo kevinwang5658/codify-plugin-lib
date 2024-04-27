@@ -50,8 +50,9 @@ describe('Resource parameters tests', () => {
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
       Plan.create<TestConfig>(
-        { type: 'resource', propA: 'a', propB: 0, propC: 'b' },
+        { propA: 'a', propB: 0, propC: 'b' },
         null,
+        { type: 'resource' },
         { statefulMode: false },
       )
     );

@@ -136,6 +136,7 @@ describe('Resource tests', () => {
     const result = await resourceSpy.apply(
       Plan.create<TestConfig>(
         { type: 'resource', propA: 'a', propB: 0 },
+        null,
         { type: 'resource' },
         { statefulMode: false },
       )
@@ -154,8 +155,9 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
       Plan.create<TestConfig>(
+        null,
+        { propA: 'a', propB: 0 },
         { type: 'resource' },
-        { type: 'resource', propA: 'a', propB: 0 },
         { statefulMode: true },
       )
     )
@@ -173,8 +175,9 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
       Plan.create<TestConfig>(
-        { type: 'resource', propA: 'a', propB: 0 },
-        { type: 'resource', propA: 'b', propB: -1 },
+        { propA: 'a', propB: 0 },
+        { propA: 'b', propB: -1 },
+        { type: 'resource' },
         { statefulMode: true },
       )
     );

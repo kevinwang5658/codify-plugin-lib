@@ -43,20 +43,20 @@ export class ChangeSet<T extends StringIndexedObject> {
   //   const operation = ChangeSet.combineResourceOperations(prev, );
   // }
 
-  static newCreate<T extends {}>(desiredConfig: T) {
-    const parameterChangeSet = Object.entries(desiredConfig)
-      .filter(([k,]) => k !== 'type' && k !== 'name')
-      .map(([k, v]) => {
-        return {
-          name: k,
-          operation: ParameterOperation.ADD,
-          previousValue: null,
-          newValue: v,
-        }
-      })
-
-    return new ChangeSet(ResourceOperation.CREATE, parameterChangeSet);
-  }
+  // static newCreate<T extends {}>(desiredConfig: T) {
+  //   const parameterChangeSet = Object.entries(desiredConfig)
+  //     .filter(([k,]) => k !== 'type' && k !== 'name')
+  //     .map(([k, v]) => {
+  //       return {
+  //         name: k,
+  //         operation: ParameterOperation.ADD,
+  //         previousValue: null,
+  //         newValue: v,
+  //       }
+  //     })
+  //
+  //   return new ChangeSet(ResourceOperation.CREATE, parameterChangeSet);
+  // }
 
   static calculateParameterChangeSet<T extends StringIndexedObject>(
     desired: T | null,

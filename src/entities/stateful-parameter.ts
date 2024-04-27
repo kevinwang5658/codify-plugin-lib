@@ -21,7 +21,7 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
     this.configuration = configuration
   }
 
-  abstract refresh(previousValue: V | null): Promise<V | null>;
+  abstract refresh(): Promise<V | null>;
 
   // TODO: Add an additional parameter here for what has actually changed.
   abstract applyAdd(valueToAdd: V, plan: Plan<T>): Promise<void>;
@@ -30,9 +30,11 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
+  configuration: ArrayStatefulParameterConfiguration<T>;
 
   constructor(configuration: ArrayStatefulParameterConfiguration<T>) {
     super(configuration);
+    this.configuration = configuration;
   }
 
   async applyAdd(valuesToAdd: V[], plan: Plan<T>): Promise<void> {
@@ -42,8 +44,21 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
   }
 
   async applyModify(newValues: V[], previousValues: V[], allowDeletes: boolean, plan: Plan<T>): Promise<void> {
-    const valuesToAdd = newValues.filter((n) => !previousValues.includes(n));
-    const valuesToRemove = previousValues.filter((n) => !newValues.includes(n));
+    const configuration = this.configuration as ArrayStatefulParameterConfiguration<T>;
+
+    const valuesToAdd = newValues.filter((n) => !previousValues.some((p) => {
+      if ((configuration).isElementEqual) {
+        return configuration.isElementEqual(n, p);
+      }
+      return n === p;
+    }));
+
+    const valuesToRemove = previousValues.filter((p) => !newValues.some((n) => {
+      if ((configuration).isElementEqual) {
+        return configuration.isElementEqual(n, p);
+      }
+      return n === p;
+    }));
 
     for (const value of valuesToAdd) {
       await this.applyAddItem(value, plan)
@@ -62,7 +77,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
     }
   }
 
-  abstract refresh(previousValue: V[] | null): Promise<V[] | null>;
+  abstract refresh(): Promise<V[] | null>;
   abstract applyAddItem(item: V, plan: Plan<T>): Promise<void>;
   abstract applyRemoveItem(item: V, plan: Plan<T>): Promise<void>;
 }

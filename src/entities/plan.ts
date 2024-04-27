@@ -9,7 +9,6 @@ import {
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
 import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
-import { splitUserConfig } from '../utils/utils.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
@@ -23,8 +22,9 @@ export class Plan<T extends StringIndexedObject> {
   }
 
   static create<T extends StringIndexedObject>(
-    desiredConfig: Partial<T> & ResourceConfig,
-    currentConfig: Partial<T> & ResourceConfig | null,
+    desiredParameters: Partial<T> | null,
+    currentParameters: Partial<T> | null,
+    resourceMetadata: ResourceConfig,
     configuration: PlanConfiguration<T>
   ): Plan<T> {
     const parameterConfigurations = configuration.parameterConfigurations ?? {} as Record<keyof T, ParameterConfiguration>;
@@ -33,9 +33,6 @@ export class Plan<T extends StringIndexedObject> {
         .filter(([k, v]) => v.isStatefulParameter)
         .map(([k, v]) => k)
     );
-
-    const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
-    const { parameters: currentParameters } = currentConfig != null ? splitUserConfig(currentConfig) : { parameters: null };
 
 
     // TODO: After adding in state files, need to calculate deletes here
@@ -51,9 +48,9 @@ export class Plan<T extends StringIndexedObject> {
     );
 
     let resourceOperation: ResourceOperation;
-    if (!currentConfig && desiredConfig) {
+    if (!currentParameters && desiredParameters) {
       resourceOperation = ResourceOperation.CREATE;
-    } else if (currentConfig && !desiredConfig) {
+    } else if (currentParameters && !desiredParameters) {
       resourceOperation = ResourceOperation.DESTROY;
     } else {
       resourceOperation = parameterChangeSet

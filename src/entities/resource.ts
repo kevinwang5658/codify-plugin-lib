@@ -66,7 +66,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     // Short circuit here. If resource is non-existent, then there's no point checking stateful parameters
     if (currentParameters == null) {
-      return Plan.create(desiredConfig, null, planConfiguration);
+      return Plan.create(desiredParameters, null, resourceMetadata, planConfiguration);
     }
 
     this.validateRefreshResults(currentParameters, keysToRefresh);
@@ -76,7 +76,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     for(const statefulParameter of statefulParameters) {
       const desiredValue = desiredParameters[statefulParameter.name];
 
-      let currentValue = await statefulParameter.refresh(desiredValue ?? null) ?? undefined;
+      let currentValue = await statefulParameter.refresh() ?? undefined;
 
       // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
       if (Array.isArray(currentValue) && Array.isArray(desiredValue) && !planConfiguration.statefulMode) {
@@ -87,8 +87,9 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
 
     return Plan.create(
-      desiredConfig,
-      { ...currentParameters, ...resourceMetadata } as Partial<T> & ResourceConfig,
+      desiredParameters,
+      currentParameters as Partial<T>,
+      resourceMetadata,
       planConfiguration,
     )
   }

@@ -79,8 +79,18 @@ export abstract class Resource<T extends StringIndexedObject> {
       let currentValue = await statefulParameter.refresh() ?? undefined;
 
       // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
-      if (Array.isArray(currentValue) && Array.isArray(desiredValue) && !planConfiguration.statefulMode) {
-        currentValue = currentValue.filter((p) => desiredValue?.includes(p)) as any;
+      if (Array.isArray(currentValue)
+        && Array.isArray(desiredValue)
+        && !planConfiguration.statefulMode
+        && !statefulParameter.configuration.disableStatelessModeArrayFiltering
+      ) {
+        currentValue = currentValue.filter((c) => desiredValue?.some((d) => {
+          const pc = planConfiguration?.parameterConfigurations?.[statefulParameter.name];
+          if (pc && pc.isElementEqual) {
+            return pc.isElementEqual(d, c);
+          }
+          return d === c;
+        })) as any;
       }
 
       currentParameters[statefulParameter.name] = currentValue;

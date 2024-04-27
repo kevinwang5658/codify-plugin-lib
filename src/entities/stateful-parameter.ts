@@ -4,6 +4,17 @@ import { StringIndexedObject } from 'codify-schemas';
 export interface StatefulParameterConfiguration<T> {
   name: keyof T;
   isEqual?: (desired: any, current: any) => boolean;
+
+  /**
+   * In stateless mode, array refresh results (current) will be automatically filtered by the user config (desired).
+   * This is done to ensure that for modify operations, stateless mode will not try to delete existing resources.
+   *
+   * Ex: System has python 3.11.9 and 3.12.7 installed (current). Desired is 3.11. Without filtering 3.12.7 will be deleted
+   * in the next modify
+   *
+   * Set this flag to true to disable this behaviour
+   */
+  disableStatelessModeArrayFiltering?: boolean;
 }
 
 export interface ArrayStatefulParameterConfiguration<T> extends StatefulParameterConfiguration<T> {

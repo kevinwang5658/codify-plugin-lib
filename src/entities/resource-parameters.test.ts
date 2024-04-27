@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { StatefulParameter, StatefulParameterConfiguration } from './stateful-parameter.js';
+import { ArrayStatefulParameter, StatefulParameter, StatefulParameterConfiguration } from './stateful-parameter.js';
 import { Plan } from './plan.js';
 import { spy } from 'sinon';
 import { ResourceOperation } from 'codify-schemas';
@@ -154,6 +154,47 @@ describe('Resource parameters tests', () => {
     expect(plan).toMatchObject({
       changeSet: {
         operation: ResourceOperation.MODIFY,
+      }
+    })
+  })
+
+  it('Uses isElementEqual for stateless mode filtering if available', async () => {
+    const statefulParameter = new class extends ArrayStatefulParameter<TestConfig, string> {
+      constructor() {
+        super({
+          name: 'propA',
+          isElementEqual: (desired, current) => current.includes(desired),
+        });
+      }
+
+      async refresh(): Promise<any | null> {
+        return ['3.11.9']
+      }
+
+      async applyAddItem(item: string, plan: Plan<TestConfig>): Promise<void> {}
+      async applyRemoveItem(item: string, plan: Plan<TestConfig>): Promise<void> {}
+    }
+
+    const statefulParameterSpy = spy(statefulParameter);
+
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resource',
+          statefulParameters: [statefulParameterSpy],
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {};
+      }
+    }
+
+    const plan = await resource.plan({ type: 'resource', propA: ['3.11'] } as any)
+
+    expect(plan).toMatchObject({
+      changeSet: {
+        operation: ResourceOperation.NOOP,
       }
     })
   })

@@ -27,30 +27,32 @@ export class Plugin {
     return {
       resourceDefinitions: [...this.resources.values()]
         .map((r) => ({
-          type: r.getTypeId(),
-          dependencies: r.getDependencyTypeIds(),
+          type: r.typeId,
+          dependencies: r.dependencies,
         }))
     }
   }
 
   async validate(data: ValidateRequestData): Promise<ValidateResponseData> {
-    const totalErrors = [];
+    const validationResults = [];
     for (const config of data.configs) {
       if (!this.resources.has(config.type)) {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
-      const error = await this.resources.get(config.type)!.validate(config);
-      if (error) {
-        totalErrors.push(...error);
-      }
+      const validateResult = await this.resources.get(config.type)!.validate(config);
+
+      validationResults.push({
+        ...validateResult,
+        resourceType: config.type,
+        resourceName: config.name,
+      });
     }
 
     await this.crossValidateResources(data.configs);
     return {
-      isValid: true,
-      errors: totalErrors,
-    }
+      validationResults
+    };
   }
 
   async plan(data: PlanRequestData): Promise<PlanResponseData> {

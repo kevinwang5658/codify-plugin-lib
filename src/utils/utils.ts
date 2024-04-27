@@ -1,5 +1,6 @@
 import promiseSpawn from '@npmcli/promise-spawn';
 import { SpawnOptions } from 'child_process';
+import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 
 export enum SpawnStatus {
   SUCCESS = 'success',
@@ -77,4 +78,24 @@ export async function codifySpawn(
 
 export function isDebug(): boolean {
   return process.env.DEBUG != null && process.env.DEBUG.includes('codify'); // TODO: replace with debug library
+}
+
+export function splitUserConfig<T extends StringIndexedObject>(
+  config: T & ResourceConfig
+): { parameters: T;  resourceMetadata: ResourceConfig} {
+  const resourceMetadata = {
+    type: config.type,
+    ...(config.name && { name: config.name }),
+    ...(config.dependsOn && { dependsOn: config.dependsOn }),
+  };
+
+  const { type, name, dependsOn, ...parameters } = config;
+  return {
+    parameters: parameters as T,
+    resourceMetadata,
+  };
+}
+
+export function setsEqual(set1: Set<unknown>, set2: Set<unknown>): boolean {
+  return set1.size === set2.size && [...set1].every((v) => set2.has(v));
 }

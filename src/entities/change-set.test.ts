@@ -1,107 +1,95 @@
-import { ChangeSet } from './change-set';
+import { ChangeSet } from './change-set.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-describe('Change set tests', () => {
+describe('Change set tests (stateful)', () => {
   it ('Correctly diffs two resource configs (modify)', () => {
-    const before = {
-      type: 'config',
+    const after = {
       propA: 'before',
       propB: 'before'
     }
 
-    const after = {
-      type: 'config',
+    const before = {
       propA: 'after',
       propB: 'after'
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(before, after);
+    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
     expect(cs.length).to.eq(2);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs[1].operation).to.eq(ParameterOperation.MODIFY);
   })
 
   it ('Correctly diffs two resource configs (add)', () => {
-    const before = {
-      type: 'config',
-      propA: 'before',
-    }
-
     const after = {
-      type: 'config',
-      propA: 'after',
+      propA: 'before',
       propB: 'after'
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(before, after);
+    const before = {
+      propA: 'after',
+    }
+
+    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
     expect(cs.length).to.eq(2);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs[1].operation).to.eq(ParameterOperation.ADD);
   })
 
   it ('Correctly diffs two resource configs (remove)', () => {
+    const after = {
+      propA: 'after',
+    }
+
     const before = {
-      type: 'config',
       propA: 'before',
       propB: 'before'
     }
 
-    const after = {
-      type: 'config',
-      propA: 'after',
-    }
-
-    const cs = ChangeSet.calculateParameterChangeSet(before, after);
+    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
     expect(cs.length).to.eq(2);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs[1].operation).to.eq(ParameterOperation.REMOVE);
   })
 
   it ('Correctly diffs two resource configs (no-op)', () => {
-    const before = {
-      type: 'config',
-      propA: 'prop',
-    }
-
     const after = {
-      type: 'config',
       propA: 'prop',
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(before, after);
+    const before = {
+      propA: 'prop',
+    }
+
+    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
     expect(cs.length).to.eq(1);
     expect(cs[0].operation).to.eq(ParameterOperation.NOOP);
   })
 
   it ('handles simple arrays', () => {
     const before = {
-      type: 'config',
       propA: ['a', 'b', 'c'],
     }
 
     const after = {
-      type: 'config',
       propA: ['b', 'a', 'c'],
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(before, after);
+    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
     expect(cs.length).to.eq(1);
     expect(cs[0].operation).to.eq(ParameterOperation.NOOP);
   })
 
   it ('handles simple arrays', () => {
-    const before = {
-      type: 'config',
-      propA: ['a', 'b'],
-    }
-
     const after = {
-      type: 'config',
-      propA: ['b', 'a', 'c'],
+      propA: ['a', 'b', 'c'],
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(before, after);
+    const before = {
+      propA: ['b', 'a'],
+    }
+
+    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
     expect(cs.length).to.eq(1);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
   })

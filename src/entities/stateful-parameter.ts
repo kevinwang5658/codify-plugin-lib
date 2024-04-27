@@ -3,8 +3,14 @@ import { StringIndexedObject } from 'codify-schemas';
 
 export interface StatefulParameterConfiguration<T> {
   name: keyof T;
-  isEqual?: (a: any, b: any) => boolean;
+  isEqual?: (desired: any, current: any) => boolean;
 }
+
+export interface ArrayStatefulParameterConfiguration<T> extends StatefulParameterConfiguration<T> {
+  isEqual?: (desired: any[], current: any[]) => boolean;
+  isElementEqual?: (desired: any, current: any) => boolean;
+}
+
 
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly name: keyof T;
@@ -24,7 +30,8 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
-  protected constructor(configuration: StatefulParameterConfiguration<T>) {
+
+  constructor(configuration: ArrayStatefulParameterConfiguration<T>) {
     super(configuration);
   }
 

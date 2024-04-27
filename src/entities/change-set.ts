@@ -86,22 +86,32 @@ export class ChangeSet<T extends StringIndexedObject> {
   }
 
   static isSame(
-    a: unknown,
-    b: unknown,
-    isEqual?: (a: unknown, b: unknown) => boolean,
+    desired: unknown,
+    current: unknown,
+    configuration?: ParameterConfiguration,
   ): boolean {
-    if (isEqual) {
-      return isEqual(a, b);
+    if (configuration?.isEqual) {
+      return configuration.isEqual(desired, current);
     }
 
-    if (Array.isArray(a) && Array.isArray(b)) {
-      const sortedPrev = a.map((x) => x).sort();
-      const sortedNext = b.map((x) => x).sort();
+    if (Array.isArray(desired) && Array.isArray(current)) {
+      const sortedDesired = desired.map((x) => x).sort();
+      const sortedCurrent = current.map((x) => x).sort();
 
-      return JSON.stringify(sortedPrev) === JSON.stringify(sortedNext);
+      if (sortedDesired.length !== sortedCurrent.length) {
+        return false;
+      }
+
+      if (configuration?.isElementEqual) {
+        return sortedDesired.every((value, index) =>
+          configuration.isElementEqual!(value, sortedCurrent[index])
+        );
+      }
+
+      return JSON.stringify(sortedDesired) === JSON.stringify(sortedCurrent);
     }
 
-    return a === b;
+    return desired === current;
   }
 
   // Explanation: Stateful mode means that codify maintains a stateful to keep track of resources it has added. 
@@ -130,7 +140,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k]?.isEqual)) {
+      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -194,7 +204,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k]?.isEqual)) {
+      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: _current[k],

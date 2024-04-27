@@ -15,6 +15,8 @@ export interface ParameterConfiguration {
    */
   isEqual?: (desired: any, current: any) => boolean;
 
+  isElementEqual?: (desired: any, current: any) => boolean;
+
   isStatefulParameter?: boolean;
 }
 

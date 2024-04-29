@@ -9,6 +9,7 @@ import {
   ValidateResponseData
 } from 'codify-schemas';
 import { Plan } from './plan.js';
+import { splitUserConfig } from '../utils/utils.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<ResourceConfig>>;
@@ -40,7 +41,8 @@ export class Plugin {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
-      const validateResult = await this.resources.get(config.type)!.validate(config);
+      const { parameters } = splitUserConfig(config);
+      const validateResult = await this.resources.get(config.type)!.validate(parameters);
 
       validationResults.push({
         ...validateResult,

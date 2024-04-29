@@ -241,7 +241,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  abstract validate(config: unknown): Promise<ValidationResult>;
+  abstract validate(parameters: unknown): Promise<ValidationResult>;
 
   abstract refresh(keys: Set<keyof T>): Promise<Partial<T> | null>;
 

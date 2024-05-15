@@ -56,22 +56,22 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     // Refresh resource parameters
     // This refreshes the parameters that configure the resource itself
-    const keysToRefresh = new Set(Object.keys(resourceParameters));
-    const currentParameters = await this.refresh(keysToRefresh);
+    const entriesToRefresh = new Map(Object.entries(resourceParameters));
+    const currentParameters = await this.refresh(entriesToRefresh);
 
     // Short circuit here. If resource is non-existent, then there's no point checking stateful parameters
     if (currentParameters == null) {
       return Plan.create(desiredParameters, null, resourceMetadata, planConfiguration);
     }
 
-    this.validateRefreshResults(currentParameters, keysToRefresh);
+    this.validateRefreshResults(currentParameters, entriesToRefresh);
 
     // Refresh stateful parameters
     // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
     for(const statefulParameter of statefulParameters) {
       const desiredValue = desiredParameters[statefulParameter.name];
 
-      let currentValue = await statefulParameter.refresh() ?? undefined;
+      let currentValue = await statefulParameter.refresh(desiredValue ?? null) ?? undefined;
 
       // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
       if (Array.isArray(currentValue)
@@ -224,11 +224,12 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   }
 
-  private validateRefreshResults(refresh: Partial<T> | null, desiredKeys: Set<keyof T>) {
+  private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
     if (!refresh) {
       return;
     }
 
+    const desiredKeys = new Set<keyof T>(desiredMap.keys());
     const refreshKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
 
     if (!setsEqual(desiredKeys, refreshKeys)) {
@@ -243,7 +244,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
 
   abstract validate(parameters: unknown): Promise<ValidationResult>;
 
-  abstract refresh(keys: Set<keyof T>): Promise<Partial<T> | null>;
+  abstract refresh(keys: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
 
   abstract applyCreate(plan: Plan<T>): Promise<void>;
 

@@ -32,7 +32,7 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
     this.configuration = configuration
   }
 
-  abstract refresh(): Promise<V | null>;
+  abstract refresh(desired: V | null): Promise<V | null>;
 
   // TODO: Add an additional parameter here for what has actually changed.
   abstract applyAdd(valueToAdd: V, plan: Plan<T>): Promise<void>;
@@ -88,7 +88,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
     }
   }
 
-  abstract refresh(): Promise<V[] | null>;
+  abstract refresh(desired: V[] | null): Promise<V[] | null>;
   abstract applyAddItem(item: V, plan: Plan<T>): Promise<void>;
   abstract applyRemoveItem(item: V, plan: Plan<T>): Promise<void>;
 }

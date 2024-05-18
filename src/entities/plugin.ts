@@ -94,11 +94,11 @@ export class Plugin {
       return this.planStorage.get(planId)!
     }
 
-    if (!planRequest?.resourceName || !this.resources.has(planRequest.resourceName)) {
-      throw new Error('Malformed plan. Resource name must be supplied');
+    if (!planRequest?.resourceType || !this.resources.has(planRequest.resourceType)) {
+      throw new Error('Malformed plan. Resource type must be supplied');
     }
 
-    const resource = this.resources.get(planRequest.resourceName);
+    const resource = this.resources.get(planRequest.resourceType);
     return Plan.fromResponse(data.plan, resource?.defaultValues!);
   }
 

@@ -94,7 +94,12 @@ export class Plugin {
       return this.planStorage.get(planId)!
     }
 
-    return Plan.fromResponse(data.plan);
+    if (!planRequest?.resourceName || !this.resources.has(planRequest.resourceName)) {
+      throw new Error('Malformed plan. Resource name must be supplied');
+    }
+
+    const resource = this.resources.get(planRequest.resourceName);
+    return Plan.fromResponse(data.plan, resource?.defaultValues!);
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

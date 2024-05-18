@@ -75,10 +75,12 @@ export class Plan<T extends StringIndexedObject> {
     return this.resourceMetadata.type
   }
 
-  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan']): Plan<T> {
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues: Partial<Record<keyof T, unknown>>): Plan<T> {
     if (!data) {
       throw new Error('Data is empty');
     }
+
+    addDefaultValues();
 
     return new Plan(
       randomUUID(),
@@ -98,6 +100,25 @@ export class Plan<T extends StringIndexedObject> {
         ))
       },
     );
+
+   function addDefaultValues(): void {
+      Object.entries(defaultValues)
+        .forEach(([key, defaultValue]) => {
+          const parameterExists = data
+            ?.parameters
+            .find((p) => p.name === key) !== undefined;
+
+          if (!parameterExists) {
+            data?.parameters.push({
+              name: key,
+              operation: ParameterOperation.ADD,
+              previousValue: null,
+              newValue: defaultValue,
+            });
+          }
+        });
+    }
+
   }
 
   get desiredConfig(): T {

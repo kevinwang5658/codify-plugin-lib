@@ -75,29 +75,70 @@ export class Plan<T extends StringIndexedObject> {
     return this.resourceMetadata.type
   }
 
-  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan']): Plan<T> {
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues: Partial<Record<keyof T, unknown>>): Plan<T> {
     if (!data) {
       throw new Error('Data is empty');
     }
+
+    addDefaultValues();
 
     return new Plan(
       randomUUID(),
       new ChangeSet<T>(
         data.operation,
-        data.parameters.map(value => ({
-          ...value,
-          previousValue: null,
-        })),
+        data.parameters
       ),
       {
         type: data.resourceType,
         name: data.resourceName,
-        ...(data.parameters.reduce(
-          (prev, { name, newValue }) => Object.assign(prev, { [name]: newValue }),
-          {}
-        ))
       },
     );
+
+   function addDefaultValues(): void {
+      Object.entries(defaultValues)
+        .forEach(([key, defaultValue]) => {
+          const configValueExists = data
+            ?.parameters
+            .find((p) => p.name === key) !== undefined;
+
+          if (!configValueExists) {
+            switch (data?.operation) {
+              case ResourceOperation.CREATE: {
+                data?.parameters.push({
+                  name: key,
+                  operation: ParameterOperation.ADD,
+                  previousValue: null,
+                  newValue: defaultValue,
+                });
+                break;
+              }
+
+              case ResourceOperation.DESTROY: {
+                data?.parameters.push({
+                  name: key,
+                  operation: ParameterOperation.REMOVE,
+                  previousValue: defaultValue,
+                  newValue: null,
+                });
+                break;
+              }
+
+              case ResourceOperation.MODIFY:
+              case ResourceOperation.RECREATE:
+              case ResourceOperation.NOOP: {
+                data?.parameters.push({
+                  name: key,
+                  operation: ParameterOperation.NOOP,
+                  previousValue: defaultValue,
+                  newValue: defaultValue,
+                });
+                break;
+              }
+            }
+          }
+        });
+    }
+
   }
 
   get desiredConfig(): T {

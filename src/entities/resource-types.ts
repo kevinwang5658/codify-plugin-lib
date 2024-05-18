@@ -20,7 +20,7 @@ export interface ResourceParameterConfiguration {
   /**
    * Default value for the parameter. If a value is not provided in the config, the library will use this value.
    */
-  defaultValue: unknown,
+  defaultValue?: unknown,
 }
 
 /**

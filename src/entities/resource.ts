@@ -216,8 +216,12 @@ export abstract class Resource<T extends StringIndexedObject> {
   private initializeDefaultValues(
     resourceConfiguration: ResourceConfiguration<T>
   ): Partial<Record<keyof T, unknown>>  {
+    if (!resourceConfiguration.parameterConfigurations) {
+      return {};
+    }
+
     return Object.fromEntries(
-      Object.entries(resourceConfiguration.parameterConfigurations!)
+      Object.entries(resourceConfiguration.parameterConfigurations)
         .filter((p) => p[1]?.defaultValue !== undefined)
         .map((config) => [config[0], config[1]!.defaultValue])
     ) as Partial<Record<keyof T, unknown>>;
@@ -234,8 +238,6 @@ export abstract class Resource<T extends StringIndexedObject> {
         throw new Error(`Resource ${this.typeId} cannot declare a parameter as both stateful and non-stateful`);
       }
     }
-
-
   }
 
   private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {

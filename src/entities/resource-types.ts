@@ -17,6 +17,10 @@ export interface ResourceParameterConfiguration {
    * @param current
    */
   isEqual?: (desired: any, current: any) => boolean;
+  /**
+   * Default value for the parameter. If a value is not provided in the config, the library will use this value.
+   */
+  defaultValue: unknown,
 }
 
 /**

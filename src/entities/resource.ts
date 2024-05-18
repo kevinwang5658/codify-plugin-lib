@@ -20,13 +20,15 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly dependencies: string[]; // TODO: Change this to a string
   readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
   readonly configuration: ResourceConfiguration<T>;
+  readonly defaultValues: Partial<Record<keyof T, unknown>>;
 
   protected constructor(configuration: ResourceConfiguration<T>) {
     this.validateResourceConfiguration(configuration);
 
     this.typeId = configuration.type;
     this.statefulParameters = new Map(configuration.statefulParameters?.map((sp) => [sp.name, sp]));
-    this.parameterConfigurations = this.generateParameterConfigurations(configuration);
+    this.parameterConfigurations = this.initializeParameterConfigurations(configuration);
+    this.defaultValues = this.initializeDefaultValues(configuration);
 
     this.dependencies = configuration.dependencies ?? [];
     this.configuration = configuration;
@@ -46,6 +48,8 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
 
     const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
+
+    this.addDefaultValues(desiredParameters);
 
     const resourceParameters = Object.fromEntries([
       ...Object.entries(desiredParameters).filter(([key]) => !this.statefulParameters.has(key)),
@@ -183,7 +187,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     await this.applyDestroy(plan);
   }
 
-  private generateParameterConfigurations(
+  private initializeParameterConfigurations(
     resourceConfiguration: ResourceConfiguration<T>
   ): Record<keyof T, ParameterConfiguration>  {
     const resourceParameters = Object.fromEntries(
@@ -207,6 +211,16 @@ export abstract class Resource<T extends StringIndexedObject> {
       ...statefulParameters,
     }
 
+  }
+
+  private initializeDefaultValues(
+    resourceConfiguration: ResourceConfiguration<T>
+  ): Partial<Record<keyof T, unknown>>  {
+    return Object.fromEntries(
+      Object.entries(resourceConfiguration.parameterConfigurations!)
+        .filter((p) => p[1]?.defaultValue !== undefined)
+        .map((config) => [config[0], config[1]!.defaultValue])
+    ) as Partial<Record<keyof T, unknown>>;
   }
 
   private validateResourceConfiguration(data: ResourceConfiguration<T>) {
@@ -240,6 +254,16 @@ Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
 Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       );
     }
+  }
+
+  private addDefaultValues(desired: Partial<T>): void {
+    Object.entries(this.defaultValues)
+      .forEach(([key, defaultValue]) => {
+        if (defaultValue !== undefined && desired[key as any] === undefined) {
+          // @ts-ignore
+          desired[key] = defaultValue;
+        }
+      });
   }
 
   abstract validate(parameters: unknown): Promise<ValidationResult>;

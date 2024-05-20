@@ -1,5 +1,6 @@
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
+import { TransformParameter } from './transform-parameter.js';
 
 export type ErrorMessage = string;
 
@@ -35,6 +36,7 @@ export interface ResourceConfiguration<T extends StringIndexedObject> {
   callStatefulParameterRemoveOnDestroy?: boolean,
   dependencies?: string[];
   statefulParameters?: Array<StatefulParameter<T, T[keyof T]>>;
+  transformParameters?: Partial<Record<keyof T, TransformParameter<T>>>
   parameterConfigurations?: Partial<Record<keyof T, ResourceParameterConfiguration>>
 }
 

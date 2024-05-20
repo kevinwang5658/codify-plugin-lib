@@ -5,6 +5,7 @@ import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceConfiguration, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
 import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
+import { TransformParameter } from './transform-parameter.js';
 
 /**
  * Description of resource here
@@ -17,6 +18,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   readonly typeId: string;
   readonly statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
+  readonly transformParameters: Map<keyof T, TransformParameter<T>>
   readonly dependencies: string[]; // TODO: Change this to a string
   readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
   readonly configuration: ResourceConfiguration<T>;
@@ -27,6 +29,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     this.typeId = configuration.type;
     this.statefulParameters = new Map(configuration.statefulParameters?.map((sp) => [sp.name, sp]));
+    this.transformParameters = new Map(Object.entries(configuration.transformParameters ?? {})) as Map<keyof T, TransformParameter<T>>;
     this.parameterConfigurations = this.initializeParameterConfigurations(configuration);
     this.defaultValues = this.initializeDefaultValues(configuration);
 
@@ -50,6 +53,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
 
     this.addDefaultValues(desiredParameters);
+    await this.applyTransformParameters(desiredParameters);
 
     const resourceParameters = Object.fromEntries([
       ...Object.entries(desiredParameters).filter(([key]) => !this.statefulParameters.has(key)),
@@ -210,7 +214,6 @@ export abstract class Resource<T extends StringIndexedObject> {
       ...resourceParameters,
       ...statefulParameters,
     }
-
   }
 
   private initializeDefaultValues(
@@ -255,6 +258,25 @@ refresh() must return back exactly the keys that were provided
 Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
 Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       );
+    }
+  }
+
+  private async applyTransformParameters(desired: Partial<T>): Promise<void> {
+    for (const [key, tp] of this.transformParameters.entries()) {
+      if (desired[key] !== null) {
+        const transformedValue = await tp.transform(desired[key]);
+
+        if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
+          throw new Error(`Transform parameter ${key as string} is attempting to override existing value ${desired[key]}`);
+        }
+
+        Object.entries(transformedValue).forEach(([tvKey, tvValue]) => {
+          // @ts-ignore
+          desired[tvKey] = tvValue;
+        })
+
+        delete desired[key];
+      }
     }
   }
 

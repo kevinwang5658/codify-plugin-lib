@@ -4,6 +4,7 @@ import { Plan } from './plan.js';
 import { spy } from 'sinon';
 import { ResourceOperation } from 'codify-schemas';
 import { TestConfig, TestResource } from './resource.test.js';
+import { TransformParameter } from './transform-parameter.js';
 
 class TestParameter extends StatefulParameter<TestConfig, string> {
   constructor(configuration?: StatefulParameterConfiguration<TestConfig>) {
@@ -197,5 +198,47 @@ describe('Resource parameters tests', () => {
         operation: ResourceOperation.NOOP,
       }
     })
+  })
+
+  it('Supports transform parameters', async () => {
+    const transformParameter = new class extends TransformParameter<TestConfig> {
+      async transform(value: any): Promise<Partial<TestConfig>> {
+        return {
+          propA: 'propA',
+          propB: 10,
+        }
+      }
+    }
+
+    const resource = spy(new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resourceType',
+          transformParameters: {
+            propC: transformParameter
+          },
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'propA',
+          propB: 10,
+        }
+      }
+    });
+
+    const plan = await resource.plan({ type: 'resourceType', propC: 'abc' } as any);
+
+    expect(resource.refresh.called).to.be.true;
+    expect(resource.refresh.getCall(0).firstArg.has('propA')).to.be.true;
+    expect(resource.refresh.getCall(0).firstArg.has('propB')).to.be.true;
+    expect(resource.refresh.getCall(0).firstArg.has('propC')).to.be.false;
+
+    expect(plan.desiredConfig.propA).to.eq('propA');
+    expect(plan.desiredConfig.propB).to.eq(10);
+    expect(plan.desiredConfig.propC).to.be.undefined;
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 })

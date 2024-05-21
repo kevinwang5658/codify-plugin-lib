@@ -216,7 +216,7 @@ describe('Resource tests', () => {
     expect(resourceSpy.applyModify.calledTwice).to.be.true;
   })
 
-  it('Validates the resource configuration correct (pass)', () => {
+  it('Validates the resource options correct (pass)', () => {
     const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
       constructor() {
         super({
@@ -253,7 +253,7 @@ describe('Resource tests', () => {
     }).to.not.throw;
   })
 
-  it('Validates the resource configuration correct (fail)', () => {
+  it('Validates the resource options correct (fail)', () => {
     const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
       constructor() {
         super({

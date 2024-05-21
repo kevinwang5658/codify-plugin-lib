@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ArrayStatefulParameter, ArrayStatefulParameterConfiguration, } from './stateful-parameter.js';
+import { ArrayStatefulParameter, ArrayStatefulParameterOptions, } from './stateful-parameter.js';
 import { Plan } from './plan.js';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
@@ -10,8 +10,8 @@ interface TestConfig {
 }
 
 class TestArrayParameter extends ArrayStatefulParameter<TestConfig, string> {
-  constructor(configuration?: ArrayStatefulParameterConfiguration<TestConfig>) {
-    super(configuration ?? {
+  constructor(options?: ArrayStatefulParameterOptions<TestConfig>) {
+    super(options ?? {
       name: 'propA'
     })
   }
@@ -67,7 +67,7 @@ describe('Stateful parameter tests', () => {
       { propA: ['a', 'c', 'd', 'e', 'f'] }, // b to remove, d, e, f to add
       { propA: ['a', 'b', 'c'] },
       { type: 'typeA' },
-      { statefulMode: true, parameterConfigurations: { propA: { isStatefulParameter: true }} }
+      { statefulMode: true, parameterOptions: { propA: { isStatefulParameter: true }} }
     );
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);
@@ -90,7 +90,7 @@ describe('Stateful parameter tests', () => {
       { propA: ['9.12', '9.13'] }, // b to remove, d, e, f to add
       { propA: ['9.12.9'] },
       { type: 'typeA' },
-      { statefulMode: false, parameterConfigurations: { propA: { isStatefulParameter: true }} }
+      { statefulMode: false, parameterOptions: { propA: { isStatefulParameter: true }} }
     );
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);

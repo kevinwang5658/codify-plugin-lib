@@ -2,7 +2,7 @@ import { StringIndexedObject } from 'codify-schemas';
 import { StatefulParameter } from './stateful-parameter.js';
 import { TransformParameter } from './transform-parameter.js';
 import { ResourceParameterOptions } from './resource-types.js';
-import { ParameterConfiguration } from './plan-types.js';
+import { ParameterOptions } from './plan-types.js';
 
 export interface ResourceOptions<T extends StringIndexedObject> {
   type: string;
@@ -50,7 +50,7 @@ export class ResourceOptionsParser<T extends StringIndexedObject> {
     return new Map(resourceParameters) as Map<keyof T, ResourceParameterOptions>;
   }
 
-  get changeSetParameterOptions(): Record<keyof T, ParameterConfiguration>  {
+  get changeSetParameterOptions(): Record<keyof T, ParameterOptions>  {
     const resourceParameters = Object.fromEntries(
       [...this.resourceParameters.entries()]
         .map(([name, value]) => ([name, { ...value, isStatefulParameter: false }]))
@@ -65,7 +65,7 @@ export class ResourceOptionsParser<T extends StringIndexedObject> {
             isStatefulParameter: true,
           }
         }
-      }, {} as Record<keyof T, ParameterConfiguration>)
+      }, {} as Record<keyof T, ParameterOptions>)
 
     return {
       ...resourceParameters,

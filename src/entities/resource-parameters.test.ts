@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ArrayStatefulParameter, StatefulParameter, StatefulParameterConfiguration } from './stateful-parameter.js';
+import { ArrayStatefulParameter, StatefulParameter, StatefulParameterOptions } from './stateful-parameter.js';
 import { Plan } from './plan.js';
 import { spy } from 'sinon';
 import { ResourceOperation } from 'codify-schemas';
@@ -7,8 +7,8 @@ import { TestConfig, TestResource } from './resource.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
 class TestParameter extends StatefulParameter<TestConfig, string> {
-  constructor(configuration?: StatefulParameterConfiguration<TestConfig>) {
-    super(configuration ?? {
+  constructor(options?: StatefulParameterOptions<TestConfig>) {
+    super(options ?? {
       name: 'propA'
     })
   }

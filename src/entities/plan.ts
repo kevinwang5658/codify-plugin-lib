@@ -8,7 +8,7 @@ import {
   StringIndexedObject,
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
-import { ParameterConfiguration, PlanOptions } from './plan-types.js';
+import { ParameterOptions, PlanOptions } from './plan-types.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
@@ -25,11 +25,11 @@ export class Plan<T extends StringIndexedObject> {
     desiredParameters: Partial<T> | null,
     currentParameters: Partial<T> | null,
     resourceMetadata: ResourceConfig,
-    configuration: PlanOptions<T>
+    options: PlanOptions<T>
   ): Plan<T> {
-    const parameterConfigurations = configuration.parameterConfigurations ?? {} as Record<keyof T, ParameterConfiguration>;
+    const parameterOptions = options.parameterOptions ?? {} as Record<keyof T, ParameterOptions>;
     const statefulParameterNames = new Set(
-      [...Object.entries(parameterConfigurations)]
+      [...Object.entries(parameterOptions)]
         .filter(([k, v]) => v.isStatefulParameter)
         .map(([k, v]) => k)
     );
@@ -40,7 +40,7 @@ export class Plan<T extends StringIndexedObject> {
     const parameterChangeSet = ChangeSet.calculateParameterChangeSet(
       desiredParameters,
       currentParameters,
-      { statefulMode: configuration.statefulMode, parameterConfigurations }
+      { statefulMode: options.statefulMode, parameterOptions }
     );
 
     let resourceOperation: ResourceOperation;
@@ -55,8 +55,8 @@ export class Plan<T extends StringIndexedObject> {
           let newOperation: ResourceOperation;
           if (statefulParameterNames.has(curr.name)) {
             newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-          } else if (parameterConfigurations[curr.name]?.planOperation) {
-            newOperation = parameterConfigurations[curr.name].planOperation!;
+          } else if (parameterOptions[curr.name]?.planOperation) {
+            newOperation = parameterOptions[curr.name].planOperation!;
           } else {
             newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
           }

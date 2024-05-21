@@ -1,5 +1,5 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
-import { ParameterConfiguration } from './plan-types.js';
+import { ParameterOptions } from './plan-types.js';
 
 export interface ParameterChange<T extends StringIndexedObject> {
   name: keyof T & string;
@@ -61,12 +61,12 @@ export class ChangeSet<T extends StringIndexedObject> {
   static calculateParameterChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
-    options: { statefulMode: boolean, parameterConfigurations?: Record<keyof T, ParameterConfiguration> },
+    options: { statefulMode: boolean, parameterOptions?: Record<keyof T, ParameterOptions> },
   ): ParameterChange<T>[] {
     if (options.statefulMode) {
-      return ChangeSet.calculateStatefulModeChangeSet(desired, current, options.parameterConfigurations);
+      return ChangeSet.calculateStatefulModeChangeSet(desired, current, options.parameterOptions);
     } else {
-      return ChangeSet.calculateStatelessModeChangeSet(desired, current, options.parameterConfigurations);
+      return ChangeSet.calculateStatelessModeChangeSet(desired, current, options.parameterOptions);
     }
   }
 
@@ -88,10 +88,10 @@ export class ChangeSet<T extends StringIndexedObject> {
   static isSame(
     desired: unknown,
     current: unknown,
-    configuration?: ParameterConfiguration,
+    options?: ParameterOptions,
   ): boolean {
-    if (configuration?.isEqual) {
-      return configuration.isEqual(desired, current);
+    if (options?.isEqual) {
+      return options.isEqual(desired, current);
     }
 
     if (Array.isArray(desired) && Array.isArray(current)) {
@@ -102,9 +102,9 @@ export class ChangeSet<T extends StringIndexedObject> {
         return false;
       }
 
-      if (configuration?.isElementEqual) {
+      if (options?.isElementEqual) {
         return sortedDesired.every((value, index) =>
-          configuration.isElementEqual!(value, sortedCurrent[index])
+          options.isElementEqual!(value, sortedCurrent[index])
         );
       }
 
@@ -119,7 +119,7 @@ export class ChangeSet<T extends StringIndexedObject> {
   private static calculateStatefulModeChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
-    parameterConfigurations?: Record<keyof T, ParameterConfiguration>,
+    parameterOptions?: Record<keyof T, ParameterOptions>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
     
@@ -139,7 +139,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k])) {
+      if (!ChangeSet.isSame(_desired[k], _current[k], parameterOptions?.[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -184,7 +184,7 @@ export class ChangeSet<T extends StringIndexedObject> {
   private static calculateStatelessModeChangeSet<T extends StringIndexedObject>(
     desired: T | null,
     current: T | null,
-    parameterConfigurations?: Record<keyof T, ParameterConfiguration>,
+    parameterOptions?: Record<keyof T, ParameterOptions>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
 
@@ -203,7 +203,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(_desired[k], _current[k], parameterConfigurations?.[k])) {
+      if (!ChangeSet.isSame(_desired[k], _current[k], parameterOptions?.[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: _current[k],

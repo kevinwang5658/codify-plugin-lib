@@ -4,7 +4,7 @@ import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
-import { ParameterConfiguration, PlanOptions } from './plan-types.js';
+import { ParameterOptions, PlanOptions } from './plan-types.js';
 import { TransformParameter } from './transform-parameter.js';
 import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
 
@@ -16,14 +16,13 @@ import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
  *
  */
 export abstract class Resource<T extends StringIndexedObject> {
-
   readonly typeId: string;
   readonly statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   readonly transformParameters: Map<keyof T, TransformParameter<T>>
   readonly resourceParameters: Map<keyof T, ResourceParameterOptions>;
 
   readonly dependencies: string[]; // TODO: Change this to a string
-  readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
+  readonly parameterOptions: Record<keyof T, ParameterOptions>
   readonly options: ResourceOptions<T>;
   readonly defaultValues: Partial<Record<keyof T, unknown>>;
 
@@ -36,7 +35,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.statefulParameters = parser.statefulParameters;
     this.transformParameters = parser.transformParameters;
     this.resourceParameters = parser.resourceParameters;
-    this.parameterConfigurations = parser.changeSetParameterOptions;
+    this.parameterOptions = parser.changeSetParameterOptions;
     this.defaultValues = parser.defaultValues;
   }
 
@@ -46,38 +45,36 @@ export abstract class Resource<T extends StringIndexedObject> {
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
   //  Add previousConfig as a parameter for plan(desired, previous);
   async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
-
-    // Explanation: these are settings for how the plan will be generated
     const planOptions: PlanOptions<T> = {
       statefulMode: false,
-      parameterConfigurations: this.parameterConfigurations,
+      parameterOptions: this.parameterOptions,
     }
 
-    const parser = new ConfigParser(desiredConfig, this.statefulParameters, this.transformParameters)
-    const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
+    // Parse data from the user supplied config
+    const parsedConfig = new ConfigParser(desiredConfig, this.statefulParameters, this.transformParameters)
+    const {
+      parameters: desiredParameters,
+      resourceMetadata,
+      resourceParameters,
+      statefulParameters
+    } = parsedConfig;
 
-    this.addDefaultValues(desiredParameters);
-    await this.applyTransformParameters(desiredParameters);
+    this.addDefaultValues(resourceParameters);
+    await this.applyTransformParameters(resourceParameters);
 
-    const resourceParameters = parser.resourceParameters;
-    const statefulParameters = parser.statefulParameters;
+    // Refresh resource parameters. This refreshes the parameters that configure the resource itself
+    const currentParameters = await this.refreshResourceParameters(resourceParameters);
 
-    // Refresh resource parameters
-    // This refreshes the parameters that configure the resource itself
-    const entriesToRefresh = new Map(Object.entries(resourceParameters));
-    const currentParameters = await this.refresh(entriesToRefresh);
-
-    // Short circuit here. If resource is non-existent, then there's no point checking stateful parameters
+    // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentParameters == null) {
       return Plan.create(desiredParameters, null, resourceMetadata, planOptions);
     }
 
-    this.validateRefreshResults(currentParameters, entriesToRefresh);
-
+    // Refresh stateful parameters. These parameters have state external to the resource
     const statefulCurrentParameters = await this.refreshStatefulParameters(statefulParameters, planOptions.statefulMode);
 
     return Plan.create(
-      desiredParameters,
+      { ...resourceParameters, ...statefulParameters },
       { ...currentParameters, ...statefulCurrentParameters } as Partial<T>,
       resourceMetadata,
       planOptions,
@@ -214,6 +211,14 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
           desired[key] = defaultValue;
         }
       });
+  }
+
+  private async refreshResourceParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
+    const entriesToRefresh = new Map(Object.entries(resourceParameters));
+    const currentParameters = await this.refresh(entriesToRefresh);
+
+    this.validateRefreshResults(currentParameters, entriesToRefresh);
+    return currentParameters;
   }
 
   private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, isStatefulMode: boolean): Promise<Partial<T>> {

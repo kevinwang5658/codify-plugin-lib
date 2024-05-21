@@ -2,7 +2,7 @@ import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObj
 import { ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
-import { ResourceConfiguration, ValidationResult } from './resource-types.js';
+import { ResourceOptions, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
 import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
 import { TransformParameter } from './transform-parameter.js';
@@ -21,10 +21,10 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly transformParameters: Map<keyof T, TransformParameter<T>>
   readonly dependencies: string[]; // TODO: Change this to a string
   readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
-  readonly configuration: ResourceConfiguration<T>;
+  readonly configuration: ResourceOptions<T>;
   readonly defaultValues: Partial<Record<keyof T, unknown>>;
 
-  protected constructor(configuration: ResourceConfiguration<T>) {
+  protected constructor(configuration: ResourceOptions<T>) {
     this.validateResourceConfiguration(configuration);
 
     this.typeId = configuration.type;
@@ -191,57 +191,6 @@ export abstract class Resource<T extends StringIndexedObject> {
     await this.applyDestroy(plan);
   }
 
-  private initializeParameterConfigurations(
-    resourceConfiguration: ResourceConfiguration<T>
-  ): Record<keyof T, ParameterConfiguration>  {
-    const resourceParameters = Object.fromEntries(
-      Object.entries(resourceConfiguration.parameterConfigurations ?? {})
-        ?.map(([name, value]) => ([name, { ...value, isStatefulParameter: false }]))
-    ) as Record<keyof T, ParameterConfiguration>
-
-    const statefulParameters = resourceConfiguration.statefulParameters
-      ?.reduce((obj, sp) => {
-        return {
-          ...obj,
-          [sp.name]: {
-            ...sp.configuration,
-            isStatefulParameter: true,
-          }
-        }
-      }, {}) ?? {}
-
-    return {
-      ...resourceParameters,
-      ...statefulParameters,
-    }
-  }
-
-  private initializeDefaultValues(
-    resourceConfiguration: ResourceConfiguration<T>
-  ): Partial<Record<keyof T, unknown>>  {
-    if (!resourceConfiguration.parameterConfigurations) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      Object.entries(resourceConfiguration.parameterConfigurations)
-        .filter((p) => p[1]?.defaultValue !== undefined)
-        .map((config) => [config[0], config[1]!.defaultValue])
-    ) as Partial<Record<keyof T, unknown>>;
-  }
-
-  private validateResourceConfiguration(data: ResourceConfiguration<T>) {
-    // Stateful parameters are configured within the object not in the resource.
-    if (data.parameterConfigurations && data.statefulParameters) {
-      const parameters = [...Object.keys(data.parameterConfigurations)];
-      const statefulParameterSet = new Set(data.statefulParameters.map((sp) => sp.name));
-
-      const intersection = parameters.some((p) => statefulParameterSet.has(p));
-      if (intersection) {
-        throw new Error(`Resource ${this.typeId} cannot declare a parameter as both stateful and non-stateful`);
-      }
-    }
-  }
 
   private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
     if (!refresh) {

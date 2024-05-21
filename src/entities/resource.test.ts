@@ -3,7 +3,7 @@ import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { describe, expect, it } from 'vitest'
-import { ResourceConfiguration, ValidationResult } from './resource-types.js';
+import { ResourceOptions, ValidationResult } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
 
 export interface TestConfig extends StringIndexedObject {
@@ -13,7 +13,7 @@ export interface TestConfig extends StringIndexedObject {
 }
 
 export class TestResource extends Resource<TestConfig> {
-  constructor(options: ResourceConfiguration<TestConfig>) {
+  constructor(options: ResourceOptions<TestConfig>) {
     super(options);
   }
 

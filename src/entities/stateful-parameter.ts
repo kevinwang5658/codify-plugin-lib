@@ -25,11 +25,11 @@ export interface ArrayStatefulParameterConfiguration<T> extends StatefulParamete
 
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly name: keyof T;
-  readonly configuration: StatefulParameterConfiguration<T>;
+  readonly options: StatefulParameterConfiguration<T>;
 
   protected constructor(configuration: StatefulParameterConfiguration<T>) {
     this.name = configuration.name;
-    this.configuration = configuration
+    this.options = configuration
   }
 
   abstract refresh(desired: V | null): Promise<V | null>;
@@ -41,11 +41,11 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
-  configuration: ArrayStatefulParameterConfiguration<T>;
+  options: ArrayStatefulParameterConfiguration<T>;
 
   constructor(configuration: ArrayStatefulParameterConfiguration<T>) {
     super(configuration);
-    this.configuration = configuration;
+    this.options = configuration;
   }
 
   async applyAdd(valuesToAdd: V[], plan: Plan<T>): Promise<void> {
@@ -55,7 +55,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
   }
 
   async applyModify(newValues: V[], previousValues: V[], allowDeletes: boolean, plan: Plan<T>): Promise<void> {
-    const configuration = this.configuration as ArrayStatefulParameterConfiguration<T>;
+    const configuration = this.options as ArrayStatefulParameterConfiguration<T>;
 
     const valuesToAdd = newValues.filter((n) => !previousValues.some((p) => {
       if ((configuration).isElementEqual) {

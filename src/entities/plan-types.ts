@@ -20,7 +20,7 @@ export interface ParameterConfiguration {
   isStatefulParameter?: boolean;
 }
 
-export interface PlanConfiguration<T> {
+export interface PlanOptions<T> {
   statefulMode: boolean;
   parameterConfigurations?: Record<keyof T, ParameterConfiguration>;
 }

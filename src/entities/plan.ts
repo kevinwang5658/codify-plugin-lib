@@ -8,7 +8,7 @@ import {
   StringIndexedObject,
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
-import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
+import { ParameterConfiguration, PlanOptions } from './plan-types.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
@@ -25,7 +25,7 @@ export class Plan<T extends StringIndexedObject> {
     desiredParameters: Partial<T> | null,
     currentParameters: Partial<T> | null,
     resourceMetadata: ResourceConfig,
-    configuration: PlanConfiguration<T>
+    configuration: PlanOptions<T>
   ): Plan<T> {
     const parameterConfigurations = configuration.parameterConfigurations ?? {} as Record<keyof T, ParameterConfiguration>;
     const statefulParameterNames = new Set(

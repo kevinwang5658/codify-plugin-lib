@@ -12,63 +12,45 @@ export interface ResourceOptions<T extends StringIndexedObject> {
    */
   callStatefulParameterRemoveOnDestroy?: boolean,
   dependencies?: string[];
-  parameters?: Partial<Record<keyof T,
+  parameterOptions?: Partial<Record<keyof T,
     ResourceParameterOptions
     | StatefulParameter<T, T[keyof T]>
     | TransformParameter<T>
   >>
 }
 
-export class ResourceOptions<T extends StringIndexedObject> {
-  readonly typeId: string;
-  readonly raw: ResourceOptions<T>;
-
-  readonly statefulParameters: Map<keyof T, ParameterConfiguration>;
-  readonly transformParameters: Map<keyof T, ParameterConfiguration>;
-  readonly resourceParameters: Map<keyof T, ResourceParameterOptions>;
-  readonly defaultValues: Partial<Record<keyof T, unknown>>
-  readonly changeSetParameterOptions: Record<keyof T, ParameterConfiguration>;
-
+export class ResourceOptionsParser<T extends StringIndexedObject> {
+  private options: ResourceOptions<T>;
 
   constructor(options: ResourceOptions<T>) {
-    this.typeId = options.type;
-    this.raw = options;
-
-    this.statefulParameters = this.parseStatefulParameters(options);
-    this.transformParameters = this.parseTransformParameters(options);
-    this.resourceParameters = this.parseResourceParameters(options);
-    this.defaultValues = this.parseDefaultValues(options);
-
-    this.changeSetParameterOptions = this.calculateChangeSetParameterOptions();
+    this.options = options;
   }
 
-  private parseStatefulParameters(options: ResourceOptions<T>): any {
+  get statefulParameters(): Map<keyof T, StatefulParameter<T, T[keyof T]>> {
     const statefulParameters =
-      Object.entries(this.parameters ?? {})
+      Object.entries(this.options.parameterOptions ?? {})
       .filter(([, v]) => v instanceof StatefulParameter)
 
-    return new Map(statefulParameters);
+    return new Map(statefulParameters) as Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   }
 
-  private parseTransformParameters(options: ResourceOptions<T>): any {
+  get transformParameters(): Map<keyof T, TransformParameter<T>> {
     const transformParameters =
-      Object.entries(this.parameters ?? {})
+      Object.entries(this.options.parameterOptions ?? {})
         .filter(([, v]) => v instanceof TransformParameter)
 
-    return new Map(transformParameters);
+    return new Map(transformParameters) as Map<keyof T, TransformParameter<T>>;
   }
 
-  private parseResourceParameters(options: ResourceOptions<T>): any {
+  get resourceParameters(): Map<keyof T, ResourceParameterOptions> {
     const resourceParameters =
-      Object.entries(this.parameters ?? {})
+      Object.entries(this.options.parameterOptions ?? {})
         .filter(([, v]) => !(v instanceof TransformParameter || v instanceof StatefulParameter))
 
-    return new Map(resourceParameters);
+    return new Map(resourceParameters) as Map<keyof T, ResourceParameterOptions>;
   }
 
-
-  private calculateChangeSetParameterOptions(
-  ): Record<keyof T, ParameterConfiguration>  {
+  get changeSetParameterOptions(): Record<keyof T, ParameterConfiguration>  {
     const resourceParameters = Object.fromEntries(
       [...this.resourceParameters.entries()]
         .map(([name, value]) => ([name, { ...value, isStatefulParameter: false }]))
@@ -91,15 +73,13 @@ export class ResourceOptions<T extends StringIndexedObject> {
     }
   }
 
-  private parseDefaultValues(
-    options: ResourceOptions<T>
-  ): Partial<Record<keyof T, unknown>>  {
-    if (!options.parameters) {
+  get defaultValues(): Partial<Record<keyof T, unknown>>  {
+    if (!this.options.parameterOptions) {
       return {};
     }
 
     return Object.fromEntries(
-      Object.entries(options.parameters)
+      Object.entries(this.options.parameterOptions)
         .filter(([, v]) => !(v instanceof TransformParameter || v instanceof StatefulParameter) )
         .filter((config) => (config[1] as ResourceParameterOptions).defaultValue !== undefined)
         .map((config) => [config[0], (config[1] as ResourceParameterOptions).defaultValue])

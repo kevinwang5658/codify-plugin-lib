@@ -3,8 +3,9 @@ import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { describe, expect, it } from 'vitest'
-import { ResourceOptions, ValidationResult } from './resource-types.js';
+import { ValidationResult } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
+import { ResourceOptions } from './resource-options.js';
 
 export interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -193,7 +194,7 @@ describe('Resource tests', () => {
       constructor() {
         super({
           type: 'resource',
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
             propB: { planOperation: ResourceOperation.MODIFY },
           }
@@ -216,7 +217,7 @@ describe('Resource tests', () => {
   })
 
   it('Validates the resource configuration correct (pass)', () => {
-    const parameter = new class extends StatefulParameter<TestConfig, string> {
+    const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
       constructor() {
         super({
           name: 'propC',
@@ -242,11 +243,9 @@ describe('Resource tests', () => {
         super({
           type: 'type',
           dependencies: ['homebrew', 'python'],
-          statefulParameters: [
-            parameter
-          ],
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
+            propB: statefulParameter,
             propC: { isEqual: (a, b) => true },
           }
         });
@@ -255,7 +254,7 @@ describe('Resource tests', () => {
   })
 
   it('Validates the resource configuration correct (fail)', () => {
-    const parameter = new class extends StatefulParameter<TestConfig, string> {
+    const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
       constructor() {
         super({
           name: 'propC',
@@ -281,11 +280,9 @@ describe('Resource tests', () => {
         super({
           type: 'type',
           dependencies: ['homebrew', 'python'],
-          statefulParameters: [
-            parameter
-          ],
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
+            propB: statefulParameter,
             propC: { isEqual: (a, b) => true },
           }
         });
@@ -298,7 +295,7 @@ describe('Resource tests', () => {
       constructor() {
         super({
           type: 'type',
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { defaultValue: 'propADefault' }
           }
         });
@@ -327,7 +324,7 @@ describe('Resource tests', () => {
       constructor() {
         super({
           type: 'type',
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { defaultValue: 'propADefault' }
           }
         });

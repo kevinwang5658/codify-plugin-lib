@@ -43,7 +43,9 @@ describe('Resource parameters tests', () => {
       constructor() {
         super({
           type: 'resource',
-          statefulParameters: [statefulParameterSpy],
+          parameterOptions: {
+            propA: statefulParameterSpy
+          },
         });
       }
     }
@@ -76,8 +78,8 @@ describe('Resource parameters tests', () => {
       constructor() {
         super({
           type: 'resource',
-          statefulParameters: [statefulParameterSpy],
-          parameterConfigurations: {
+          parameterOptions: {
+            propA: statefulParameterSpy,
             propB: { planOperation: ResourceOperation.MODIFY },
           }
         });
@@ -110,7 +112,9 @@ describe('Resource parameters tests', () => {
       constructor() {
         super({
           type: 'resource',
-          statefulParameters: [statefulParameterSpy],
+          parameterOptions: {
+            propA: statefulParameterSpy
+          },
         });
       }
 
@@ -141,7 +145,9 @@ describe('Resource parameters tests', () => {
       constructor() {
         super({
           type: 'resource',
-          statefulParameters: [statefulParameterSpy],
+          parameterOptions: {
+            propA: statefulParameterSpy
+          },
         });
       }
 
@@ -182,7 +188,9 @@ describe('Resource parameters tests', () => {
       constructor() {
         super({
           type: 'resource',
-          statefulParameters: [statefulParameterSpy],
+          parameterOptions: {
+            propA: statefulParameterSpy
+          },
         });
       }
 
@@ -214,7 +222,7 @@ describe('Resource parameters tests', () => {
       constructor() {
         super({
           type: 'resourceType',
-          transformParameters: {
+          parameterOptions: {
             propC: transformParameter
           },
         });

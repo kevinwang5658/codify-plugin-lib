@@ -14,7 +14,7 @@ export interface ResourceOptions<T extends StringIndexedObject> {
   /**
    * Schema to validate user configs with. Must be in the format JSON Schema 2020-12
    */
-  schema?: JSON
+  schema?: unknown
 
   /**
    * If true, statefulParameter.applyRemove() will be called before resource destruction.

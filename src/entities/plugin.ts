@@ -42,7 +42,7 @@ export class Plugin {
       }
 
       const { parameters } = splitUserConfig(config);
-      const validateResult = await this.resources.get(config.type)!.validate(parameters);
+      const validateResult = await this.resources.get(config.type)!.validateResource(parameters);
 
       validationResults.push({
         ...validateResult,

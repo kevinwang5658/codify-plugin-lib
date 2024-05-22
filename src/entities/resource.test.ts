@@ -34,7 +34,7 @@ export class TestResource extends Resource<TestConfig> {
     };
   }
 
-  async validate(config: unknown): Promise<ValidationResult> {
+  async validateResource(config: unknown): Promise<ValidationResult> {
     return {
       isValid: true
     }

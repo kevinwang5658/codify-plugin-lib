@@ -59,7 +59,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   async onInitialize(): Promise<void> {}
 
-  async validate(parameters: unknown): Promise<ValidationResult> {
+  async validateResource(parameters: unknown): Promise<ValidationResult> {
     if (this.schemaValidator) {
       const isValid = this.schemaValidator(parameters);
 
@@ -71,7 +71,7 @@ export abstract class Resource<T extends StringIndexedObject> {
       }
     }
 
-    return this.validateParameters(parameters);
+    return this.validate(parameters);
   }
 
   // TODO: Add state in later.
@@ -303,7 +303,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     return currentParameters;
   }
 
-  async validateParameters(parameters: unknown): Promise<ValidationResult> {
+  async validate(parameters: unknown): Promise<ValidationResult> {
     return {
       isValid: true,
     }

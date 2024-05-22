@@ -22,6 +22,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly resourceParameters: Map<keyof T, ResourceParameterOptions>;
 
   readonly statefulParameterOrder: Map<keyof T, number>;
+  readonly transformParameterOrder: Map<keyof T, number>;
 
   readonly dependencies: string[]; // TODO: Change this to a string
   readonly parameterOptions: Record<keyof T, ParameterOptions>
@@ -40,6 +41,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.parameterOptions = parser.changeSetParameterOptions;
     this.defaultValues = parser.defaultValues;
     this.statefulParameterOrder = parser.statefulParameterOrder;
+    this.transformParameterOrder = parser.transformParameterOrder;
   }
 
   async onInitialize(): Promise<void> {}
@@ -195,7 +197,10 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
   }
 
   private async applyTransformParameters(desired: Partial<T>): Promise<void> {
-    for (const [key, tp] of this.transformParameters.entries()) {
+    const orderedEntries = [...this.transformParameters.entries()]
+      .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
+
+    for (const [key, tp] of orderedEntries) {
       if (desired[key] !== null) {
         const transformedValue = await tp.transform(desired[key]);
 

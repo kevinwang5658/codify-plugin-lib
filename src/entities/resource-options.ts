@@ -116,4 +116,22 @@ export class ResourceOptionsParser<T extends StringIndexedObject> {
 
     return new Map(resultArray.map((key, idx) => [key, idx]));
   }
+
+  get transformParameterOrder(): Map<keyof T, number> {
+    const entries = Object.entries(this.options.parameterOptions ?? {})
+      .filter(([, v]) => v?.hasOwnProperty('transformParameter'))
+      .map(([k, v]) => [k, v as ResourceTransformParameterOptions<T>] as const)
+
+    const orderedEntries = entries.filter(([, v]) => v.order !== undefined)
+    const unorderedEntries = entries.filter(([, v]) => v.order === undefined)
+
+    orderedEntries.sort((a, b) => a[1].order! - b[1].order!);
+
+    const resultArray = [
+      ...orderedEntries.map(([k]) => k),
+      ...unorderedEntries.map(([k]) => k)
+    ]
+
+    return new Map(resultArray.map((key, idx) => [key, idx]));
+  }
 }

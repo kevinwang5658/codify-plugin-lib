@@ -208,7 +208,7 @@ describe('Resource parameters tests', () => {
     })
   })
 
-  it('Plans stateful parameters in the order of the order', async () => {
+  it('Plans stateful parameters in the order specified', async () => {
     const statefulParameterA = spy(new class extends TestParameter {
       async refresh(): Promise<any | null> {
         return performance.now()
@@ -273,7 +273,7 @@ describe('Resource parameters tests', () => {
     expect(plan.currentConfig.propD).to.be.lessThan(plan.currentConfig.propE as any);
   })
 
-  it('Applies stateful parameters in the order of the order', async () => {
+  it('Applies stateful parameters in the order specified', async () => {
     let timestampA;
     const statefulParameterA = spy(new class extends TestParameter {
       applyAdd = async (): Promise<void> => { timestampA = performance.now(); }
@@ -405,5 +405,52 @@ describe('Resource parameters tests', () => {
     expect(plan.desiredConfig.propC).to.be.undefined;
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Plans transform parameters in the order specified', async () => {
+    const transformParameterA = spy(new class extends TransformParameter<TestConfig> {
+      async transform(value: any): Promise<Partial<TestConfig>> {
+          return { propD: performance.now() as any }
+      }
+    });
+
+    const transformParameterB = spy(new class extends TransformParameter<TestConfig> {
+      async transform(value: any): Promise<Partial<TestConfig>> {
+        return { propE: performance.now() }
+      }
+    });
+
+    const transformParameterC = spy(new class extends TransformParameter<TestConfig> {
+      async transform(value: any): Promise<Partial<TestConfig>> {
+        return { propF: performance.now() as any }
+      }
+    });
+
+    const resource = spy(new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resourceType',
+          parameterOptions: {
+            propA: { transformParameter: transformParameterA, order: 3},
+            propB: { transformParameter: transformParameterB, order: 1 },
+            propC: { transformParameter: transformParameterC, order: 2 },
+          },
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return { propD: 'propD', propE: 10, propF: 'propF' };
+      }
+    });
+
+    const plan = await resource.plan({
+      type: 'resourceType',
+      propA: 'propA',
+      propB: 10,
+      propC: 'propC',
+    });
+
+    expect(plan.desiredConfig.propE).to.be.lessThan(plan.desiredConfig.propF as any);
+    expect(plan.desiredConfig.propF).to.be.lessThan(plan.desiredConfig.propD as any);
   })
 })

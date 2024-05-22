@@ -245,7 +245,7 @@ describe('Resource tests', () => {
           dependencies: ['homebrew', 'python'],
           parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
-            propB: statefulParameter,
+            propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
         });
@@ -282,7 +282,7 @@ describe('Resource tests', () => {
           dependencies: ['homebrew', 'python'],
           parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
-            propB: statefulParameter,
+            propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
         });

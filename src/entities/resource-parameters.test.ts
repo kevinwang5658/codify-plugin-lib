@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ArrayStatefulParameter, StatefulParameter, StatefulParameterOptions } from './stateful-parameter.js';
 import { Plan } from './plan.js';
 import { spy } from 'sinon';
-import { ResourceOperation } from 'codify-schemas';
+import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { TestConfig, TestResource } from './resource.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
@@ -44,7 +44,7 @@ describe('Resource parameters tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: statefulParameterSpy
+            propA: { statefulParameter: statefulParameterSpy }
           },
         });
       }
@@ -79,7 +79,7 @@ describe('Resource parameters tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: statefulParameterSpy,
+            propA: { statefulParameter: statefulParameterSpy },
             propB: { planOperation: ResourceOperation.MODIFY },
           }
         });
@@ -113,7 +113,7 @@ describe('Resource parameters tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: statefulParameterSpy
+            propA: { statefulParameter: statefulParameterSpy },
           },
         });
       }
@@ -146,7 +146,7 @@ describe('Resource parameters tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: statefulParameterSpy
+            propA: { statefulParameter: statefulParameterSpy }
           },
         });
       }
@@ -189,7 +189,7 @@ describe('Resource parameters tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: statefulParameterSpy
+            propA: { statefulParameter: statefulParameterSpy }
           },
         });
       }
@@ -208,6 +208,163 @@ describe('Resource parameters tests', () => {
     })
   })
 
+  it('Plans stateful parameters in the order of the order', async () => {
+    const statefulParameterA = spy(new class extends TestParameter {
+      async refresh(): Promise<any | null> {
+        return performance.now()
+      }
+    });
+
+    const statefulParameterB = spy(new class extends TestParameter {
+      async refresh(): Promise<any | null> {
+        return performance.now()
+      }
+    });
+
+    const statefulParameterC = spy(new class extends TestParameter {
+      async refresh(): Promise<any | null> {
+        return performance.now()
+      }
+    });
+
+    const statefulParameterD = spy(new class extends TestParameter {
+      async refresh(): Promise<any | null> {
+        return performance.now()
+      }
+    });
+
+    const statefulParameterE = spy(new class extends TestParameter {
+      async refresh(): Promise<any | null> {
+        return performance.now()
+      }
+    });
+
+    const resource = spy(new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resourceType',
+          parameterOptions: {
+            propA: { statefulParameter: statefulParameterA, order: 3},
+            propB: { statefulParameter: statefulParameterB, order: 1 },
+            propC: { statefulParameter: statefulParameterC, order: 2 },
+            propD: { statefulParameter: statefulParameterD },
+            propE: { statefulParameter: statefulParameterE }
+          },
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {};
+      }
+    });
+
+    const plan = await resource.plan({
+      type: 'resourceType',
+      propA: 'propA',
+      propB: 10,
+      propC: 'propC',
+      propD: 'propD',
+      propE: 'propE',
+    });
+
+    expect(plan.currentConfig.propB).to.be.lessThan(plan.currentConfig.propC as any);
+    expect(plan.currentConfig.propC).to.be.lessThan(plan.currentConfig.propA as any);
+    expect(plan.currentConfig.propA).to.be.lessThan(plan.currentConfig.propD as any);
+    expect(plan.currentConfig.propD).to.be.lessThan(plan.currentConfig.propE as any);
+  })
+
+  it('Applies stateful parameters in the order of the order', async () => {
+    let timestampA;
+    const statefulParameterA = spy(new class extends TestParameter {
+      applyAdd = async (): Promise<void> => { timestampA = performance.now(); }
+      applyModify = async (): Promise<void> => { timestampA = performance.now(); }
+      applyRemove = async (): Promise<void> => { timestampA = performance.now(); }
+    });
+
+    let timestampB
+    const statefulParameterB = spy(new class extends TestParameter {
+      applyAdd = async (): Promise<void> => { timestampB = performance.now(); }
+      applyModify = async (): Promise<void> => { timestampB = performance.now(); }
+      applyRemove = async (): Promise<void> => { timestampB = performance.now(); }
+    });
+
+    let timestampC
+    const statefulParameterC = spy(new class extends TestParameter {
+      applyAdd = async (): Promise<void> => { timestampC = performance.now(); }
+      applyModify = async (): Promise<void> => { timestampC = performance.now(); }
+      applyRemove = async (): Promise<void> => { timestampC = performance.now(); }
+    });
+
+    const resource = spy(new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resourceType',
+          parameterOptions: {
+            propA: { statefulParameter: statefulParameterA, order: 3},
+            propB: { statefulParameter: statefulParameterB, order: 1 },
+            propC: { statefulParameter: statefulParameterC, order: 2 },
+          },
+          callStatefulParameterRemoveOnDestroy: true,
+        });
+      }
+    });
+
+    await resource.apply(
+      Plan.fromResponse({
+        resourceType: 'resourceType',
+        operation: ResourceOperation.CREATE,
+        parameters: [
+          { name: 'propA', operation: ParameterOperation.ADD, previousValue: null, newValue: null },
+          { name: 'propB', operation: ParameterOperation.ADD, previousValue: null, newValue: null },
+          { name: 'propC', operation: ParameterOperation.ADD, previousValue: null, newValue: null },
+        ]
+      }, {}) as any
+    );
+
+    expect(timestampB).to.be.lessThan(timestampC as any);
+    expect(timestampC).to.be.lessThan(timestampA as any);
+    timestampA = 0;
+    timestampB = 0;
+    timestampC = 0;
+
+    await resource.apply(
+      Plan.fromResponse({
+        resourceType: 'resourceType',
+        operation: ResourceOperation.MODIFY,
+        parameters: [
+          { name: 'propA', operation: ParameterOperation.MODIFY, previousValue: null, newValue: null },
+          { name: 'propB', operation: ParameterOperation.MODIFY, previousValue: null, newValue: null },
+          { name: 'propC', operation: ParameterOperation.MODIFY, previousValue: null, newValue: null },
+        ]
+      }, {}) as any
+    );
+
+    expect(timestampB).to.be.lessThan(timestampC as any);
+    expect(timestampC).to.be.lessThan(timestampA as any);
+    timestampA = 0;
+    timestampB = 0;
+    timestampC = 0;
+
+    await resource.apply(
+      Plan.fromResponse({
+        resourceType: 'resourceType',
+        operation: ResourceOperation.DESTROY,
+        parameters: [
+          { name: 'propA', operation: ParameterOperation.REMOVE, previousValue: null, newValue: null },
+          { name: 'propB', operation: ParameterOperation.REMOVE, previousValue: null, newValue: null },
+          { name: 'propC', operation: ParameterOperation.REMOVE, previousValue: null, newValue: null },
+        ]
+      }, {}) as any
+    );
+
+    expect(timestampB).to.be.lessThan(timestampC as any);
+    expect(timestampC).to.be.lessThan(timestampA as any);
+    timestampA = 0;
+    timestampB = 0;
+    timestampC = 0;
+
+  })
+
   it('Supports transform parameters', async () => {
     const transformParameter = new class extends TransformParameter<TestConfig> {
       async transform(value: any): Promise<Partial<TestConfig>> {
@@ -223,7 +380,7 @@ describe('Resource parameters tests', () => {
         super({
           type: 'resourceType',
           parameterOptions: {
-            propC: transformParameter
+            propC: { transformParameter }
           },
         });
       }

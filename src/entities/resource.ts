@@ -21,6 +21,8 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly transformParameters: Map<keyof T, TransformParameter<T>>
   readonly resourceParameters: Map<keyof T, ResourceParameterOptions>;
 
+  readonly statefulParameterOrder: Map<keyof T, number>;
+
   readonly dependencies: string[]; // TODO: Change this to a string
   readonly parameterOptions: Record<keyof T, ParameterOptions>
   readonly options: ResourceOptions<T>;
@@ -37,6 +39,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.resourceParameters = parser.resourceParameters;
     this.parameterOptions = parser.changeSetParameterOptions;
     this.defaultValues = parser.defaultValues;
+    this.statefulParameterOrder = parser.statefulParameterOrder;
   }
 
   async onInitialize(): Promise<void> {}
@@ -108,6 +111,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
+      .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
       await statefulParameter.applyAdd(parameterChange.newValue, plan);
@@ -122,6 +127,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statelessParameterChanges = parameterChanges
       .filter((pc: ParameterChange<T>) => !this.statefulParameters.has(pc.name))
+
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
       await this.applyModify(pc.name, pc.newValue, pc.previousValue, false, plan);
@@ -129,6 +135,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statefulParameterChanges = parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
+      .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
 
@@ -156,6 +164,8 @@ export abstract class Resource<T extends StringIndexedObject> {
     if (this.options.callStatefulParameterRemoveOnDestroy) {
       const statefulParameterChanges = plan.changeSet.parameterChanges
         .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
+        .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+
       for (const parameterChange of statefulParameterChanges) {
         const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
         await statefulParameter.applyRemove(parameterChange.previousValue, plan);
@@ -221,14 +231,14 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     return currentParameters;
   }
 
+  // Refresh stateful parameters
+  // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
   private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, isStatefulMode: boolean): Promise<Partial<T>> {
     const currentParameters: Partial<T> = {}
+    const sortedEntries = Object.entries(statefulParametersConfig)
+      .sort(([key1], [key2]) => this.statefulParameterOrder.get(key1)! - this.statefulParameterOrder.get(key2)!)
 
-
-    // Refresh stateful parameters
-    // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-    // TODO: This needs to be sorted in the order that the stateful parameters were declared.
-    for(const [key, desiredValue] of Object.entries(statefulParametersConfig)) {
+    for(const [key, desiredValue] of sortedEntries) {
       const statefulParameter = this.statefulParameters.get(key);
       if (!statefulParameter) {
         throw new Error(`Stateful parameter ${key} was not found`);

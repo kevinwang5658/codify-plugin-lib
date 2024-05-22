@@ -228,9 +228,9 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     const orderedEntries = [...Object.entries(transformParameters)]
       .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
 
-    for (const [key, tp] of orderedEntries) {
+    for (const [key] of orderedEntries) {
       if (desired[key] !== null) {
-        const transformedValue = await tp.transform(desired[key]);
+        const transformedValue = await this.transformParameters.get(key)!.transform(desired[key]);
 
         if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
           throw new Error(`Transform parameter ${key as string} is attempting to override existing value ${desired[key]}`);

@@ -126,6 +126,9 @@ export class ChangeSet<T extends StringIndexedObject> {
     const _desired = { ...desired };
     const _current = { ...current };
 
+    this.addDefaultValues(_desired, parameterOptions ?? {});
+    this.addDefaultValues(_current, parameterOptions ?? {});
+
     for (const [k, v] of Object.entries(_current)) {
       if (_desired[k] == null) {
         parameterChangeSet.push({
@@ -191,6 +194,8 @@ export class ChangeSet<T extends StringIndexedObject> {
     const _desired = { ...desired };
     const _current = { ...current };
 
+    this.addDefaultValues(_desired, parameterOptions ?? {});
+
     for (const [k, v] of Object.entries(_desired)) {
       if (_current[k] == null) {
         parameterChangeSet.push({
@@ -223,6 +228,18 @@ export class ChangeSet<T extends StringIndexedObject> {
     }
 
     return parameterChangeSet;
+  }
+
+  private static addDefaultValues<T extends StringIndexedObject>(obj: Partial<T>, options: Record<keyof T, ParameterOptions>) {
+    Object.entries(options)
+      .filter(([, option]) => option.default !== undefined)
+      .map(([name, option]) => [name, option.default] as const)
+      .forEach(([key, defaultValue]) => {
+        if (obj[key] === undefined) {
+          // @ts-ignore
+          obj[key] = defaultValue;
+        }
+      })
   }
     
 }

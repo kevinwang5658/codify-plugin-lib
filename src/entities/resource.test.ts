@@ -26,7 +26,7 @@ export class TestResource extends Resource<TestConfig> {
     return Promise.resolve(undefined);
   }
 
-  async refresh(): Promise<Partial<TestConfig> | null> {
+  async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
     return {
       propA: 'a',
       propB: 10,
@@ -296,7 +296,7 @@ describe('Resource tests', () => {
         super({
           type: 'type',
           parameterOptions: {
-            propA: { defaultValue: 'propADefault' }
+            propA: { default: 'propADefault' }
           }
         });
       }
@@ -316,7 +316,54 @@ describe('Resource tests', () => {
     expect(plan.currentConfig.propA).to.eq('propAAfter');
     expect(plan.desiredConfig.propA).to.eq('propADefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
+  })
 
+  it('Allows default values to be added to both desired and current', async () => {
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          parameterOptions: {
+            propE: { default: 'propEDefault' }
+          }
+        });
+      }
+
+      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+        expect(keys.has('propE')).to.be.true;
+
+        return {
+          propE: keys.get('propE'),
+        };
+      }
+    }
+
+    const plan = await resource.plan({ type: 'resource'})
+    expect(plan.currentConfig.propE).to.eq('propEDefault');
+    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Allows default values to be added even when refresh returns null', async () => {
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          parameterOptions: {
+            propE: { default: 'propEDefault' }
+          }
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    }
+
+    const plan = await resource.plan({ type: 'resource'})
+    expect(plan.currentConfig.propE).to.eq(null);
+    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
   })
 
   it('Allows default values to be added (ignore default value if already present)', async () => {
@@ -325,7 +372,7 @@ describe('Resource tests', () => {
         super({
           type: 'type',
           parameterOptions: {
-            propA: { defaultValue: 'propADefault' }
+            propA: { default: 'propADefault' }
           }
         });
       }
@@ -346,4 +393,21 @@ describe('Resource tests', () => {
     expect(plan.desiredConfig.propA).to.eq('propA');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
   });
+
+  it('Sets the default value properly on the resource', () => {
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          parameterOptions: {
+            propA: { default: 'propADefault' }
+          }
+        });
+      }
+    }
+
+    expect(resource.defaultValues).to.deep.eq({
+      propA: 'propADefault',
+    })
+  })
 });

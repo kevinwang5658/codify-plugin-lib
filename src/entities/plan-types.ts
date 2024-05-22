@@ -17,6 +17,8 @@ export interface ParameterOptions {
 
   isElementEqual?: (desired: any, current: any) => boolean;
 
+  default?: unknown,
+
   isStatefulParameter?: boolean;
 }
 

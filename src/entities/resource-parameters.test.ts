@@ -27,7 +27,7 @@ class TestParameter extends StatefulParameter<TestConfig, string> {
   }
 }
 
-describe('Resource parameters tests', () => {
+describe('Resource parameter tests', () => {
   it('supports the creation of stateful parameters', async () => {
 
     const statefulParameter = new class extends TestParameter {

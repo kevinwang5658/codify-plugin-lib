@@ -113,8 +113,8 @@ export class ResourceOptionsParser<T extends StringIndexedObject> {
 
     return Object.fromEntries(
       [...this.resourceParameters.entries()]
-        .filter(([, rp]) => rp.defaultValue !== undefined)
-        .map(([name, rp]) => [name, rp.defaultValue])
+        .filter(([, rp]) => rp.default !== undefined)
+        .map(([name, rp]) => [name, rp.default])
     ) as Partial<Record<keyof T, unknown>>;
   }
 

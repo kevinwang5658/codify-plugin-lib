@@ -75,7 +75,7 @@ export class ResourceOptionsParser<T extends StringIndexedObject> {
         return {
           ...obj,
           [sp[0]]: {
-            ...sp[1],
+            ...sp[1].options,
             isStatefulParameter: true,
           }
         }

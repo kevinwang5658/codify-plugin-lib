@@ -177,7 +177,6 @@ export abstract class Resource<T extends StringIndexedObject> {
     await this.applyDestroy(plan);
   }
 
-
   private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
     if (!refresh) {
       return;
@@ -259,7 +258,6 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
         && !isStatefulMode
         && !statefulParameter.options.disableStatelessModeArrayFiltering
       ) {
-
         currentValue = currentValue.filter((c) => desiredValue?.some((d) => {
           const parameterOptions = statefulParameter.options as any;
           if (parameterOptions && parameterOptions.isElementEqual) {

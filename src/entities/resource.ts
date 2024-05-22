@@ -89,11 +89,12 @@ export abstract class Resource<T extends StringIndexedObject> {
       parameters: desiredParameters,
       resourceMetadata,
       resourceParameters,
-      statefulParameters
+      statefulParameters,
+      transformParameters,
     } = parsedConfig;
 
     this.addDefaultValues(resourceParameters);
-    await this.applyTransformParameters(resourceParameters);
+    await this.applyTransformParameters(transformParameters, resourceParameters);
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
     const currentParameters = await this.refreshResourceParameters(resourceParameters);
@@ -223,8 +224,8 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private async applyTransformParameters(desired: Partial<T>): Promise<void> {
-    const orderedEntries = [...this.transformParameters.entries()]
+  private async applyTransformParameters(transformParameters: Partial<T>, desired: Partial<T>): Promise<void> {
+    const orderedEntries = [...Object.entries(transformParameters)]
       .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
 
     for (const [key, tp] of orderedEntries) {

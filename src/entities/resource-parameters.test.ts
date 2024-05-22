@@ -407,6 +407,43 @@ describe('Resource parameters tests', () => {
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 
+  it('Does not call transform parameters unless they are specified in the user config', async () => {
+    const transformParameter = spy(new class extends TransformParameter<TestConfig> {
+      async transform(value: any): Promise<Partial<TestConfig>> {
+        return {
+          propA: 'propA',
+          propB: 10,
+        }
+      }
+    })
+
+    const resource = spy(new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resourceType',
+          parameterOptions: {
+            propC: { transformParameter }
+          },
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'propA',
+          propB: 10,
+        }
+      }
+    });
+
+    const plan = await resource.plan({ type: 'resourceType', propA: 'propA', propB: 10 } as any);
+
+    expect(transformParameter.transform.called).to.be.false;
+    expect(resource.refresh.getCall(0).firstArg.has('propA')).to.be.true;
+    expect(resource.refresh.getCall(0).firstArg.has('propB')).to.be.true;
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
   it('Plans transform parameters in the order specified', async () => {
     const transformParameterA = spy(new class extends TransformParameter<TestConfig> {
       async transform(value: any): Promise<Partial<TestConfig>> {

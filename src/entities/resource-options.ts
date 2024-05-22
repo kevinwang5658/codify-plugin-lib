@@ -5,13 +5,32 @@ import { ResourceParameterOptions } from './resource-types.js';
 import { ParameterOptions } from './plan-types.js';
 
 export interface ResourceOptions<T extends StringIndexedObject> {
+
+  /**
+   * The id of the resource.
+   */
   type: string;
+
+  /**
+   * Schema to validate user configs with. Must be in the format JSON Schema 2020-12
+   */
+  schema?: JSON
+
   /**
    * If true, statefulParameter.applyRemove() will be called before resource destruction.
    * Defaults to false.
    */
   callStatefulParameterRemoveOnDestroy?: boolean,
+
+  /**
+   * An array of type ids of resources that this resource depends on. This affects the order in which the resources are
+   * planned and applied.
+   */
   dependencies?: string[];
+
+  /**
+   * Additional options for configuring parameters.
+   */
   parameterOptions?: Partial<Record<keyof T,
     ResourceParameterOptions
     | ResourceStatefulParameterOptions<T>

@@ -345,6 +345,5 @@ describe('Resource tests', () => {
     expect(plan.currentConfig.propA).to.eq('propAAfter');
     expect(plan.desiredConfig.propA).to.eq('propA');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
-
-  })
+  });
 });

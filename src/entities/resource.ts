@@ -7,6 +7,8 @@ import { setsEqual, splitUserConfig } from '../utils/utils.js';
 import { ParameterOptions, PlanOptions } from './plan-types.js';
 import { TransformParameter } from './transform-parameter.js';
 import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
+import Ajv from 'ajv';
+import Ajv2020, { ValidateFunction } from 'ajv/dist/2020.js';
 
 /**
  * Description of resource here
@@ -29,10 +31,21 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly options: ResourceOptions<T>;
   readonly defaultValues: Partial<Record<keyof T, unknown>>;
 
+  protected ajv?: Ajv.default;
+  protected schemaValidator?: ValidateFunction;
+
   protected constructor(options: ResourceOptions<T>) {
     this.typeId = options.type;
     this.dependencies = options.dependencies ?? [];
     this.options = options;
+
+    if (this.options.schema) {
+      this.ajv = new Ajv2020.default({
+        strict: true,
+        strictRequired: false,
+      })
+      this.schemaValidator = this.ajv.compile(this.options.schema);
+    }
 
     const parser = new ResourceOptionsParser<T>(options);
     this.statefulParameters = parser.statefulParameters;
@@ -45,6 +58,21 @@ export abstract class Resource<T extends StringIndexedObject> {
   }
 
   async onInitialize(): Promise<void> {}
+
+  async validate(parameters: unknown): Promise<ValidationResult> {
+    if (this.schemaValidator) {
+      const isValid = this.schemaValidator(parameters);
+
+      if (!isValid) {
+        return {
+          isValid: false,
+          errors: this.schemaValidator?.errors ?? [],
+        }
+      }
+    }
+
+    return this.validateParameters(parameters);
+  }
 
   // TODO: Add state in later.
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
@@ -275,7 +303,11 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     return currentParameters;
   }
 
-  abstract validate(parameters: unknown): Promise<ValidationResult>;
+  async validateParameters(parameters: unknown): Promise<ValidationResult> {
+    return {
+      isValid: true,
+    }
+  };
 
   abstract refresh(keys: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
 

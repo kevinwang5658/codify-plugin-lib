@@ -1,13 +1,24 @@
 import { MessageHandler } from './handlers.js';
 import { Plugin } from '../entities/plugin.js';
-import { describe, it, expect } from 'vitest';
-import { vi } from 'vitest'
+import { describe, expect, it } from 'vitest';
 import { mock } from 'vitest-mock-extended'
+import { Resource } from '../entities/resource.js';
+import { Plan } from '../entities/plan.js';
+import { MessageStatus, ResourceOperation } from 'codify-schemas';
 
 describe('Message handler tests', () => {
   it('handles plan requests', async () => {
     const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      expect(message).toMatchObject({
+        cmd: 'plan_Response',
+        status: MessageStatus.SUCCESS,
+      });
+
+      return true;
+    }
 
     // Message handler also validates the response. That part does not need to be tested
     try {
@@ -23,11 +34,22 @@ describe('Message handler tests', () => {
     } catch (e) {}
 
     expect(plugin.plan.mock.calls.length).to.eq(1);
+    process.send = undefined;
   })
 
   it('rejects bad plan requests', async () => {
     const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      console.log(message);
+      expect(message).toMatchObject({
+        cmd: 'plan_Response',
+        status: MessageStatus.ERROR,
+      });
+
+      return true;
+    }
 
     // Message handler also validates the response. That part does not need to be tested
     try {
@@ -39,9 +61,12 @@ describe('Message handler tests', () => {
           prop2: 'B',
         }
       })
-    } catch (e) {}
+    } catch (e) {
+      console.log(e);
+    }
 
     expect(plugin.plan.mock.calls.length).to.eq(0);
+    process.send = undefined;
   })
 
   it('handles apply requests', async () => {
@@ -111,14 +136,119 @@ describe('Message handler tests', () => {
     const handler = new MessageHandler(plugin);
 
     // Message handler also validates the response. That part does not need to be tested
-    try {
-      await handler.onMessage({
-        cmd: 'validate',
-        data: {}
-      })
-    } catch (e) {}
+    expect(async () => await handler.onMessage({
+      cmd: 'validate',
+      data: {}
+    })).rejects.not.toThrowError();
 
     expect(plugin.apply.mock.calls.length).to.be.eq(0);
   })
+
+  it('handles errors for plan', async () => {
+    const resource= testResource();
+    const plugin = testPlugin(resource);
+
+    const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      expect(message).toMatchObject({
+        cmd: 'plan_Response',
+        status: MessageStatus.ERROR,
+        data: 'Refresh error',
+      })
+      return true;
+    }
+
+    expect(async () => await handler.onMessage({
+      cmd: 'plan',
+      data: {
+        type: 'resourceA'
+      }
+    })).rejects.to.not.throw;
+
+    process.send = undefined;
+  })
+
+  it('handles errors for apply (create)', async () => {
+    const resource= testResource();
+    const plugin = testPlugin(resource);
+
+    const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      expect(message).toMatchObject({
+        cmd: 'apply_Response',
+        status: MessageStatus.ERROR,
+        data: 'Create error',
+      })
+      return true;
+    }
+
+    expect(async () => await handler.onMessage({
+      cmd: 'apply',
+      data: {
+        plan: {
+          resourceType: 'resourceA',
+          operation: ResourceOperation.CREATE,
+          parameters: []
+        }
+      }
+    })).rejects.to.not.throw;
+  })
+
+  it('handles errors for apply (destroy)', async () => {
+    const resource= testResource();
+    const plugin = testPlugin(resource);
+
+    const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      expect(message).toMatchObject({
+        cmd: 'apply_Response',
+        status: MessageStatus.ERROR,
+        data: 'Destroy error',
+      })
+      return true;
+    }
+
+    expect(async () => await handler.onMessage({
+      cmd: 'apply',
+      data: {
+        plan: {
+          resourceType: 'resourceA',
+          operation: ResourceOperation.DESTROY,
+          parameters: []
+        }
+      }
+    })).rejects.to.not.throw;
+  })
+
+
+  const testResource = () => new class extends Resource<any> {
+    constructor() {
+      super({ type: 'resourceA' });
+    }
+
+    async refresh(keys: Map<keyof any, any>): Promise<Partial<any> | null> {
+      throw new Error('Refresh error');
+    }
+
+    applyCreate(plan: Plan<any>): Promise<void> {
+      throw new Error('Create error');
+    }
+
+    applyDestroy(plan: Plan<any>): Promise<void> {
+      throw new Error('Destroy error');
+    }
+  }
+
+  const testPlugin = (resource: Resource<any>) => new class extends Plugin {
+    constructor() {
+      const map = new Map();
+      map.set('resourceA', resource);
+
+      super(map);
+    }
+  }
 
 });

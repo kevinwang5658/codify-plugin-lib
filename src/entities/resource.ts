@@ -101,7 +101,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentParameters == null) {
-      return Plan.create(desiredParameters, null, resourceMetadata, planOptions);
+      return Plan.create(resourceParameters, null, resourceMetadata, planOptions);
     }
 
     // Refresh stateful parameters. These parameters have state external to the resource

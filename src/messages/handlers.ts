@@ -81,18 +81,7 @@ export class MessageHandler {
         throw new Error(`Plugin: ${this.plugin}. cmd: ${message.cmd}. Malformed message data: ${JSON.stringify(requestValidator.errors, null, 2)}`)
       }
 
-      let result: unknown;
-      try {
-        result = await SupportedRequests[message.cmd].handler(this.plugin, message.data);
-      } catch (e: any) {
-        process.send!({
-          cmd: message.cmd + '_Response',
-          status: MessageStatus.ERROR,
-          data: e.message,
-        })
-
-        return;
-      }
+      const result = await SupportedRequests[message.cmd].handler(this.plugin, message.data);
 
       const responseValidator = this.responseValidators.get(message.cmd);
       if (responseValidator && !responseValidator(result)) {
@@ -126,10 +115,12 @@ export class MessageHandler {
     // @ts-ignore
     const cmd = message.cmd + '_Response';
 
-    process.send!({
+    const isDebug = process.env.DEBUG?.includes('*') ?? false;
+
+    process.send?.({
       cmd,
       status: MessageStatus.ERROR,
-      data: e.message,
+      data: isDebug ? e.stack : e.message,
     })
   }
 }

@@ -135,11 +135,14 @@ describe('Message handler tests', () => {
     const plugin = mock<Plugin>();
     const handler = new MessageHandler(plugin);
 
+    process.send = () => true;
+
     // Message handler also validates the response. That part does not need to be tested
-    expect(async () => await handler.onMessage({
+    // This should not throw
+    expect(await handler.onMessage({
       cmd: 'validate',
       data: {}
-    })).rejects.not.toThrowError();
+    })).to.eq(undefined);
 
     expect(plugin.apply.mock.calls.length).to.be.eq(0);
   })
@@ -247,7 +250,7 @@ describe('Message handler tests', () => {
       const map = new Map();
       map.set('resourceA', resource);
 
-      super(map);
+      super('name', map);
     }
   }
 

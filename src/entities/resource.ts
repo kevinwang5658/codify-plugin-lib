@@ -2,10 +2,13 @@ import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObj
 import { ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
-import { ResourceConfiguration, ValidationResult } from './resource-types.js';
+import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
-import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
+import { ParameterOptions, PlanOptions } from './plan-types.js';
 import { TransformParameter } from './transform-parameter.js';
+import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
+import Ajv from 'ajv';
+import Ajv2020, { ValidateFunction } from 'ajv/dist/2020.js';
 
 /**
  * Description of resource here
@@ -15,95 +18,100 @@ import { TransformParameter } from './transform-parameter.js';
  *
  */
 export abstract class Resource<T extends StringIndexedObject> {
-
   readonly typeId: string;
   readonly statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   readonly transformParameters: Map<keyof T, TransformParameter<T>>
+  readonly resourceParameters: Map<keyof T, ResourceParameterOptions>;
+
+  readonly statefulParameterOrder: Map<keyof T, number>;
+  readonly transformParameterOrder: Map<keyof T, number>;
+
   readonly dependencies: string[]; // TODO: Change this to a string
-  readonly parameterConfigurations: Record<keyof T, ParameterConfiguration>
-  readonly configuration: ResourceConfiguration<T>;
+  readonly parameterOptions: Record<keyof T, ParameterOptions>
+  readonly options: ResourceOptions<T>;
   readonly defaultValues: Partial<Record<keyof T, unknown>>;
 
-  protected constructor(configuration: ResourceConfiguration<T>) {
-    this.validateResourceConfiguration(configuration);
+  protected ajv?: Ajv.default;
+  protected schemaValidator?: ValidateFunction;
 
-    this.typeId = configuration.type;
-    this.statefulParameters = new Map(configuration.statefulParameters?.map((sp) => [sp.name, sp]));
-    this.transformParameters = new Map(Object.entries(configuration.transformParameters ?? {})) as Map<keyof T, TransformParameter<T>>;
-    this.parameterConfigurations = this.initializeParameterConfigurations(configuration);
-    this.defaultValues = this.initializeDefaultValues(configuration);
+  protected constructor(options: ResourceOptions<T>) {
+    this.typeId = options.type;
+    this.dependencies = options.dependencies ?? [];
+    this.options = options;
 
-    this.dependencies = configuration.dependencies ?? [];
-    this.configuration = configuration;
+    if (this.options.schema) {
+      this.ajv = new Ajv2020.default({
+        strict: true,
+        strictRequired: false,
+      })
+      this.schemaValidator = this.ajv.compile(this.options.schema);
+    }
+
+    const parser = new ResourceOptionsParser<T>(options);
+    this.statefulParameters = parser.statefulParameters;
+    this.transformParameters = parser.transformParameters;
+    this.resourceParameters = parser.resourceParameters;
+    this.parameterOptions = parser.changeSetParameterOptions;
+    this.defaultValues = parser.defaultValues;
+    this.statefulParameterOrder = parser.statefulParameterOrder;
+    this.transformParameterOrder = parser.transformParameterOrder;
   }
 
   async onInitialize(): Promise<void> {}
+
+  async validateResource(parameters: unknown): Promise<ValidationResult> {
+    if (this.schemaValidator) {
+      const isValid = this.schemaValidator(parameters);
+
+      if (!isValid) {
+        return {
+          isValid: false,
+          errors: this.schemaValidator?.errors ?? [],
+        }
+      }
+    }
+
+    return this.validate(parameters);
+  }
 
   // TODO: Add state in later.
   //  Currently only calculating how to add things to reach desired state. Can't delete resources.
   //  Add previousConfig as a parameter for plan(desired, previous);
   async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
-
-    // Explanation: these are settings for how the plan will be generated
-    const planConfiguration: PlanConfiguration<T> = {
+    const planOptions: PlanOptions<T> = {
       statefulMode: false,
-      parameterConfigurations: this.parameterConfigurations,
+      parameterOptions: this.parameterOptions,
     }
 
-    const { resourceMetadata, parameters: desiredParameters } = splitUserConfig(desiredConfig);
+    // Parse data from the user supplied config
+    const parsedConfig = new ConfigParser(desiredConfig, this.statefulParameters, this.transformParameters)
+    const {
+      parameters: desiredParameters,
+      resourceMetadata,
+      resourceParameters,
+      statefulParameters,
+      transformParameters,
+    } = parsedConfig;
 
-    this.addDefaultValues(desiredParameters);
-    await this.applyTransformParameters(desiredParameters);
+    this.addDefaultValues(resourceParameters);
+    await this.applyTransformParameters(transformParameters, resourceParameters);
 
-    const resourceParameters = Object.fromEntries([
-      ...Object.entries(desiredParameters).filter(([key]) => !this.statefulParameters.has(key)),
-    ]) as Partial<T>;
+    // Refresh resource parameters. This refreshes the parameters that configure the resource itself
+    const currentParameters = await this.refreshResourceParameters(resourceParameters);
 
-    const statefulParameters = [...this.statefulParameters.values()]
-      .filter((sp) => desiredParameters[sp.name] !== undefined) // Checking for undefined is fine here because JSONs can only have null.
-
-    // Refresh resource parameters
-    // This refreshes the parameters that configure the resource itself
-    const entriesToRefresh = new Map(Object.entries(resourceParameters));
-    const currentParameters = await this.refresh(entriesToRefresh);
-
-    // Short circuit here. If resource is non-existent, then there's no point checking stateful parameters
+    // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentParameters == null) {
-      return Plan.create(desiredParameters, null, resourceMetadata, planConfiguration);
+      return Plan.create(desiredParameters, null, resourceMetadata, planOptions);
     }
 
-    this.validateRefreshResults(currentParameters, entriesToRefresh);
-
-    // Refresh stateful parameters
-    // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-    for(const statefulParameter of statefulParameters) {
-      const desiredValue = desiredParameters[statefulParameter.name];
-
-      let currentValue = await statefulParameter.refresh(desiredValue ?? null) ?? undefined;
-
-      // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
-      if (Array.isArray(currentValue)
-        && Array.isArray(desiredValue)
-        && !planConfiguration.statefulMode
-        && !statefulParameter.configuration.disableStatelessModeArrayFiltering
-      ) {
-        currentValue = currentValue.filter((c) => desiredValue?.some((d) => {
-          const pc = planConfiguration?.parameterConfigurations?.[statefulParameter.name];
-          if (pc && pc.isElementEqual) {
-            return pc.isElementEqual(d, c);
-          }
-          return d === c;
-        })) as any;
-      }
-
-      currentParameters[statefulParameter.name] = currentValue;
-    }
+    // Refresh stateful parameters. These parameters have state external to the resource
+    const statefulCurrentParameters = await this.refreshStatefulParameters(statefulParameters, planOptions.statefulMode);
 
     return Plan.create(
-      desiredParameters,
-      currentParameters as Partial<T>,
+      { ...resourceParameters, ...statefulParameters },
+      { ...currentParameters, ...statefulCurrentParameters } as Partial<T>,
       resourceMetadata,
-      planConfiguration,
+      planOptions,
     )
   }
 
@@ -134,6 +142,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
+      .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
       await statefulParameter.applyAdd(parameterChange.newValue, plan);
@@ -148,6 +158,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statelessParameterChanges = parameterChanges
       .filter((pc: ParameterChange<T>) => !this.statefulParameters.has(pc.name))
+
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
       await this.applyModify(pc.name, pc.newValue, pc.previousValue, false, plan);
@@ -155,6 +166,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     const statefulParameterChanges = parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
+      .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
 
@@ -179,9 +192,11 @@ export abstract class Resource<T extends StringIndexedObject> {
   private async _applyDestroy(plan: Plan<T>): Promise<void> {
     // If this option is set (defaults to false), then stateful parameters need to be destroyed
     // as well. This means that the stateful parameter wouldn't have been normally destroyed with applyDestroy()
-    if (this.configuration.callStatefulParameterRemoveOnDestroy) {
+    if (this.options.callStatefulParameterRemoveOnDestroy) {
       const statefulParameterChanges = plan.changeSet.parameterChanges
         .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
+        .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+
       for (const parameterChange of statefulParameterChanges) {
         const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
         await statefulParameter.applyRemove(parameterChange.previousValue, plan);
@@ -189,58 +204,6 @@ export abstract class Resource<T extends StringIndexedObject> {
     }
 
     await this.applyDestroy(plan);
-  }
-
-  private initializeParameterConfigurations(
-    resourceConfiguration: ResourceConfiguration<T>
-  ): Record<keyof T, ParameterConfiguration>  {
-    const resourceParameters = Object.fromEntries(
-      Object.entries(resourceConfiguration.parameterConfigurations ?? {})
-        ?.map(([name, value]) => ([name, { ...value, isStatefulParameter: false }]))
-    ) as Record<keyof T, ParameterConfiguration>
-
-    const statefulParameters = resourceConfiguration.statefulParameters
-      ?.reduce((obj, sp) => {
-        return {
-          ...obj,
-          [sp.name]: {
-            ...sp.configuration,
-            isStatefulParameter: true,
-          }
-        }
-      }, {}) ?? {}
-
-    return {
-      ...resourceParameters,
-      ...statefulParameters,
-    }
-  }
-
-  private initializeDefaultValues(
-    resourceConfiguration: ResourceConfiguration<T>
-  ): Partial<Record<keyof T, unknown>>  {
-    if (!resourceConfiguration.parameterConfigurations) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      Object.entries(resourceConfiguration.parameterConfigurations)
-        .filter((p) => p[1]?.defaultValue !== undefined)
-        .map((config) => [config[0], config[1]!.defaultValue])
-    ) as Partial<Record<keyof T, unknown>>;
-  }
-
-  private validateResourceConfiguration(data: ResourceConfiguration<T>) {
-    // Stateful parameters are configured within the object not in the resource.
-    if (data.parameterConfigurations && data.statefulParameters) {
-      const parameters = [...Object.keys(data.parameterConfigurations)];
-      const statefulParameterSet = new Set(data.statefulParameters.map((sp) => sp.name));
-
-      const intersection = parameters.some((p) => statefulParameterSet.has(p));
-      if (intersection) {
-        throw new Error(`Resource ${this.typeId} cannot declare a parameter as both stateful and non-stateful`);
-      }
-    }
   }
 
   private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
@@ -253,7 +216,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     if (!setsEqual(desiredKeys, refreshKeys)) {
       throw new Error(
-        `Resource ${this.configuration.type}
+        `Resource ${this.typeId}
 refresh() must return back exactly the keys that were provided
 Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
 Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
@@ -261,10 +224,13 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private async applyTransformParameters(desired: Partial<T>): Promise<void> {
-    for (const [key, tp] of this.transformParameters.entries()) {
+  private async applyTransformParameters(transformParameters: Partial<T>, desired: Partial<T>): Promise<void> {
+    const orderedEntries = [...Object.entries(transformParameters)]
+      .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
+
+    for (const [key] of orderedEntries) {
       if (desired[key] !== null) {
-        const transformedValue = await tp.transform(desired[key]);
+        const transformedValue = await this.transformParameters.get(key)!.transform(desired[key]);
 
         if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
           throw new Error(`Transform parameter ${key as string} is attempting to override existing value ${desired[key]}`);
@@ -290,7 +256,59 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       });
   }
 
-  abstract validate(parameters: unknown): Promise<ValidationResult>;
+  private async refreshResourceParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
+    const entriesToRefresh = new Map(Object.entries(resourceParameters));
+    const currentParameters = await this.refresh(entriesToRefresh);
+
+    this.validateRefreshResults(currentParameters, entriesToRefresh);
+    return currentParameters;
+  }
+
+  // Refresh stateful parameters
+  // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
+  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, isStatefulMode: boolean): Promise<Partial<T>> {
+    const currentParameters: Partial<T> = {}
+    const sortedEntries = Object.entries(statefulParametersConfig)
+      .sort(([key1], [key2]) => this.statefulParameterOrder.get(key1)! - this.statefulParameterOrder.get(key2)!)
+
+    for(const [key, desiredValue] of sortedEntries) {
+      const statefulParameter = this.statefulParameters.get(key);
+      if (!statefulParameter) {
+        throw new Error(`Stateful parameter ${key} was not found`);
+      }
+
+      let currentValue = await statefulParameter.refresh(desiredValue ?? null);
+
+      // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
+      // Otherwise the change set will pick up the extra keys from the current and try to delete them
+      // This allows arrays within stateful parameters to be first class objects
+      if (Array.isArray(currentValue)
+        && Array.isArray(desiredValue)
+        && !isStatefulMode
+        && !statefulParameter.options.disableStatelessModeArrayFiltering
+      ) {
+        currentValue = currentValue.filter((c) => desiredValue?.some((d) => {
+          const parameterOptions = statefulParameter.options as any;
+          if (parameterOptions && parameterOptions.isElementEqual) {
+            return parameterOptions.isElementEqual(d, c);
+          }
+
+          return d === c;
+        })) as any;
+      }
+
+      // @ts-ignore
+      currentParameters[key] = currentValue;
+    }
+
+    return currentParameters;
+  }
+
+  async validate(parameters: unknown): Promise<ValidationResult> {
+    return {
+      isValid: true,
+    }
+  };
 
   abstract refresh(keys: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
 
@@ -299,4 +317,54 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
   async applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, allowDeletes: boolean, plan: Plan<T>): Promise<void> {};
 
   abstract applyDestroy(plan: Plan<T>): Promise<void>;
+}
+
+class ConfigParser<T extends StringIndexedObject> {
+  private config: Partial<T> & ResourceConfig;
+  private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
+  private transformParametersMap: Map<keyof T, TransformParameter<T>>;
+
+  constructor(
+    config: Partial<T> & ResourceConfig,
+    statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>,
+  transformParameters: Map<keyof T, TransformParameter<T>>,
+  ) {
+    this.config = config;
+    this.statefulParametersMap = statefulParameters;
+    this.transformParametersMap = transformParameters;
+  }
+
+  get resourceMetadata(): ResourceConfig {
+    const { resourceMetadata } = splitUserConfig(this.config);
+    return resourceMetadata;
+  }
+
+  get parameters(): Partial<T> {
+    const { parameters } = splitUserConfig(this.config);
+    return parameters;
+  }
+
+  get resourceParameters(): Partial<T> {
+    const parameters = this.parameters;
+
+    return Object.fromEntries([
+      ...Object.entries(parameters).filter(([key]) => !(this.statefulParametersMap.has(key) || this.transformParametersMap.has(key))),
+    ]) as Partial<T>;
+  }
+
+  get statefulParameters(): Partial<T> {
+    const parameters = this.parameters;
+
+    return Object.fromEntries([
+      ...Object.entries(parameters).filter(([key]) => this.statefulParametersMap.has(key)),
+    ]) as Partial<T>;
+  }
+
+  get transformParameters(): Partial<T> {
+    const parameters = this.parameters;
+
+    return Object.fromEntries([
+      ...Object.entries(parameters).filter(([key]) => this.transformParametersMap.has(key)),
+    ]) as Partial<T>;
+  }
 }

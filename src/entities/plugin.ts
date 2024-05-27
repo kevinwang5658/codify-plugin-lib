@@ -42,7 +42,7 @@ export class Plugin {
       }
 
       const { parameters } = splitUserConfig(config);
-      const validateResult = await this.resources.get(config.type)!.validate(parameters);
+      const validateResult = await this.resources.get(config.type)!.validateResource(parameters);
 
       validationResults.push({
         ...validateResult,
@@ -95,11 +95,11 @@ export class Plugin {
     }
 
     if (!planRequest?.resourceType || !this.resources.has(planRequest.resourceType)) {
-      throw new Error('Malformed plan. Resource type must be supplied');
+      throw new Error('Malformed plan. Resource type must be supplied or resource type was not found');
     }
 
-    const resource = this.resources.get(planRequest.resourceType);
-    return Plan.fromResponse(data.plan, resource?.defaultValues!);
+    const resource = this.resources.get(planRequest.resourceType)!;
+    return Plan.fromResponse(data.plan, resource.defaultValues);
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

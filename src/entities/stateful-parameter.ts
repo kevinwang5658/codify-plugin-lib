@@ -1,7 +1,7 @@
 import { Plan } from './plan.js';
 import { StringIndexedObject } from 'codify-schemas';
 
-export interface StatefulParameterConfiguration<T> {
+export interface StatefulParameterOptions<T> {
   name: keyof T;
   isEqual?: (desired: any, current: any) => boolean;
 
@@ -17,7 +17,7 @@ export interface StatefulParameterConfiguration<T> {
   disableStatelessModeArrayFiltering?: boolean;
 }
 
-export interface ArrayStatefulParameterConfiguration<T> extends StatefulParameterConfiguration<T> {
+export interface ArrayStatefulParameterOptions<T> extends StatefulParameterOptions<T> {
   isEqual?: (desired: any[], current: any[]) => boolean;
   isElementEqual?: (desired: any, current: any) => boolean;
 }
@@ -25,11 +25,11 @@ export interface ArrayStatefulParameterConfiguration<T> extends StatefulParamete
 
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly name: keyof T;
-  readonly configuration: StatefulParameterConfiguration<T>;
+  readonly options: StatefulParameterOptions<T>;
 
-  protected constructor(configuration: StatefulParameterConfiguration<T>) {
-    this.name = configuration.name;
-    this.configuration = configuration
+  protected constructor(options: StatefulParameterOptions<T>) {
+    this.name = options.name;
+    this.options = options
   }
 
   abstract refresh(desired: V | null): Promise<V | null>;
@@ -41,11 +41,11 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
-  configuration: ArrayStatefulParameterConfiguration<T>;
+  options: ArrayStatefulParameterOptions<T>;
 
-  constructor(configuration: ArrayStatefulParameterConfiguration<T>) {
-    super(configuration);
-    this.configuration = configuration;
+  constructor(options: ArrayStatefulParameterOptions<T>) {
+    super(options);
+    this.options = options;
   }
 
   async applyAdd(valuesToAdd: V[], plan: Plan<T>): Promise<void> {
@@ -55,18 +55,18 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
   }
 
   async applyModify(newValues: V[], previousValues: V[], allowDeletes: boolean, plan: Plan<T>): Promise<void> {
-    const configuration = this.configuration as ArrayStatefulParameterConfiguration<T>;
+    const options = this.options as ArrayStatefulParameterOptions<T>;
 
     const valuesToAdd = newValues.filter((n) => !previousValues.some((p) => {
-      if ((configuration).isElementEqual) {
-        return configuration.isElementEqual(n, p);
+      if (options.isElementEqual) {
+        return options.isElementEqual(n, p);
       }
       return n === p;
     }));
 
     const valuesToRemove = previousValues.filter((p) => !newValues.some((n) => {
-      if ((configuration).isElementEqual) {
-        return configuration.isElementEqual(n, p);
+      if (options.isElementEqual) {
+        return options.isElementEqual(n, p);
       }
       return n === p;
     }));

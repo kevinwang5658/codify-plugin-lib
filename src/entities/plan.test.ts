@@ -140,10 +140,8 @@ function createResource(): Resource<any> {
     constructor() {
       super({
         type: 'type',
-        parameterConfigurations: {
-          propA: {
-            defaultValue: 'defaultA'
-          }
+        parameterOptions: {
+          propA: { default: 'defaultA' }
         }
       });
     }

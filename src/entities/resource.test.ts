@@ -3,8 +3,9 @@ import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { describe, expect, it } from 'vitest'
-import { ResourceConfiguration, ValidationResult } from './resource-types.js';
+import { ValidationResult } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
+import { ResourceOptions } from './resource-options.js';
 
 export interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -13,7 +14,7 @@ export interface TestConfig extends StringIndexedObject {
 }
 
 export class TestResource extends Resource<TestConfig> {
-  constructor(options: ResourceConfiguration<TestConfig>) {
+  constructor(options: ResourceOptions<TestConfig>) {
     super(options);
   }
 
@@ -25,7 +26,7 @@ export class TestResource extends Resource<TestConfig> {
     return Promise.resolve(undefined);
   }
 
-  async refresh(): Promise<Partial<TestConfig> | null> {
+  async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
     return {
       propA: 'a',
       propB: 10,
@@ -33,7 +34,7 @@ export class TestResource extends Resource<TestConfig> {
     };
   }
 
-  async validate(config: unknown): Promise<ValidationResult> {
+  async validateResource(config: unknown): Promise<ValidationResult> {
     return {
       isValid: true
     }
@@ -193,7 +194,7 @@ describe('Resource tests', () => {
       constructor() {
         super({
           type: 'resource',
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
             propB: { planOperation: ResourceOperation.MODIFY },
           }
@@ -215,8 +216,8 @@ describe('Resource tests', () => {
     expect(resourceSpy.applyModify.calledTwice).to.be.true;
   })
 
-  it('Validates the resource configuration correct (pass)', () => {
-    const parameter = new class extends StatefulParameter<TestConfig, string> {
+  it('Validates the resource options correct (pass)', () => {
+    const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
       constructor() {
         super({
           name: 'propC',
@@ -242,11 +243,9 @@ describe('Resource tests', () => {
         super({
           type: 'type',
           dependencies: ['homebrew', 'python'],
-          statefulParameters: [
-            parameter
-          ],
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
+            propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
         });
@@ -254,8 +253,8 @@ describe('Resource tests', () => {
     }).to.not.throw;
   })
 
-  it('Validates the resource configuration correct (fail)', () => {
-    const parameter = new class extends StatefulParameter<TestConfig, string> {
+  it('Validates the resource options correct (fail)', () => {
+    const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
       constructor() {
         super({
           name: 'propC',
@@ -281,11 +280,9 @@ describe('Resource tests', () => {
         super({
           type: 'type',
           dependencies: ['homebrew', 'python'],
-          statefulParameters: [
-            parameter
-          ],
-          parameterConfigurations: {
+          parameterOptions: {
             propA: { planOperation: ResourceOperation.MODIFY },
+            propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
         });
@@ -298,8 +295,8 @@ describe('Resource tests', () => {
       constructor() {
         super({
           type: 'type',
-          parameterConfigurations: {
-            propA: { defaultValue: 'propADefault' }
+          parameterOptions: {
+            propA: { default: 'propADefault' }
           }
         });
       }
@@ -319,7 +316,54 @@ describe('Resource tests', () => {
     expect(plan.currentConfig.propA).to.eq('propAAfter');
     expect(plan.desiredConfig.propA).to.eq('propADefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
+  })
 
+  it('Allows default values to be added to both desired and current', async () => {
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          parameterOptions: {
+            propE: { default: 'propEDefault' }
+          }
+        });
+      }
+
+      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+        expect(keys.has('propE')).to.be.true;
+
+        return {
+          propE: keys.get('propE'),
+        };
+      }
+    }
+
+    const plan = await resource.plan({ type: 'resource'})
+    expect(plan.currentConfig.propE).to.eq('propEDefault');
+    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Allows default values to be added even when refresh returns null', async () => {
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          parameterOptions: {
+            propE: { default: 'propEDefault' }
+          }
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    }
+
+    const plan = await resource.plan({ type: 'resource'})
+    expect(plan.currentConfig.propE).to.eq(null);
+    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
   })
 
   it('Allows default values to be added (ignore default value if already present)', async () => {
@@ -327,8 +371,8 @@ describe('Resource tests', () => {
       constructor() {
         super({
           type: 'type',
-          parameterConfigurations: {
-            propA: { defaultValue: 'propADefault' }
+          parameterOptions: {
+            propA: { default: 'propADefault' }
           }
         });
       }
@@ -348,6 +392,22 @@ describe('Resource tests', () => {
     expect(plan.currentConfig.propA).to.eq('propAAfter');
     expect(plan.desiredConfig.propA).to.eq('propA');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
+  });
 
+  it('Sets the default value properly on the resource', () => {
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'type',
+          parameterOptions: {
+            propA: { default: 'propADefault' }
+          }
+        });
+      }
+    }
+
+    expect(resource.defaultValues).to.deep.eq({
+      propA: 'propADefault',
+    })
   })
 });

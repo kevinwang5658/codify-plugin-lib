@@ -8,7 +8,7 @@ import {
   StringIndexedObject,
 } from 'codify-schemas';
 import { randomUUID } from 'crypto';
-import { ParameterConfiguration, PlanConfiguration } from './plan-types.js';
+import { ParameterOptions, PlanOptions } from './plan-types.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
@@ -25,11 +25,11 @@ export class Plan<T extends StringIndexedObject> {
     desiredParameters: Partial<T> | null,
     currentParameters: Partial<T> | null,
     resourceMetadata: ResourceConfig,
-    configuration: PlanConfiguration<T>
+    options: PlanOptions<T>
   ): Plan<T> {
-    const parameterConfigurations = configuration.parameterConfigurations ?? {} as Record<keyof T, ParameterConfiguration>;
+    const parameterOptions = options.parameterOptions ?? {} as Record<keyof T, ParameterOptions>;
     const statefulParameterNames = new Set(
-      [...Object.entries(parameterConfigurations)]
+      [...Object.entries(parameterOptions)]
         .filter(([k, v]) => v.isStatefulParameter)
         .map(([k, v]) => k)
     );
@@ -40,7 +40,7 @@ export class Plan<T extends StringIndexedObject> {
     const parameterChangeSet = ChangeSet.calculateParameterChangeSet(
       desiredParameters,
       currentParameters,
-      { statefulMode: configuration.statefulMode, parameterConfigurations }
+      { statefulMode: options.statefulMode, parameterOptions }
     );
 
     let resourceOperation: ResourceOperation;
@@ -55,8 +55,8 @@ export class Plan<T extends StringIndexedObject> {
           let newOperation: ResourceOperation;
           if (statefulParameterNames.has(curr.name)) {
             newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-          } else if (parameterConfigurations[curr.name]?.planOperation) {
-            newOperation = parameterConfigurations[curr.name].planOperation!;
+          } else if (parameterOptions[curr.name]?.planOperation) {
+            newOperation = parameterOptions[curr.name].planOperation!;
           } else {
             newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
           }
@@ -97,43 +97,46 @@ export class Plan<T extends StringIndexedObject> {
    function addDefaultValues(): void {
       Object.entries(defaultValues)
         .forEach(([key, defaultValue]) => {
-          const configValueExists = data
-            ?.parameters
-            .find((p) => p.name === key) !== undefined;
+          const configValueExists = data!
+            .parameters
+            .some((p) => p.name === key);
 
-          if (!configValueExists) {
-            switch (data?.operation) {
-              case ResourceOperation.CREATE: {
-                data?.parameters.push({
-                  name: key,
-                  operation: ParameterOperation.ADD,
-                  previousValue: null,
-                  newValue: defaultValue,
-                });
-                break;
-              }
+          // Only set default values if the value does not exist in the config
+          if (configValueExists) {
+            return;
+          }
 
-              case ResourceOperation.DESTROY: {
-                data?.parameters.push({
-                  name: key,
-                  operation: ParameterOperation.REMOVE,
-                  previousValue: defaultValue,
-                  newValue: null,
-                });
-                break;
-              }
+          switch (data!.operation) {
+            case ResourceOperation.CREATE: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.ADD,
+                previousValue: null,
+                newValue: defaultValue,
+              });
+              break;
+            }
 
-              case ResourceOperation.MODIFY:
-              case ResourceOperation.RECREATE:
-              case ResourceOperation.NOOP: {
-                data?.parameters.push({
-                  name: key,
-                  operation: ParameterOperation.NOOP,
-                  previousValue: defaultValue,
-                  newValue: defaultValue,
-                });
-                break;
-              }
+            case ResourceOperation.DESTROY: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.REMOVE,
+                previousValue: defaultValue,
+                newValue: null,
+              });
+              break;
+            }
+
+            case ResourceOperation.MODIFY:
+            case ResourceOperation.RECREATE:
+            case ResourceOperation.NOOP: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.NOOP,
+                previousValue: defaultValue,
+                newValue: defaultValue,
+              });
+              break;
             }
           }
         });

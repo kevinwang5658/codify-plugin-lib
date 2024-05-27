@@ -1,13 +1,11 @@
-import { StatefulParameter } from './stateful-parameter.js';
-import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
-import { TransformParameter } from './transform-parameter.js';
+import { ResourceOperation } from 'codify-schemas';
 
 export type ErrorMessage = string;
 
 /**
  * Customize properties for specific parameters. This will alter the way the library process changes to the parameter.
  */
-export interface ResourceParameterConfiguration {
+export interface ResourceParameterOptions {
   /**
    * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to re-create.
    */
@@ -21,24 +19,12 @@ export interface ResourceParameterConfiguration {
   /**
    * Default value for the parameter. If a value is not provided in the config, the library will use this value.
    */
-  defaultValue?: unknown,
+  default?: unknown,
 }
 
 /**
  * @param
  */
-export interface ResourceConfiguration<T extends StringIndexedObject> {
-  type: string;
-  /**
-   * If true, statefulParameter.applyRemove() will be called before resource destruction.
-   * Defaults to false.
-   */
-  callStatefulParameterRemoveOnDestroy?: boolean,
-  dependencies?: string[];
-  statefulParameters?: Array<StatefulParameter<T, T[keyof T]>>;
-  transformParameters?: Partial<Record<keyof T, TransformParameter<T>>>
-  parameterConfigurations?: Partial<Record<keyof T, ResourceParameterConfiguration>>
-}
 
 export interface ResourceDefinition {
   [x: string]: {

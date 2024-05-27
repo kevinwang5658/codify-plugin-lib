@@ -3,7 +3,7 @@ import { ResourceOperation } from 'codify-schemas';
 /**
  * Customize properties for specific parameters. This will alter the way the library process changes to the parameter.
  */
-export interface ParameterConfiguration {
+export interface ParameterOptions {
   /**
    * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to re-create.
    */
@@ -17,10 +17,12 @@ export interface ParameterConfiguration {
 
   isElementEqual?: (desired: any, current: any) => boolean;
 
+  default?: unknown,
+
   isStatefulParameter?: boolean;
 }
 
-export interface PlanConfiguration<T> {
+export interface PlanOptions<T> {
   statefulMode: boolean;
-  parameterConfigurations?: Record<keyof T, ParameterConfiguration>;
+  parameterOptions?: Record<keyof T, ParameterOptions>;
 }

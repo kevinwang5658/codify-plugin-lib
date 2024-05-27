@@ -228,21 +228,17 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     const orderedEntries = [...Object.entries(transformParameters)]
       .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
 
-    for (const [key] of orderedEntries) {
-      if (desired[key] !== null) {
-        const transformedValue = await this.transformParameters.get(key)!.transform(desired[key]);
+    for (const [key, value] of orderedEntries) {
+      const transformedValue = await this.transformParameters.get(key)!.transform(value);
 
-        if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
-          throw new Error(`Transform parameter ${key as string} is attempting to override existing value ${desired[key]}`);
-        }
-
-        Object.entries(transformedValue).forEach(([tvKey, tvValue]) => {
-          // @ts-ignore
-          desired[tvKey] = tvValue;
-        })
-
-        delete desired[key];
+      if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
+        throw new Error(`Transform parameter ${key as string} is attempting to override existing values ${JSON.stringify(transformedValue, null, 2)}`);
       }
+
+      Object.entries(transformedValue).forEach(([tvKey, tvValue]) => {
+        // @ts-ignore
+        desired[tvKey] = tvValue;
+      })
     }
   }
 

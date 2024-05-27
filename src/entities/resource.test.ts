@@ -195,8 +195,8 @@ describe('Resource tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: { planOperation: ResourceOperation.MODIFY },
-            propB: { planOperation: ResourceOperation.MODIFY },
+            propA: { canModify: true },
+            propB: { canModify: true },
           }
         });
       }
@@ -244,7 +244,7 @@ describe('Resource tests', () => {
           type: 'type',
           dependencies: ['homebrew', 'python'],
           parameterOptions: {
-            propA: { planOperation: ResourceOperation.MODIFY },
+            propA: { canModify: true },
             propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
@@ -281,7 +281,7 @@ describe('Resource tests', () => {
           type: 'type',
           dependencies: ['homebrew', 'python'],
           parameterOptions: {
-            propA: { planOperation: ResourceOperation.MODIFY },
+            propA: { canModify: true },
             propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }

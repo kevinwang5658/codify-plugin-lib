@@ -16,4 +16,3 @@ export async function runPlugin(plugin: Plugin) {
   const messageHandler = new MessageHandler(plugin);
   process.on('message', (message) => messageHandler.onMessage(message))
 }
-export { ErrorMessage } from './entities/resource-types.js';

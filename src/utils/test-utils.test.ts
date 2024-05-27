@@ -3,8 +3,8 @@ import { ChildProcess } from 'node:child_process';
 import { Readable } from 'stream';
 import { mock } from 'node:test';
 import { AssertionError } from 'chai';
-import { CodifyTestUtils } from './test-utils';
-import { describe, it, expect } from 'vitest';
+import { CodifyTestUtils } from './test-utils.js';
+import { describe, expect, it } from 'vitest';
 
 describe('Test Utils tests', async () => {
 

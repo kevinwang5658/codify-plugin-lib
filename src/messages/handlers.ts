@@ -67,45 +67,60 @@ export class MessageHandler {
   }
 
   async onMessage(message: unknown): Promise<void> {
-    if (!this.validateMessage(message)) {
-      throw new Error(`Plugin: ${this.plugin}. Message is malformed: ${JSON.stringify(this.messageSchemaValidator.errors, null, 2)}`);
-    }
-
-    if (!this.requestValidators.has(message.cmd)) {
-      throw new Error(`Plugin: ${this.plugin}. Unsupported message: ${message.cmd}`);
-    }
-
-    const requestValidator = this.requestValidators.get(message.cmd)!;
-    if (!requestValidator(message.data)) {
-      throw new Error(`Plugin: ${this.plugin}. cmd: ${message.cmd}. Malformed message data: ${JSON.stringify(requestValidator.errors, null, 2)}`)
-    }
-
-    let result: unknown;
     try {
-      result = await SupportedRequests[message.cmd].handler(this.plugin, message.data);
-    } catch(e: any) {
+      if (!this.validateMessage(message)) {
+        throw new Error(`Plugin: ${this.plugin}. Message is malformed: ${JSON.stringify(this.messageSchemaValidator.errors, null, 2)}`);
+      }
+
+      if (!this.requestValidators.has(message.cmd)) {
+        throw new Error(`Plugin: ${this.plugin}. Unsupported message: ${message.cmd}`);
+      }
+
+      const requestValidator = this.requestValidators.get(message.cmd)!;
+      if (!requestValidator(message.data)) {
+        throw new Error(`Plugin: ${this.plugin}. cmd: ${message.cmd}. Malformed message data: ${JSON.stringify(requestValidator.errors, null, 2)}`)
+      }
+
+      const result = await SupportedRequests[message.cmd].handler(this.plugin, message.data);
+
+      const responseValidator = this.responseValidators.get(message.cmd);
+      if (responseValidator && !responseValidator(result)) {
+        throw new Error(`Plugin: ${this.plugin}. Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}`)
+      }
+
       process.send!({
         cmd: message.cmd + '_Response',
-        status: MessageStatus.ERROR,
-        data: e.message,
+        status: MessageStatus.SUCCESS,
+        data: result,
       })
 
-      return;
+    } catch (e: unknown) {
+      this.handleErrors(message, e as Error);
     }
-
-    const responseValidator = this.responseValidators.get(message.cmd);
-    if (responseValidator && !responseValidator(result)) {
-      throw new Error(`Plugin: ${this.plugin}. Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}`)
-    }
-
-    process.send!({
-      cmd: message.cmd + '_Response',
-      status: MessageStatus.SUCCESS,
-      data: result,
-    })
   }
 
   private validateMessage(message: unknown): message is IpcMessage {
     return this.messageSchemaValidator(message);
+  }
+
+  private handleErrors(message: unknown, e: Error) {
+    if (!message) {
+      return;
+    }
+
+    if (!message.hasOwnProperty('cmd')) {
+      return;
+    }
+
+    // @ts-ignore
+    const cmd = message.cmd + '_Response';
+
+    const isDebug = process.env.DEBUG?.includes('*') ?? false;
+
+    process.send?.({
+      cmd,
+      status: MessageStatus.ERROR,
+      data: isDebug ? e.stack : e.message,
+    })
   }
 }

@@ -55,8 +55,8 @@ export class Plan<T extends StringIndexedObject> {
           let newOperation: ResourceOperation;
           if (statefulParameterNames.has(curr.name)) {
             newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-          } else if (parameterOptions[curr.name]?.planOperation) {
-            newOperation = parameterOptions[curr.name].planOperation!;
+          } else if (parameterOptions[curr.name]?.canModify) {
+            newOperation = parameterOptions[curr.name].canModify ? ResourceOperation.MODIFY : ResourceOperation.RECREATE;
           } else {
             newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
           }

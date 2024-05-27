@@ -15,6 +15,7 @@ export class Plugin {
   planStorage: Map<string, Plan<ResourceConfig>>;
 
   constructor(
+    public name: string,
     public resources: Map<string, Resource<ResourceConfig>>
   ) {
     this.planStorage = new Map();

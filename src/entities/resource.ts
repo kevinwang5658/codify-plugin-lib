@@ -161,7 +161,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
-      await this.applyModify(pc.name, pc.newValue, pc.previousValue, false, plan);
+      await this.applyModify(pc, plan);
     }
 
     const statefulParameterChanges = parameterChanges
@@ -310,7 +310,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
 
   abstract applyCreate(plan: Plan<T>): Promise<void>;
 
-  async applyModify(parameterName: keyof T, newValue: unknown, previousValue: unknown, allowDeletes: boolean, plan: Plan<T>): Promise<void> {};
+  async applyModify(pc: ParameterChange<T>, plan: Plan<T>): Promise<void> {};
 
   abstract applyDestroy(plan: Plan<T>): Promise<void>;
 }

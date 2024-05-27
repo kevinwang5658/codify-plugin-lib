@@ -1,5 +1,3 @@
-import { ResourceOperation } from 'codify-schemas';
-
 export type ErrorMessage = string;
 
 /**
@@ -7,9 +5,9 @@ export type ErrorMessage = string;
  */
 export interface ResourceParameterOptions {
   /**
-   * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to re-create.
+   * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to false (re-create).
    */
-  planOperation?: ResourceOperation.MODIFY | ResourceOperation.RECREATE;
+  canModify?: boolean;
   /**
    * Customize the equality comparison for a parameter.
    * @param desired
@@ -19,7 +17,7 @@ export interface ResourceParameterOptions {
   /**
    * Default value for the parameter. If a value is not provided in the config, the library will use this value.
    */
-  default?: unknown,
+  default?: unknown;
 }
 
 /**

@@ -80,7 +80,7 @@ describe('Resource parameter tests', () => {
           type: 'resource',
           parameterOptions: {
             propA: { statefulParameter: statefulParameterSpy },
-            propB: { planOperation: ResourceOperation.MODIFY },
+            propB: { canModify: true },
           }
         });
       }

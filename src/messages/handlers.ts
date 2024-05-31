@@ -15,6 +15,7 @@ import {
   ValidateResponseDataSchema
 } from 'codify-schemas';
 import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
+import { SudoError } from '../entities/errors.js';
 
 const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
   'initialize': {
@@ -114,6 +115,14 @@ export class MessageHandler {
 
     // @ts-ignore
     const cmd = message.cmd + '_Response';
+
+    if (e instanceof SudoError) {
+      process.send?.({
+        cmd,
+        status: MessageStatus.ERROR,
+        data: `Plugin: '${this.plugin.name}'. Forbidden usage of sudo for command '${e.command}'. Please contact the plugin developer to fix this.`,
+      })
+    }
 
     const isDebug = process.env.DEBUG?.includes('*') ?? false;
 

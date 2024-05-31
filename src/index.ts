@@ -8,6 +8,7 @@ export * from './entities/change-set.js'
 export * from './entities/plan.js'
 export * from './entities/plan-types.js'
 export * from './entities/stateful-parameter.js'
+export * from './entities/errors.js'
 
 export * from './utils/test-utils.js'
 export * from './utils/utils.js'

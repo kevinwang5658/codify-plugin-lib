@@ -3,6 +3,7 @@ import { MessageHandler } from './messages/handlers.js';
 
 export * from './entities/resource.js'
 export * from './entities/resource-types.js'
+export * from './entities/resource-options.js'
 export * from './entities/plugin.js'
 export * from './entities/change-set.js'
 export * from './entities/plan.js'

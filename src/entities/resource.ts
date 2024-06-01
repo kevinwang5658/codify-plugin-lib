@@ -83,6 +83,8 @@ export abstract class Resource<T extends StringIndexedObject> {
       parameterOptions: this.parameterOptions,
     }
 
+    this.addDefaultValues(desiredConfig);
+
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(desiredConfig, this.statefulParameters, this.transformParameters)
     const {
@@ -93,7 +95,6 @@ export abstract class Resource<T extends StringIndexedObject> {
       transformParameters,
     } = parsedConfig;
 
-    this.addDefaultValues(resourceParameters);
     await this.applyTransformParameters(transformParameters, resourceParameters);
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
@@ -101,7 +102,12 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentParameters == null) {
-      return Plan.create(resourceParameters, null, resourceMetadata, planOptions);
+      return Plan.create(
+        { ...resourceParameters, ...statefulParameters },
+        null,
+        resourceMetadata,
+        planOptions,
+      );
     }
 
     // Refresh stateful parameters. These parameters have state external to the resource

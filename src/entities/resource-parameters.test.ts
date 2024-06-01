@@ -28,6 +28,48 @@ class TestParameter extends StatefulParameter<TestConfig, string> {
 }
 
 describe('Resource parameter tests', () => {
+  it ('Generates a resource plan that includes stateful parameters (create)', async () => {
+    const statefulParameter = spy(new class extends TestParameter {
+      async refresh(): Promise<string | null> {
+        return null;
+      }
+    })
+
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resource',
+          parameterOptions: {
+            propA: { statefulParameter }
+          },
+        });
+      }
+
+      async refresh(): Promise<any> {
+        return null;
+      }
+    }
+
+    const plan = await resource.plan({
+      type: 'resource',
+      propA: 'a',
+      propB: 10
+    })
+
+    expect(statefulParameter.refresh.notCalled).to.be.true;
+    expect(plan.currentConfig).toMatchObject({
+      type: 'resource',
+      propA: null,
+      propB: null,
+    })
+    expect(plan.desiredConfig).toMatchObject({
+      type: 'resource',
+      propA: 'a',
+      propB: 10
+    })
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
+  })
+
   it('supports the creation of stateful parameters', async () => {
 
     const statefulParameter = new class extends TestParameter {
@@ -39,7 +81,6 @@ describe('Resource parameter tests', () => {
     const statefulParameterSpy = spy(statefulParameter);
 
     const resource = new class extends TestResource {
-
       constructor() {
         super({
           type: 'resource',

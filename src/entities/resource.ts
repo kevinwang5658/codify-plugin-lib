@@ -95,6 +95,8 @@ export abstract class Resource<T extends StringIndexedObject> {
       transformParameters,
     } = parsedConfig;
 
+    // Apply transform parameters. Transform parameters turn into other parameters.
+    // Ex: csvFile: './location' => { password: 'pass', 'username': 'user' }
     await this.applyTransformParameters(transformParameters, resourceParameters);
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself

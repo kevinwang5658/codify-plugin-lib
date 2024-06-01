@@ -1,8 +1,7 @@
 import { Plan } from './plan.js';
 import { StringIndexedObject } from 'codify-schemas';
 
-export interface StatefulParameterOptions<T> {
-  name: keyof T;
+export interface StatefulParameterOptions<V> {
   isEqual?: (desired: any, current: any) => boolean;
 
   /**
@@ -15,20 +14,19 @@ export interface StatefulParameterOptions<T> {
    * Set this flag to true to disable this behaviour
    */
   disableStatelessModeArrayFiltering?: boolean;
+  default?: V;
 }
 
-export interface ArrayStatefulParameterOptions<T> extends StatefulParameterOptions<T> {
+export interface ArrayStatefulParameterOptions<V> extends StatefulParameterOptions<V> {
   isEqual?: (desired: any[], current: any[]) => boolean;
   isElementEqual?: (desired: any, current: any) => boolean;
 }
 
 
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
-  readonly name: keyof T;
-  readonly options: StatefulParameterOptions<T>;
+  readonly options: StatefulParameterOptions<V>;
 
-  protected constructor(options: StatefulParameterOptions<T>) {
-    this.name = options.name;
+  protected constructor(options: StatefulParameterOptions<V>) {
     this.options = options
   }
 
@@ -41,9 +39,9 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
-  options: ArrayStatefulParameterOptions<T>;
+  options: ArrayStatefulParameterOptions<V>;
 
-  constructor(options: ArrayStatefulParameterOptions<T>) {
+  constructor(options: ArrayStatefulParameterOptions<V>) {
     super(options);
     this.options = options;
   }
@@ -55,7 +53,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
   }
 
   async applyModify(newValues: V[], previousValues: V[], allowDeletes: boolean, plan: Plan<T>): Promise<void> {
-    const options = this.options as ArrayStatefulParameterOptions<T>;
+    const options = this.options as ArrayStatefulParameterOptions<V>;
 
     const valuesToAdd = newValues.filter((n) => !previousValues.some((p) => {
       if (options.isElementEqual) {

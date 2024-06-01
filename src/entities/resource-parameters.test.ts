@@ -7,10 +7,8 @@ import { TestConfig, TestResource } from './resource.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
 class TestParameter extends StatefulParameter<TestConfig, string> {
-  constructor(options?: StatefulParameterOptions<TestConfig>) {
-    super(options ?? {
-      name: 'propA'
-    })
+  constructor(options?: StatefulParameterOptions<string>) {
+    super(options ?? {})
   }
 
   applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
@@ -140,6 +138,51 @@ describe('Resource parameter tests', () => {
     expect(resourceSpy.applyModify.calledOnce).to.be.true;
   })
 
+  it('Allows stateful parameters to have default values', async () => {
+    const statefulParameter = spy(new class extends TestParameter {
+      constructor() {
+        super({
+          default: 'abc'
+        });
+      }
+
+      async refresh(): Promise<string | null> {
+        return null;
+      }
+    });
+
+    const resource = new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resource',
+          parameterOptions: {
+            propA: { statefulParameter }
+          },
+        });
+      }
+
+      async refresh(): Promise<any> {
+        return null;
+      }
+    }
+
+    const plan = await resource.plan({
+      type: 'resource',
+    })
+
+    expect(statefulParameter.refresh.notCalled).to.be.true;
+    expect(plan.currentConfig).toMatchObject({
+      type: 'resource',
+      propA: null,
+    })
+    expect(plan.desiredConfig).toMatchObject({
+      type: 'resource',
+      propA: 'abc',
+    })
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
+  })
+
+
   it('Filters array results in stateless mode to prevent modify from being called', async () => {
     const statefulParameter = new class extends TestParameter {
       async refresh(): Promise<any | null> {
@@ -210,7 +253,6 @@ describe('Resource parameter tests', () => {
     const statefulParameter = new class extends ArrayStatefulParameter<TestConfig, string> {
       constructor() {
         super({
-          name: 'propA',
           isElementEqual: (desired, current) => current.includes(desired),
         });
       }
@@ -530,5 +572,45 @@ describe('Resource parameter tests', () => {
 
     expect(plan.desiredConfig.propE).to.be.lessThan(plan.desiredConfig.propF as any);
     expect(plan.desiredConfig.propF).to.be.lessThan(plan.desiredConfig.propD as any);
+  })
+
+  it('Plans transform even for creating new resources', async () => {
+    const transformParameterA = spy(new class extends TransformParameter<TestConfig> {
+      async transform(value: any): Promise<Partial<TestConfig>> {
+        return { propD: 'abc', propE: 10 }
+      }
+    });
+
+    const resource = spy(new class extends TestResource {
+      constructor() {
+        super({
+          type: 'resourceType',
+          parameterOptions: {
+            propA: { transformParameter: transformParameterA },
+          },
+        });
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    });
+
+    const plan = await resource.plan({
+      type: 'resourceType',
+      propA: 'propA',
+      propB: 10,
+      propC: 'propC',
+    });
+    expect(plan.currentConfig).toMatchObject({
+      type: 'resourceType',
+      propD: null,
+      propE: null,
+    })
+    expect(plan.desiredConfig).toMatchObject({
+      type: 'resourceType',
+      propD: 'abc',
+      propE: 10,
+    })
   })
 })

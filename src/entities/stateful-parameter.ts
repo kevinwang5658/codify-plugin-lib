@@ -26,7 +26,7 @@ export interface ArrayStatefulParameterOptions<V> extends StatefulParameterOptio
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly options: StatefulParameterOptions<V>;
 
-  protected constructor(options: StatefulParameterOptions<V>) {
+  constructor(options: StatefulParameterOptions<V> = {}) {
     this.options = options
   }
 
@@ -41,7 +41,7 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
   options: ArrayStatefulParameterOptions<V>;
 
-  constructor(options: ArrayStatefulParameterOptions<V>) {
+  constructor(options: ArrayStatefulParameterOptions<V> = {}) {
     super(options);
     this.options = options;
   }

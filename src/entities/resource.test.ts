@@ -195,8 +195,8 @@ describe('Resource tests', () => {
         super({
           type: 'resource',
           parameterOptions: {
-            propA: { canModify: true },
-            propB: { canModify: true },
+            propA: { modifyOnChange: true },
+            propB: { modifyOnChange: true },
           }
         });
       }
@@ -218,12 +218,6 @@ describe('Resource tests', () => {
 
   it('Validates the resource options correct (pass)', () => {
     const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
-      constructor() {
-        super({
-          name: 'propC',
-        });
-      }
-
       async refresh(): Promise<string | null> {
         return null;
       }
@@ -244,7 +238,7 @@ describe('Resource tests', () => {
           type: 'type',
           dependencies: ['homebrew', 'python'],
           parameterOptions: {
-            propA: { canModify: true },
+            propA: { modifyOnChange: true },
             propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
@@ -255,12 +249,6 @@ describe('Resource tests', () => {
 
   it('Validates the resource options correct (fail)', () => {
     const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
-      constructor() {
-        super({
-          name: 'propC',
-        });
-      }
-
       async refresh(): Promise<string | null> {
         return null;
       }
@@ -281,7 +269,7 @@ describe('Resource tests', () => {
           type: 'type',
           dependencies: ['homebrew', 'python'],
           parameterOptions: {
-            propA: { canModify: true },
+            propA: { modifyOnChange: true },
             propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
           }

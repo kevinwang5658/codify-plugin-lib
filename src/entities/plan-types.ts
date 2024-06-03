@@ -5,7 +5,7 @@ export interface ParameterOptions {
   /**
    * Chose if the resource should be re-created or modified if this parameter is changed. Defaults to false (re-creates resource on change).
    */
-  canModify?: boolean;
+  modifyOnChange?: boolean;
   /**
    * Customize the equality comparison for a parameter.
    * @param a

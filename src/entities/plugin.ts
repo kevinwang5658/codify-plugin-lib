@@ -5,14 +5,24 @@ import {
   PlanRequestData,
   PlanResponseData,
   ResourceConfig,
+  ResourceOperation,
   ValidateRequestData,
   ValidateResponseData
 } from 'codify-schemas';
 import { Plan } from './plan.js';
 import { splitUserConfig } from '../utils/utils.js';
+import { ApplyValidationError } from './errors.js';
 
 export class Plugin {
-  planStorage: Map<string, Plan<ResourceConfig>>;
+  planStorage: Map<string, Plan<any>>;
+
+  static create(name: string, resources: Resource<any>[]) {
+    const resourceMap = new Map<string, Resource<any>>(
+      resources.map((r) => [r.typeId, r] as const)
+    );
+
+    return new Plugin(name, resourceMap);
+  }
 
   constructor(
     public name: string,
@@ -82,6 +92,13 @@ export class Plugin {
     }
 
     await resource.apply(plan);
+
+    // Perform a validation check after to ensure that the plan was properly applied.
+    // Sometimes no errors are returned (exit code 0) but the apply was not successful
+    const validationPlan = await resource.plan({ ...plan.resourceMetadata, ...plan.desiredConfig });
+    if (validationPlan.changeSet.operation !== ResourceOperation.NOOP) {
+      throw new ApplyValidationError(plan, validationPlan);
+    }
   }
 
   private resolvePlan(data: ApplyRequestData): Plan<ResourceConfig> {

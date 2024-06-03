@@ -55,8 +55,8 @@ export class Plan<T extends StringIndexedObject> {
           let newOperation: ResourceOperation;
           if (statefulParameterNames.has(curr.name)) {
             newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-          } else if (parameterOptions[curr.name]?.canModify) {
-            newOperation = parameterOptions[curr.name].canModify ? ResourceOperation.MODIFY : ResourceOperation.RECREATE;
+          } else if (parameterOptions[curr.name]?.modifyOnChange) {
+            newOperation = parameterOptions[curr.name].modifyOnChange ? ResourceOperation.MODIFY : ResourceOperation.RECREATE;
           } else {
             newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
           }
@@ -75,7 +75,7 @@ export class Plan<T extends StringIndexedObject> {
     return this.resourceMetadata.type
   }
 
-  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues: Partial<Record<keyof T, unknown>>): Plan<T> {
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
     if (!data) {
       throw new Error('Data is empty');
     }
@@ -95,7 +95,7 @@ export class Plan<T extends StringIndexedObject> {
     );
 
    function addDefaultValues(): void {
-      Object.entries(defaultValues)
+      Object.entries(defaultValues ?? {})
         .forEach(([key, defaultValue]) => {
           const configValueExists = data!
             .parameters

@@ -6,7 +6,7 @@ import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { TestConfig, TestResource } from './resource.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
-class TestParameter extends StatefulParameter<TestConfig, string> {
+export class TestParameter extends StatefulParameter<TestConfig, string> {
   constructor(options?: StatefulParameterOptions<string>) {
     super(options ?? {})
   }
@@ -181,7 +181,6 @@ describe('Resource parameter tests', () => {
     })
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
   })
-
 
   it('Filters array results in stateless mode to prevent modify from being called', async () => {
     const statefulParameter = new class extends TestParameter {

@@ -77,11 +77,14 @@ export abstract class Resource<T extends StringIndexedObject> {
   // TODO: Currently stateful mode expects that the currentConfig does not need any additional transformations (default and transform parameters)
   //   This may change in the future?
   async plan(
-    desiredConfig: Partial<T> & ResourceConfig,
-    currentConfig?: Partial<T> & ResourceConfig
+    desiredConfig?: Partial<T> & ResourceConfig,
+    currentConfig?: Partial<T> & ResourceConfig,
+    statefulMode = false,
   ): Promise<Plan<T>> {
+    this.validatePlanInputs(desiredConfig, currentConfig, statefulMode);
+
     const planOptions: PlanOptions<T> = {
-      statefulMode: currentConfig !== undefined,
+      statefulMode,
       parameterOptions: this.parameterOptions,
     }
 
@@ -230,7 +233,11 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private async applyTransformParameters(desired: Partial<T>): Promise<void> {
+  private async applyTransformParameters(desired?: Partial<T>): Promise<void> {
+    if (!desired) {
+      return;
+    }
+
     const transformParameters = [...this.transformParameters.entries()]
       .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
 
@@ -256,7 +263,11 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private addDefaultValues(desired: Partial<T>): void {
+  private addDefaultValues(desired?: Partial<T>): void {
+    if (!desired) {
+      return;
+    }
+
     Object.entries(this.defaultValues)
       .forEach(([key, defaultValue]) => {
         if (defaultValue !== undefined && desired[key as any] === undefined) {
@@ -315,6 +326,20 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     return currentParameters;
   }
 
+  private validatePlanInputs(
+    desired: Partial<T> & ResourceConfig | undefined,
+    current: Partial<T> & ResourceConfig | undefined,
+    statefulMode: boolean,
+  ) {
+    if (!desired && !current) {
+      throw new Error('Desired config and current config cannot both be missing')
+    }
+
+    if (!statefulMode && !desired) {
+      throw new Error('Desired config must be provided in non-stateful mode')
+    }
+  }
+
   async validate(parameters: unknown): Promise<ValidationResult> {
     return {
       isValid: true,
@@ -331,13 +356,13 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
 }
 
 class ConfigParser<T extends StringIndexedObject> {
-  private desiredConfig: Partial<T> & ResourceConfig;
+  private desiredConfig?: Partial<T> & ResourceConfig;
   private currentConfig?: Partial<T> & ResourceConfig;
   private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   private transformParametersMap: Map<keyof T, TransformParameter<T>>;
 
   constructor(
-    desiredConfig: Partial<T> & ResourceConfig,
+    desiredConfig: Partial<T> & ResourceConfig | undefined,
     currentConfig: Partial<T> & ResourceConfig | undefined,
     statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>,
     transformParameters: Map<keyof T, TransformParameter<T>>,
@@ -349,10 +374,14 @@ class ConfigParser<T extends StringIndexedObject> {
   }
 
   get resourceMetadata(): ResourceConfig {
-    const { resourceMetadata: desiredMetadata } = splitUserConfig(this.desiredConfig);
+    const desiredMetadata = this.desiredConfig ? splitUserConfig(this.desiredConfig).resourceMetadata : undefined;
     const currentMetadata = this.currentConfig ? splitUserConfig(this.currentConfig).resourceMetadata : undefined;
 
-    if (currentMetadata && (
+    if (!desiredMetadata && !currentMetadata) {
+      throw new Error(`Unable to parse resource metadata from ${this.desiredConfig}, ${this.currentConfig}`)
+    }
+
+    if (currentMetadata && desiredMetadata && (
         Object.keys(desiredMetadata).length !== Object.keys(currentMetadata).length
         || Object.entries(desiredMetadata).some(([key, value]) => currentMetadata[key] !== value)
     )) {
@@ -364,20 +393,24 @@ Current metadata:
 ${JSON.stringify(currentMetadata, null, 2)}`);
     }
 
-    return desiredMetadata;
+    return desiredMetadata ?? currentMetadata!;
   }
 
-  get desiredParameters(): Partial<T> {
+  get desiredParameters(): Partial<T> | null {
+    if (!this.desiredConfig) {
+      return null;
+    }
+
     const { parameters } = splitUserConfig(this.desiredConfig);
     return parameters;
   }
 
 
   get parameters(): Partial<T> {
-    const { parameters: desiredParameters } = splitUserConfig(this.desiredConfig);
+    const desiredParameters = this.desiredConfig ? splitUserConfig(this.desiredConfig).parameters : undefined;
     const currentParameters = this.currentConfig ? splitUserConfig(this.currentConfig).parameters : undefined;
 
-    return { ...desiredParameters, ...(currentParameters ?? {}) };
+    return { ...(desiredParameters ?? {}), ...(currentParameters ?? {}) } as Partial<T>;
   }
 
   get nonStatefulParameters(): Partial<T> {

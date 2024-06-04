@@ -15,7 +15,7 @@ import {
   ValidateResponseDataSchema
 } from 'codify-schemas';
 import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
-import { ApplyValidationError, SudoError } from '../entities/errors.js';
+import { SudoError } from '../entities/errors.js';
 
 const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
   'initialize': {
@@ -121,21 +121,6 @@ export class MessageHandler {
         cmd,
         status: MessageStatus.ERROR,
         data: `Plugin: '${this.plugin.name}'. Forbidden usage of sudo for command '${e.command}'. Please contact the plugin developer to fix this.`,
-      })
-    }
-
-    if (e instanceof ApplyValidationError) {
-      return process.send?.({
-        cmd,
-        status: MessageStatus.ERROR,
-        data: `Plugin: '${this.plugin.name}'. Apply validation was not successful (additional changes are needed to match the desired plan).
-
-Validation plan:
-${JSON.stringify(e.validatedPlan, null, 2)},
-        
-User desired plan:
-${JSON.stringify(e.desiredPlan, null, 2)}
-`
       })
     }
 

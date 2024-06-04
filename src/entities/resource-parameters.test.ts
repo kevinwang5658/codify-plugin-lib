@@ -6,7 +6,7 @@ import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { TestConfig, TestResource } from './resource.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
-class TestParameter extends StatefulParameter<TestConfig, string> {
+export class TestParameter extends StatefulParameter<TestConfig, string> {
   constructor(options?: StatefulParameterOptions<string>) {
     super(options ?? {})
   }
@@ -55,11 +55,7 @@ describe('Resource parameter tests', () => {
     })
 
     expect(statefulParameter.refresh.notCalled).to.be.true;
-    expect(plan.currentConfig).toMatchObject({
-      type: 'resource',
-      propA: null,
-      propB: null,
-    })
+    expect(plan.currentConfig).to.be.null;
     expect(plan.desiredConfig).toMatchObject({
       type: 'resource',
       propA: 'a',
@@ -171,17 +167,13 @@ describe('Resource parameter tests', () => {
     })
 
     expect(statefulParameter.refresh.notCalled).to.be.true;
-    expect(plan.currentConfig).toMatchObject({
-      type: 'resource',
-      propA: null,
-    })
+    expect(plan.currentConfig).to.be.null;
     expect(plan.desiredConfig).toMatchObject({
       type: 'resource',
       propA: 'abc',
     })
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
   })
-
 
   it('Filters array results in stateless mode to prevent modify from being called', async () => {
     const statefulParameter = new class extends TestParameter {
@@ -350,10 +342,10 @@ describe('Resource parameter tests', () => {
       propE: 'propE',
     });
 
-    expect(plan.currentConfig.propB).to.be.lessThan(plan.currentConfig.propC as any);
-    expect(plan.currentConfig.propC).to.be.lessThan(plan.currentConfig.propA as any);
-    expect(plan.currentConfig.propA).to.be.lessThan(plan.currentConfig.propD as any);
-    expect(plan.currentConfig.propD).to.be.lessThan(plan.currentConfig.propE as any);
+    expect(plan.currentConfig?.propB).to.be.lessThan(plan.currentConfig?.propC as any);
+    expect(plan.currentConfig?.propC).to.be.lessThan(plan.currentConfig?.propA as any);
+    expect(plan.currentConfig?.propA).to.be.lessThan(plan.currentConfig?.propD as any);
+    expect(plan.currentConfig?.propD).to.be.lessThan(plan.currentConfig?.propE as any);
   })
 
   it('Applies stateful parameters in the order specified', async () => {
@@ -483,9 +475,9 @@ describe('Resource parameter tests', () => {
     expect(resource.refresh.getCall(0).firstArg.has('propB')).to.be.true;
     expect(resource.refresh.getCall(0).firstArg.has('propC')).to.be.false;
 
-    expect(plan.desiredConfig.propA).to.eq('propA');
-    expect(plan.desiredConfig.propB).to.eq(10);
-    expect(plan.desiredConfig.propC).to.be.undefined;
+    expect(plan.desiredConfig?.propA).to.eq('propA');
+    expect(plan.desiredConfig?.propB).to.eq(10);
+    expect(plan.desiredConfig?.propC).to.be.undefined;
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
@@ -570,8 +562,8 @@ describe('Resource parameter tests', () => {
       propC: 'propC',
     });
 
-    expect(plan.desiredConfig.propE).to.be.lessThan(plan.desiredConfig.propF as any);
-    expect(plan.desiredConfig.propF).to.be.lessThan(plan.desiredConfig.propD as any);
+    expect(plan.desiredConfig?.propE).to.be.lessThan(plan.desiredConfig?.propF as any);
+    expect(plan.desiredConfig?.propF).to.be.lessThan(plan.desiredConfig?.propD as any);
   })
 
   it('Plans transform even for creating new resources', async () => {
@@ -602,11 +594,7 @@ describe('Resource parameter tests', () => {
       propB: 10,
       propC: 'propC',
     });
-    expect(plan.currentConfig).toMatchObject({
-      type: 'resourceType',
-      propD: null,
-      propE: null,
-    })
+    expect(plan.currentConfig).to.be.null;
     expect(plan.desiredConfig).toMatchObject({
       type: 'resourceType',
       propD: 'abc',

@@ -144,14 +144,22 @@ export class Plan<T extends StringIndexedObject> {
 
   }
 
-  get desiredConfig(): T {
+  get desiredConfig(): T | null {
+    if (this.changeSet.operation === ResourceOperation.DESTROY) {
+      return null;
+    }
+
     return {
       ...this.resourceMetadata,
       ...this.changeSet.desiredParameters,
     }
   }
 
-  get currentConfig(): T {
+  get currentConfig(): T | null {
+    if (this.changeSet.operation === ResourceOperation.CREATE) {
+      return null;
+    }
+
     return {
       ...this.resourceMetadata,
       ...this.changeSet.currentParameters,

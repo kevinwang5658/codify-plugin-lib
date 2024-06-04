@@ -4,7 +4,7 @@ import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
-import { ParameterOptions, PlanOptions } from './plan-types.js';
+import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from './plan-types.js';
 import { TransformParameter } from './transform-parameter.js';
 import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
 import Ajv from 'ajv';
@@ -74,38 +74,39 @@ export abstract class Resource<T extends StringIndexedObject> {
     return this.validate(parameters);
   }
 
-  // TODO: Add state in later.
-  //  Currently only calculating how to add things to reach desired state. Can't delete resources.
-  //  Add previousConfig as a parameter for plan(desired, previous);
-  async plan(desiredConfig: Partial<T> & ResourceConfig): Promise<Plan<T>> {
+  // TODO: Currently stateful mode expects that the currentConfig does not need any additional transformations (default and transform parameters)
+  //   This may change in the future?
+  async plan(
+    desiredConfig: Partial<T> & ResourceConfig | null,
+    currentConfig: Partial<T> & ResourceConfig | null = null,
+    statefulMode = false,
+  ): Promise<Plan<T>> {
+    this.validatePlanInputs(desiredConfig, currentConfig, statefulMode);
+
     const planOptions: PlanOptions<T> = {
-      statefulMode: false,
+      statefulMode,
       parameterOptions: this.parameterOptions,
     }
 
     this.addDefaultValues(desiredConfig);
+    await this.applyTransformParameters(desiredConfig);
 
     // Parse data from the user supplied config
-    const parsedConfig = new ConfigParser(desiredConfig, this.statefulParameters, this.transformParameters)
+    const parsedConfig = new ConfigParser(desiredConfig, currentConfig, this.statefulParameters, this.transformParameters)
     const {
-      parameters: desiredParameters,
+      desiredParameters,
       resourceMetadata,
-      resourceParameters,
+      nonStatefulParameters,
       statefulParameters,
-      transformParameters,
     } = parsedConfig;
 
-    // Apply transform parameters. Transform parameters turn into other parameters.
-    // Ex: csvFile: './location' => { password: 'pass', 'username': 'user' }
-    await this.applyTransformParameters(transformParameters, resourceParameters);
-
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
-    const currentParameters = await this.refreshResourceParameters(resourceParameters);
+    const currentParameters = await this.refreshNonStatefulParameters(nonStatefulParameters);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentParameters == null) {
       return Plan.create(
-        { ...resourceParameters, ...statefulParameters },
+        desiredParameters,
         null,
         resourceMetadata,
         planOptions,
@@ -116,7 +117,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     const statefulCurrentParameters = await this.refreshStatefulParameters(statefulParameters, planOptions.statefulMode);
 
     return Plan.create(
-      { ...resourceParameters, ...statefulParameters },
+      desiredParameters,
       { ...currentParameters, ...statefulCurrentParameters } as Partial<T>,
       resourceMetadata,
       planOptions,
@@ -146,7 +147,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   }
 
   private async _applyCreate(plan: Plan<T>): Promise<void> {
-    await this.applyCreate(plan);
+    await this.applyCreate(plan as CreatePlan<T>);
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
@@ -169,7 +170,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
-      await this.applyModify(pc, plan);
+      await this.applyModify(pc, plan as ModifyPlan<T>);
     }
 
     const statefulParameterChanges = parameterChanges
@@ -211,7 +212,7 @@ export abstract class Resource<T extends StringIndexedObject> {
       }
     }
 
-    await this.applyDestroy(plan);
+    await this.applyDestroy(plan as DestroyPlan<T>);
   }
 
   private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
@@ -232,17 +233,29 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private async applyTransformParameters(transformParameters: Partial<T>, desired: Partial<T>): Promise<void> {
-    const orderedEntries = [...Object.entries(transformParameters)]
+  private async applyTransformParameters(desired: Partial<T> | null): Promise<void> {
+    if (!desired) {
+      return;
+    }
+
+    const transformParameters = [...this.transformParameters.entries()]
       .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
 
-    for (const [key, value] of orderedEntries) {
-      const transformedValue = await this.transformParameters.get(key)!.transform(value);
+    for (const [key, transformParameter] of transformParameters) {
+      if (desired[key] === undefined) {
+        continue;
+      }
+
+      const transformedValue = await transformParameter.transform(desired[key]);
 
       if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
         throw new Error(`Transform parameter ${key as string} is attempting to override existing values ${JSON.stringify(transformedValue, null, 2)}`);
       }
 
+      // Remove original transform parameter from the config
+      delete desired[key];
+
+      // Add the new transformed values
       Object.entries(transformedValue).forEach(([tvKey, tvValue]) => {
         // @ts-ignore
         desired[tvKey] = tvValue;
@@ -250,7 +263,11 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private addDefaultValues(desired: Partial<T>): void {
+  private addDefaultValues(desired: Partial<T> | null): void {
+    if (!desired) {
+      return;
+    }
+
     Object.entries(this.defaultValues)
       .forEach(([key, defaultValue]) => {
         if (defaultValue !== undefined && desired[key as any] === undefined) {
@@ -260,10 +277,11 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       });
   }
 
-  private async refreshResourceParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
-    const entriesToRefresh = new Map(Object.entries(resourceParameters));
+  private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
+    const entriesToRefresh = new Map<keyof T, T[keyof T]>(
+      Object.entries(resourceParameters)
+    )
     const currentParameters = await this.refresh(entriesToRefresh);
-
     this.validateRefreshResults(currentParameters, entriesToRefresh);
     return currentParameters;
   }
@@ -308,47 +326,94 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     return currentParameters;
   }
 
+  private validatePlanInputs(
+    desired: Partial<T> & ResourceConfig | null,
+    current: Partial<T> & ResourceConfig | null,
+    statefulMode: boolean,
+  ) {
+    if (!desired && !current) {
+      throw new Error('Desired config and current config cannot both be missing')
+    }
+
+    if (!statefulMode && !desired) {
+      throw new Error('Desired config must be provided in non-stateful mode')
+    }
+  }
+
   async validate(parameters: unknown): Promise<ValidationResult> {
     return {
       isValid: true,
     }
   };
 
-  abstract refresh(keys: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
+  abstract refresh(values: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
 
-  abstract applyCreate(plan: Plan<T>): Promise<void>;
+  abstract applyCreate(plan: CreatePlan<T>): Promise<void>;
 
-  async applyModify(pc: ParameterChange<T>, plan: Plan<T>): Promise<void> {};
+  async applyModify(pc: ParameterChange<T>, plan: ModifyPlan<T>): Promise<void> {};
 
-  abstract applyDestroy(plan: Plan<T>): Promise<void>;
+  abstract applyDestroy(plan: DestroyPlan<T>): Promise<void>;
 }
 
 class ConfigParser<T extends StringIndexedObject> {
-  private config: Partial<T> & ResourceConfig;
+  private desiredConfig: Partial<T> & ResourceConfig | null;
+  private currentConfig: Partial<T> & ResourceConfig | null;
   private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   private transformParametersMap: Map<keyof T, TransformParameter<T>>;
 
   constructor(
-    config: Partial<T> & ResourceConfig,
+    desiredConfig: Partial<T> & ResourceConfig | null,
+    currentConfig: Partial<T> & ResourceConfig | null,
     statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>,
-  transformParameters: Map<keyof T, TransformParameter<T>>,
+    transformParameters: Map<keyof T, TransformParameter<T>>,
   ) {
-    this.config = config;
+    this.desiredConfig = desiredConfig;
+    this.currentConfig = currentConfig
     this.statefulParametersMap = statefulParameters;
     this.transformParametersMap = transformParameters;
   }
 
   get resourceMetadata(): ResourceConfig {
-    const { resourceMetadata } = splitUserConfig(this.config);
-    return resourceMetadata;
+    const desiredMetadata = this.desiredConfig ? splitUserConfig(this.desiredConfig).resourceMetadata : undefined;
+    const currentMetadata = this.currentConfig ? splitUserConfig(this.currentConfig).resourceMetadata : undefined;
+
+    if (!desiredMetadata && !currentMetadata) {
+      throw new Error(`Unable to parse resource metadata from ${this.desiredConfig}, ${this.currentConfig}`)
+    }
+
+    if (currentMetadata && desiredMetadata && (
+        Object.keys(desiredMetadata).length !== Object.keys(currentMetadata).length
+        || Object.entries(desiredMetadata).some(([key, value]) => currentMetadata[key] !== value)
+    )) {
+      throw new Error(`The metadata for the current config does not match the desired config. 
+Desired metadata:
+${JSON.stringify(desiredMetadata, null, 2)}
+
+Current metadata:
+${JSON.stringify(currentMetadata, null, 2)}`);
+    }
+
+    return desiredMetadata ?? currentMetadata!;
   }
 
-  get parameters(): Partial<T> {
-    const { parameters } = splitUserConfig(this.config);
+  get desiredParameters(): Partial<T> | null {
+    if (!this.desiredConfig) {
+      return null;
+    }
+
+    const { parameters } = splitUserConfig(this.desiredConfig);
     return parameters;
   }
 
-  get resourceParameters(): Partial<T> {
+
+  get parameters(): Partial<T> {
+    const desiredParameters = this.desiredConfig ? splitUserConfig(this.desiredConfig).parameters : undefined;
+    const currentParameters = this.currentConfig ? splitUserConfig(this.currentConfig).parameters : undefined;
+
+    return { ...(desiredParameters ?? {}), ...(currentParameters ?? {}) } as Partial<T>;
+  }
+
+  get nonStatefulParameters(): Partial<T> {
     const parameters = this.parameters;
 
     return Object.fromEntries([
@@ -361,14 +426,6 @@ class ConfigParser<T extends StringIndexedObject> {
 
     return Object.fromEntries([
       ...Object.entries(parameters).filter(([key]) => this.statefulParametersMap.has(key)),
-    ]) as Partial<T>;
-  }
-
-  get transformParameters(): Partial<T> {
-    const parameters = this.parameters;
-
-    return Object.fromEntries([
-      ...Object.entries(parameters).filter(([key]) => this.transformParametersMap.has(key)),
     ]) as Partial<T>;
   }
 }

@@ -123,8 +123,8 @@ export class ChangeSet<T extends StringIndexedObject> {
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
     
-    const _desired = { ...desired };
-    const _current = { ...current };
+    const _desired = Object.fromEntries(Object.entries(desired ?? {}).filter(([, v]) => v != null));
+    const _current = Object.fromEntries(Object.entries(current ?? {}).filter(([, v]) => v != null));
 
     this.addDefaultValues(_desired, parameterOptions);
 
@@ -190,8 +190,9 @@ export class ChangeSet<T extends StringIndexedObject> {
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
 
-    const _desired = { ...desired };
-    const _current = { ...current };
+    const _desired = Object.fromEntries(Object.entries(desired ?? {}).filter(([, v]) => v != null));
+    const _current = Object.fromEntries(Object.entries(current ?? {}).filter(([, v]) => v != null));
+
 
     this.addDefaultValues(_desired, parameterOptions);
 

@@ -11,7 +11,6 @@ export * from './entities/plan-types.js'
 export * from './entities/stateful-parameter.js'
 export * from './entities/errors.js'
 
-export * from './utils/test-utils.js'
 export * from './utils/utils.js'
 
 export async function runPlugin(plugin: Plugin) {

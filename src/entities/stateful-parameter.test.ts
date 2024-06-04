@@ -10,10 +10,8 @@ interface TestConfig {
 }
 
 class TestArrayParameter extends ArrayStatefulParameter<TestConfig, string> {
-  constructor(options?: ArrayStatefulParameterOptions<TestConfig>) {
-    super(options ?? {
-      name: 'propA'
-    })
+  constructor(options?: ArrayStatefulParameterOptions<string>) {
+    super(options)
   }
 
   async applyAddItem(item: string, plan: Plan<TestConfig>): Promise<void> {}
@@ -104,7 +102,6 @@ describe('Stateful parameter tests', () => {
     const testParameter = spy(new class extends TestArrayParameter {
       constructor() {
         super({
-          name: 'propA',
           isElementEqual: (desired, current) => current.includes(desired),
         });
       }

@@ -6,6 +6,8 @@ import { describe, expect, it } from 'vitest'
 import { ValidationResult } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceOptions } from './resource-options.js';
+import { CreatePlan, DestroyPlan, ModifyPlan } from './plan-types.js';
+import { ParameterChange } from './change-set.js';
 
 export interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -221,12 +223,15 @@ describe('Resource tests', () => {
       async refresh(): Promise<string | null> {
         return null;
       }
+
       applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
+
       applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
+
       applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
@@ -252,12 +257,15 @@ describe('Resource tests', () => {
       async refresh(): Promise<string | null> {
         return null;
       }
+
       applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
+
       applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
+
       applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
@@ -300,9 +308,9 @@ describe('Resource tests', () => {
       }
     }
 
-    const plan = await resource.plan({ type: 'resource'})
-    expect(plan.currentConfig.propA).to.eq('propAAfter');
-    expect(plan.desiredConfig.propA).to.eq('propADefault');
+    const plan = await resource.plan({ type: 'resource' })
+    expect(plan.currentConfig?.propA).to.eq('propAAfter');
+    expect(plan.desiredConfig?.propA).to.eq('propADefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
   })
 
@@ -326,9 +334,9 @@ describe('Resource tests', () => {
       }
     }
 
-    const plan = await resource.plan({ type: 'resource'})
-    expect(plan.currentConfig.propE).to.eq('propEDefault');
-    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    const plan = await resource.plan({ type: 'resource' })
+    expect(plan.currentConfig?.propE).to.eq('propEDefault');
+    expect(plan.desiredConfig?.propE).to.eq('propEDefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 
@@ -348,9 +356,9 @@ describe('Resource tests', () => {
       }
     }
 
-    const plan = await resource.plan({ type: 'resource'})
-    expect(plan.currentConfig.propE).to.eq(null);
-    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    const plan = await resource.plan({ type: 'resource' })
+    expect(plan.currentConfig).to.be.null
+    expect(plan.desiredConfig!.propE).to.eq('propEDefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
   })
 
@@ -376,9 +384,9 @@ describe('Resource tests', () => {
       }
     }
 
-    const plan = await resource.plan({ type: 'resource', propA: 'propA'})
-    expect(plan.currentConfig.propA).to.eq('propAAfter');
-    expect(plan.desiredConfig.propA).to.eq('propA');
+    const plan = await resource.plan({ type: 'resource', propA: 'propA' })
+    expect(plan.currentConfig?.propA).to.eq('propAAfter');
+    expect(plan.desiredConfig?.propA).to.eq('propA');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
   });
 
@@ -397,5 +405,30 @@ describe('Resource tests', () => {
     expect(resource.defaultValues).to.deep.eq({
       propA: 'propADefault',
     })
+  })
+
+  it('Has the correct typing for applys', () => {
+    const resource = new class extends Resource<TestConfig> {
+      constructor() {
+        super({ type: 'type' });
+      }
+
+      async refresh(values: Map<keyof TestConfig, unknown>): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+
+      async applyCreate(plan: CreatePlan<TestConfig>): Promise<void> {
+        plan.desiredConfig.propA
+      }
+
+      async applyDestroy(plan: DestroyPlan<TestConfig>): Promise<void> {
+        plan.currentConfig.propB
+      }
+
+      async applyModify(pc: ParameterChange<TestConfig>, plan: ModifyPlan<TestConfig>): Promise<void> {
+        plan.desiredConfig.propA
+        plan.currentConfig.propB
+      }
+    }
   })
 });

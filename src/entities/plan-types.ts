@@ -1,3 +1,6 @@
+import { Plan } from './plan.js';
+import { StringIndexedObject } from 'codify-schemas';
+
 /**
  * Customize properties for specific parameters. This will alter the way the library process changes to the parameter.
  */
@@ -23,4 +26,19 @@ export interface ParameterOptions {
 export interface PlanOptions<T> {
   statefulMode: boolean;
   parameterOptions?: Record<keyof T, ParameterOptions>;
+}
+
+export interface CreatePlan<T extends StringIndexedObject> extends Plan<T> {
+  desiredConfig: T;
+  currentConfig: null;
+}
+
+export interface DestroyPlan<T extends StringIndexedObject> extends Plan<T> {
+  desiredConfig: null;
+  currentConfig: T;
+}
+
+export interface ModifyPlan<T extends StringIndexedObject> extends Plan<T> {
+  desiredConfig: T;
+  currentConfig: T;
 }

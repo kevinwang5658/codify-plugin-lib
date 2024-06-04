@@ -4,7 +4,7 @@ import { Plan } from './plan.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
-import { ParameterOptions, PlanOptions } from './plan-types.js';
+import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from './plan-types.js';
 import { TransformParameter } from './transform-parameter.js';
 import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
 import Ajv from 'ajv';
@@ -147,7 +147,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   }
 
   private async _applyCreate(plan: Plan<T>): Promise<void> {
-    await this.applyCreate(plan);
+    await this.applyCreate(plan as CreatePlan<T>);
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
@@ -170,7 +170,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
-      await this.applyModify(pc, plan);
+      await this.applyModify(pc, plan as ModifyPlan<T>);
     }
 
     const statefulParameterChanges = parameterChanges
@@ -212,7 +212,7 @@ export abstract class Resource<T extends StringIndexedObject> {
       }
     }
 
-    await this.applyDestroy(plan);
+    await this.applyDestroy(plan as DestroyPlan<T>);
   }
 
   private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
@@ -346,13 +346,13 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   };
 
-  abstract refresh(keys: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
+  abstract refresh(values: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
 
-  abstract applyCreate(plan: Plan<T>): Promise<void>;
+  abstract applyCreate(plan: CreatePlan<T>): Promise<void>;
 
-  async applyModify(pc: ParameterChange<T>, plan: Plan<T>): Promise<void> {};
+  async applyModify(pc: ParameterChange<T>, plan: ModifyPlan<T>): Promise<void> {};
 
-  abstract applyDestroy(plan: Plan<T>): Promise<void>;
+  abstract applyDestroy(plan: DestroyPlan<T>): Promise<void>;
 }
 
 class ConfigParser<T extends StringIndexedObject> {

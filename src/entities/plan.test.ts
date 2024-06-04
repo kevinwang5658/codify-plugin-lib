@@ -19,11 +19,7 @@ describe('Plan entity tests', () => {
       }]
     }, resource.defaultValues);
 
-    expect(plan.currentConfig).toMatchObject({
-      type: 'type',
-      propA: null,
-      propB: null,
-    })
+    expect(plan.currentConfig).to.be.null;
 
     expect(plan.desiredConfig).toMatchObject({
       type: 'type',
@@ -56,11 +52,7 @@ describe('Plan entity tests', () => {
       propB: 'propBValue',
     })
 
-    expect(plan.desiredConfig).toMatchObject({
-      type: 'type',
-      propA: null,
-      propB: null,
-    })
+    expect(plan.desiredConfig).to.be.null;
 
     expect(plan.changeSet.parameterChanges
       .every((pc) => pc.operation === ParameterOperation.REMOVE)
@@ -117,11 +109,7 @@ describe('Plan entity tests', () => {
       }]
     }, resource.defaultValues);
 
-    expect(plan.currentConfig).toMatchObject({
-      type: 'type',
-      propA: null,
-      propB: null,
-    })
+    expect(plan.currentConfig).to.be.null
 
     expect(plan.desiredConfig).toMatchObject({
       type: 'type',

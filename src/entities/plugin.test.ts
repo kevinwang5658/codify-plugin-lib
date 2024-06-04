@@ -44,7 +44,7 @@ class TestResource extends Resource<TestConfig> {
 
 describe('Plugin tests', () => {
   it('Validates that applies were successfully applied', async () => {
-    const resource = new class extends TestResource {
+    const resource= new class extends TestResource {
       async applyCreate(plan: Plan<TestConfig>): Promise<void> {
       }
 
@@ -56,9 +56,9 @@ describe('Plugin tests', () => {
       }
     }
 
-    const testPlugin = Plugin.create('testPlugin', [resource])
+    const plugin = Plugin.create('testPlugin', [resource])
 
-    const desiredPlan = {
+    const plan = {
       operation: ResourceOperation.CREATE,
       resourceType: 'testResource',
       parameters: [
@@ -67,7 +67,7 @@ describe('Plugin tests', () => {
     };
 
     // If this doesn't throw then it passes the test
-    await testPlugin.apply({ plan: desiredPlan });
+    await plugin.apply({ plan });
   });
 
   it('Validates that applies were successfully applied (error)', async () => {
@@ -80,10 +80,9 @@ describe('Plugin tests', () => {
         return null;
       }
     }
+    const plugin = Plugin.create('testPlugin', [resource])
 
-    const testPlugin = Plugin.create('testPlugin', [resource])
-
-    const desiredPlan = {
+    const plan = {
       operation: ResourceOperation.CREATE,
       resourceType: 'testResource',
       parameters: [
@@ -91,6 +90,104 @@ describe('Plugin tests', () => {
       ]
     };
 
-    await expect(async () => testPlugin.apply({ plan: desiredPlan })).rejects.toThrowError(expect.any(ApplyValidationError));
+    await expect(async () => plugin.apply({ plan })).rejects.toThrowError(expect.any(ApplyValidationError));
+  });
+
+  it('Validates that deletes were successfully applied', async () => {
+    const resource = new class extends TestResource {
+      async applyCreate(plan: Plan<TestConfig>): Promise<void> {
+      }
+
+      // Return null to indicate that the resource was deleted
+      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    }
+
+    const testPlugin = Plugin.create('testPlugin', [resource])
+
+    const plan = {
+      operation: ResourceOperation.DESTROY,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.REMOVE, newValue: null, previousValue: 'abc' },
+      ]
+    };
+
+    // If this doesn't throw then it passes the test
+    await testPlugin.apply({ plan })
+  });
+
+  it('Validates that deletes were successfully applied (error)', async () => {
+    const resource = new class extends TestResource {
+      async applyCreate(plan: Plan<TestConfig>): Promise<void> {
+      }
+
+      // Return a value to indicate that the resource still exists
+      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+        return { propA: 'abc' };
+      }
+    }
+
+    const testPlugin = Plugin.create('testPlugin', [resource])
+
+    const plan = {
+      operation: ResourceOperation.DESTROY,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.REMOVE, newValue: null, previousValue: 'abc' },
+      ]
+    };
+
+    // If this doesn't throw then it passes the test
+    expect(async () => await testPlugin.apply({ plan })).rejects.toThrowError(expect.any(ApplyValidationError));
+  });
+
+  it('Validates that re-create was successfully applied', async () => {
+    const resource = new class extends TestResource {
+      async applyCreate(plan: Plan<TestConfig>): Promise<void> {
+      }
+
+      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+        return { propA: 'def'};
+      }
+    }
+
+    const testPlugin = Plugin.create('testPlugin', [resource])
+
+    const plan = {
+      operation: ResourceOperation.RECREATE,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
+      ]
+    };
+
+    // If this doesn't throw then it passes the test
+    await testPlugin.apply({ plan })
+  });
+
+  it('Validates that modify was successfully applied (error)', async () => {
+    const resource = new class extends TestResource {
+      async applyCreate(plan: Plan<TestConfig>): Promise<void> {
+      }
+
+      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+        return { propA: 'abc' };
+      }
+    }
+
+    const testPlugin = Plugin.create('testPlugin', [resource])
+
+    const plan = {
+      operation: ResourceOperation.DESTROY,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.REMOVE, newValue: 'def', previousValue: 'abc' },
+      ]
+    };
+
+    // If this doesn't throw then it passes the test
+    expect(async () => await testPlugin.apply({ plan })).rejects.toThrowError(expect.any(ApplyValidationError));
   });
 });

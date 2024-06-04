@@ -95,7 +95,11 @@ export class Plugin {
 
     // Perform a validation check after to ensure that the plan was properly applied.
     // Sometimes no errors are returned (exit code 0) but the apply was not successful
-    const validationPlan = await resource.plan({ ...plan.resourceMetadata, ...plan.desiredConfig });
+    const validationPlan = await resource.plan(
+      plan.desiredConfig,
+      plan.currentConfig,
+      true,
+    );
     if (validationPlan.changeSet.operation !== ResourceOperation.NOOP) {
       throw new ApplyValidationError(plan, validationPlan);
     }

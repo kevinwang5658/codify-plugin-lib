@@ -22,7 +22,7 @@ describe('Resource tests for stateful plans', () => {
     }
 
     const plan = await resource.plan(
-      undefined,
+      null,
       {
         type: 'resource',
         propA: 'propA',
@@ -73,7 +73,7 @@ describe('Resource tests for stateful plans', () => {
         propB: 10,
         propC: 'propC',
       },
-      undefined,
+      null,
       true
     );
 

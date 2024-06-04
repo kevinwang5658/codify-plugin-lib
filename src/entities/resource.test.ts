@@ -301,8 +301,8 @@ describe('Resource tests', () => {
     }
 
     const plan = await resource.plan({ type: 'resource'})
-    expect(plan.currentConfig.propA).to.eq('propAAfter');
-    expect(plan.desiredConfig.propA).to.eq('propADefault');
+    expect(plan.currentConfig?.propA).to.eq('propAAfter');
+    expect(plan.desiredConfig?.propA).to.eq('propADefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
   })
 
@@ -327,8 +327,8 @@ describe('Resource tests', () => {
     }
 
     const plan = await resource.plan({ type: 'resource'})
-    expect(plan.currentConfig.propE).to.eq('propEDefault');
-    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    expect(plan.currentConfig?.propE).to.eq('propEDefault');
+    expect(plan.desiredConfig?.propE).to.eq('propEDefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 
@@ -349,8 +349,8 @@ describe('Resource tests', () => {
     }
 
     const plan = await resource.plan({ type: 'resource'})
-    expect(plan.currentConfig.propE).to.eq(null);
-    expect(plan.desiredConfig.propE).to.eq('propEDefault');
+    expect(plan.currentConfig).to.be.null
+    expect(plan.desiredConfig!.propE).to.eq('propEDefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
   })
 
@@ -377,8 +377,8 @@ describe('Resource tests', () => {
     }
 
     const plan = await resource.plan({ type: 'resource', propA: 'propA'})
-    expect(plan.currentConfig.propA).to.eq('propAAfter');
-    expect(plan.desiredConfig.propA).to.eq('propA');
+    expect(plan.currentConfig?.propA).to.eq('propAAfter');
+    expect(plan.desiredConfig?.propA).to.eq('propA');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
   });
 

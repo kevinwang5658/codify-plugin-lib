@@ -77,8 +77,8 @@ export abstract class Resource<T extends StringIndexedObject> {
   // TODO: Currently stateful mode expects that the currentConfig does not need any additional transformations (default and transform parameters)
   //   This may change in the future?
   async plan(
-    desiredConfig?: Partial<T> & ResourceConfig,
-    currentConfig?: Partial<T> & ResourceConfig,
+    desiredConfig: Partial<T> & ResourceConfig | null,
+    currentConfig: Partial<T> & ResourceConfig | null = null,
     statefulMode = false,
   ): Promise<Plan<T>> {
     this.validatePlanInputs(desiredConfig, currentConfig, statefulMode);
@@ -233,7 +233,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private async applyTransformParameters(desired?: Partial<T>): Promise<void> {
+  private async applyTransformParameters(desired: Partial<T> | null): Promise<void> {
     if (!desired) {
       return;
     }
@@ -263,7 +263,7 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private addDefaultValues(desired?: Partial<T>): void {
+  private addDefaultValues(desired: Partial<T> | null): void {
     if (!desired) {
       return;
     }
@@ -327,8 +327,8 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
   }
 
   private validatePlanInputs(
-    desired: Partial<T> & ResourceConfig | undefined,
-    current: Partial<T> & ResourceConfig | undefined,
+    desired: Partial<T> & ResourceConfig | null,
+    current: Partial<T> & ResourceConfig | null,
     statefulMode: boolean,
   ) {
     if (!desired && !current) {
@@ -356,14 +356,14 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
 }
 
 class ConfigParser<T extends StringIndexedObject> {
-  private desiredConfig?: Partial<T> & ResourceConfig;
-  private currentConfig?: Partial<T> & ResourceConfig;
+  private desiredConfig: Partial<T> & ResourceConfig | null;
+  private currentConfig: Partial<T> & ResourceConfig | null;
   private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
   private transformParametersMap: Map<keyof T, TransformParameter<T>>;
 
   constructor(
-    desiredConfig: Partial<T> & ResourceConfig | undefined,
-    currentConfig: Partial<T> & ResourceConfig | undefined,
+    desiredConfig: Partial<T> & ResourceConfig | null,
+    currentConfig: Partial<T> & ResourceConfig | null,
     statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>,
     transformParameters: Map<keyof T, TransformParameter<T>>,
   ) {
@@ -426,14 +426,6 @@ ${JSON.stringify(currentMetadata, null, 2)}`);
 
     return Object.fromEntries([
       ...Object.entries(parameters).filter(([key]) => this.statefulParametersMap.has(key)),
-    ]) as Partial<T>;
-  }
-
-  get transformParameters(): Partial<T> {
-    const parameters = this.parameters;
-
-    return Object.fromEntries([
-      ...Object.entries(parameters).filter(([key]) => this.transformParametersMap.has(key)),
     ]) as Partial<T>;
   }
 }

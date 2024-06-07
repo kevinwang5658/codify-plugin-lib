@@ -59,7 +59,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   async onInitialize(): Promise<void> {}
 
-  async validateResource(parameters: unknown): Promise<ValidationResult> {
+  async validateResource(parameters: Partial<T>): Promise<ValidationResult> {
     if (this.schemaValidator) {
       const isValid = this.schemaValidator(parameters);
 
@@ -215,12 +215,12 @@ export abstract class Resource<T extends StringIndexedObject> {
     await this.applyDestroy(plan as DestroyPlan<T>);
   }
 
-  private validateRefreshResults(refresh: Partial<T> | null, desiredMap: Map<keyof T, T[keyof T]>) {
+  private validateRefreshResults(refresh: Partial<T> | null, desired: Partial<T>) {
     if (!refresh) {
       return;
     }
 
-    const desiredKeys = new Set<keyof T>(desiredMap.keys());
+    const desiredKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
     const refreshKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
 
     if (!setsEqual(desiredKeys, refreshKeys)) {
@@ -278,11 +278,8 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
   }
 
   private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
-    const entriesToRefresh = new Map<keyof T, T[keyof T]>(
-      Object.entries(resourceParameters)
-    )
-    const currentParameters = await this.refresh(entriesToRefresh);
-    this.validateRefreshResults(currentParameters, entriesToRefresh);
+    const currentParameters = await this.refresh(resourceParameters);
+    this.validateRefreshResults(currentParameters, resourceParameters);
     return currentParameters;
   }
 
@@ -340,13 +337,13 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  async validate(parameters: unknown): Promise<ValidationResult> {
+  async validate(parameters: Partial<T>): Promise<ValidationResult> {
     return {
       isValid: true,
     }
   };
 
-  abstract refresh(values: Map<keyof T, T[keyof T]>): Promise<Partial<T> | null>;
+  abstract refresh(parameters: Partial<T>): Promise<Partial<T> | null>;
 
   abstract applyCreate(plan: CreatePlan<T>): Promise<void>;
 

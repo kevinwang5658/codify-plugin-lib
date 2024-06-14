@@ -1,14 +1,15 @@
-import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject, } from 'codify-schemas';
-import { ParameterChange } from './change-set.js';
-import { Plan } from './plan.js';
-import { StatefulParameter } from './stateful-parameter.js';
-import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
-import { setsEqual, splitUserConfig } from '../utils/utils.js';
-import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from './plan-types.js';
-import { TransformParameter } from './transform-parameter.js';
-import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
 import Ajv from 'ajv';
 import Ajv2020, { ValidateFunction } from 'ajv/dist/2020.js';
+import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject, } from 'codify-schemas';
+
+import { setsEqual, splitUserConfig } from '../utils/utils.js';
+import { ParameterChange } from './change-set.js';
+import { Plan } from './plan.js';
+import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from './plan-types.js';
+import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
+import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
+import { StatefulParameter } from './stateful-parameter.js';
+import { TransformParameter } from './transform-parameter.js';
 
 /**
  * Description of resource here
@@ -65,8 +66,8 @@ export abstract class Resource<T extends StringIndexedObject> {
 
       if (!isValid) {
         return {
-          isValid: false,
           errors: this.schemaValidator?.errors ?? [],
+          isValid: false,
         }
       }
     }
@@ -84,8 +85,8 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.validatePlanInputs(desiredConfig, currentConfig, statefulMode);
 
     const planOptions: PlanOptions<T> = {
-      statefulMode,
       parameterOptions: this.parameterOptions,
+      statefulMode,
     }
 
     this.addDefaultValues(desiredConfig);
@@ -95,8 +96,8 @@ export abstract class Resource<T extends StringIndexedObject> {
     const parsedConfig = new ConfigParser(desiredConfig, currentConfig, this.statefulParameters, this.transformParameters)
     const {
       desiredParameters,
-      resourceMetadata,
       nonStatefulParameters,
+      resourceMetadata,
       statefulParameters,
     } = parsedConfig;
 
@@ -133,13 +134,16 @@ export abstract class Resource<T extends StringIndexedObject> {
       case ResourceOperation.CREATE: {
         return this._applyCreate(plan); // TODO: Add new parameters value so that apply
       }
+
       case ResourceOperation.MODIFY: {
         return this._applyModify(plan);
       }
+
       case ResourceOperation.RECREATE: {
         await this._applyDestroy(plan);
         return this._applyCreate(plan);
       }
+
       case ResourceOperation.DESTROY: {
         return this._applyDestroy(plan);
       }
@@ -185,11 +189,13 @@ export abstract class Resource<T extends StringIndexedObject> {
           await statefulParameter.applyAdd(parameterChange.newValue, plan);
           break;
         }
+
         case ParameterOperation.MODIFY: {
           // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
           await statefulParameter.applyModify(parameterChange.newValue, parameterChange.previousValue, false, plan);
           break;
         }
+
         case ParameterOperation.REMOVE: {
           await statefulParameter.applyRemove(parameterChange.previousValue, plan);
           break;
@@ -256,10 +262,10 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       delete desired[key];
 
       // Add the new transformed values
-      Object.entries(transformedValue).forEach(([tvKey, tvValue]) => {
+      for (const [tvKey, tvValue] of Object.entries(transformedValue)) {
         // @ts-ignore
         desired[tvKey] = tvValue;
-      })
+      }
     }
   }
 
@@ -268,13 +274,12 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       return;
     }
 
-    Object.entries(this.defaultValues)
-      .forEach(([key, defaultValue]) => {
+    for (const [key, defaultValue] of Object.entries(this.defaultValues)) {
         if (defaultValue !== undefined && desired[key as any] === undefined) {
           // @ts-ignore
           desired[key] = defaultValue;
         }
-      });
+      }
   }
 
   private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
@@ -407,22 +412,22 @@ ${JSON.stringify(currentMetadata, null, 2)}`);
     const desiredParameters = this.desiredConfig ? splitUserConfig(this.desiredConfig).parameters : undefined;
     const currentParameters = this.currentConfig ? splitUserConfig(this.currentConfig).parameters : undefined;
 
-    return { ...(desiredParameters ?? {}), ...(currentParameters ?? {}) } as Partial<T>;
+    return { ...desiredParameters, ...currentParameters } as Partial<T>;
   }
 
   get nonStatefulParameters(): Partial<T> {
-    const parameters = this.parameters;
+    const { parameters } = this;
 
-    return Object.fromEntries([
-      ...Object.entries(parameters).filter(([key]) => !(this.statefulParametersMap.has(key) || this.transformParametersMap.has(key))),
-    ]) as Partial<T>;
+    return Object.fromEntries(
+      Object.entries(parameters).filter(([key]) => !(this.statefulParametersMap.has(key) || this.transformParametersMap.has(key)))
+    ) as Partial<T>;
   }
 
   get statefulParameters(): Partial<T> {
-    const parameters = this.parameters;
+    const { parameters } = this;
 
-    return Object.fromEntries([
-      ...Object.entries(parameters).filter(([key]) => this.statefulParametersMap.has(key)),
-    ]) as Partial<T>;
+    return Object.fromEntries(
+      Object.entries(parameters).filter(([key]) => this.statefulParametersMap.has(key))
+    ) as Partial<T>;
   }
 }

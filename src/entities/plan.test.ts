@@ -121,6 +121,28 @@ describe('Plan entity tests', () => {
       .every((pc) => pc.operation === ParameterOperation.ADD)
     ).to.be.true;
   })
+
+  it('Returns the original resource names', () => {
+    const resource = createResource();
+
+    const plan = Plan.create(
+      {
+        propA: 'propA',
+      },
+      {
+        propA: 'propA2',
+      },
+      {
+        type: 'type',
+        name: 'name1'
+      }, { statefulMode: false });
+
+    expect(plan.toResponse()).toMatchObject({
+      resourceType: 'type',
+      resourceName: 'name1',
+      operation: ResourceOperation.RECREATE
+    })
+  })
 })
 
 function createResource(): Resource<any> {

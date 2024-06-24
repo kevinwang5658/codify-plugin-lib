@@ -471,9 +471,9 @@ describe('Resource parameter tests', () => {
     const plan = await resource.plan({ type: 'resourceType', propC: 'abc' } as any);
 
     expect(resource.refresh.called).to.be.true;
-    expect(resource.refresh.getCall(0).firstArg.has('propA')).to.be.true;
-    expect(resource.refresh.getCall(0).firstArg.has('propB')).to.be.true;
-    expect(resource.refresh.getCall(0).firstArg.has('propC')).to.be.false;
+    expect(resource.refresh.getCall(0).firstArg['propA']).to.exist;
+    expect(resource.refresh.getCall(0).firstArg['propB']).to.exist;
+    expect(resource.refresh.getCall(0).firstArg['propC']).to.not.exist;
 
     expect(plan.desiredConfig?.propA).to.eq('propA');
     expect(plan.desiredConfig?.propB).to.eq(10);
@@ -513,8 +513,8 @@ describe('Resource parameter tests', () => {
     const plan = await resource.plan({ type: 'resourceType', propA: 'propA', propB: 10 } as any);
 
     expect(transformParameter.transform.called).to.be.false;
-    expect(resource.refresh.getCall(0).firstArg.has('propA')).to.be.true;
-    expect(resource.refresh.getCall(0).firstArg.has('propB')).to.be.true;
+    expect(resource.refresh.getCall(0).firstArg['propA']).to.exist;
+    expect(resource.refresh.getCall(0).firstArg['propB']).to.exist;
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })

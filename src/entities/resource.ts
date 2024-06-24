@@ -1,13 +1,19 @@
 import Ajv from 'ajv';
 import Ajv2020, { ValidateFunction } from 'ajv/dist/2020.js';
-import { ParameterOperation, ResourceConfig, ResourceOperation, StringIndexedObject, } from 'codify-schemas';
+import {
+  ParameterOperation,
+  ResourceConfig,
+  ResourceOperation,
+  StringIndexedObject,
+  ValidateResponseData,
+} from 'codify-schemas';
 
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
 import { ParameterChange } from './change-set.js';
 import { Plan } from './plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from './plan-types.js';
 import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
-import { ResourceParameterOptions, ValidationResult } from './resource-types.js';
+import { ResourceParameterOptions } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { TransformParameter } from './transform-parameter.js';
 
@@ -42,6 +48,7 @@ export abstract class Resource<T extends StringIndexedObject> {
 
     if (this.options.schema) {
       this.ajv = new Ajv2020.default({
+        allErrors: true,
         strict: true,
         strictRequired: false,
       })
@@ -60,19 +67,48 @@ export abstract class Resource<T extends StringIndexedObject> {
 
   async onInitialize(): Promise<void> {}
 
-  async validateResource(parameters: Partial<T>): Promise<ValidationResult> {
+  async validate(
+    parameters: Partial<T>,
+    resourceMetaData: ResourceConfig
+  ): Promise<ValidateResponseData['resourceValidations'][0]> {
     if (this.schemaValidator) {
       const isValid = this.schemaValidator(parameters);
 
       if (!isValid) {
         return {
-          errors: this.schemaValidator?.errors ?? [],
           isValid: false,
+          resourceName: resourceMetaData.name,
+          resourceType: resourceMetaData.type,
+          schemaValidationErrors: this.schemaValidator?.errors ?? [],
         }
       }
     }
 
-    return this.validate(parameters);
+    let isValid = true;
+    let customValidationErrorMessage;
+    try {
+      await this.customValidation(parameters);
+    } catch (error) {
+      isValid = false;
+      customValidationErrorMessage = (error as Error).message;
+    }
+
+    if (!isValid) {
+      return {
+        customValidationErrorMessage,
+        isValid: false,
+        resourceName: resourceMetaData.name,
+        resourceType: resourceMetaData.type,
+        schemaValidationErrors: this.schemaValidator?.errors ?? [],
+      }
+    }
+
+    return {
+      isValid: true,
+      resourceName: resourceMetaData.name,
+      resourceType: resourceMetaData.type,
+      schemaValidationErrors: [],
+    }
   }
 
   // TODO: Currently stateful mode expects that the currentConfig does not need any additional transformations (default and transform parameters)
@@ -105,7 +141,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     const currentParameters = await this.refreshNonStatefulParameters(nonStatefulParameters);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
-    if (currentParameters == null) {
+    if (currentParameters === null || currentParameters === undefined) {
       return Plan.create(
         desiredParameters,
         null,
@@ -342,11 +378,13 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  async validate(parameters: Partial<T>): Promise<ValidationResult> {
-    return {
-      isValid: true,
-    }
-  };
+  /**
+   * Add custom validation logic in-addition to the default schema validation.
+   * In this method throw an error if the object did not validate. The message of the
+   * error will be shown to the user.
+   * @param parameters
+   */
+  async customValidation(parameters: Partial<T>): Promise<void> {};
 
   abstract refresh(parameters: Partial<T>): Promise<Partial<T> | null>;
 

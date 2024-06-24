@@ -50,19 +50,17 @@ export class Plugin {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
-      const { parameters } = splitUserConfig(config);
-      const validateResult = await this.resources.get(config.type)!.validateResource(parameters);
+      const { parameters, resourceMetadata } = splitUserConfig(config);
+      const validation = await this.resources
+        .get(config.type)!
+        .validate(parameters, resourceMetadata);
 
-      validationResults.push({
-        ...validateResult,
-        resourceType: config.type,
-        resourceName: config.name,
-      });
+      validationResults.push(validation);
     }
 
     await this.crossValidateResources(data.configs);
     return {
-      validationResults
+      resourceValidations: validationResults
     };
   }
 

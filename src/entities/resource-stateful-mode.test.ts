@@ -12,7 +12,7 @@ describe('Resource tests for stateful plans', () => {
         super({ type: 'resource' });
       }
 
-      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
         return {
           propA: 'propADifferent',
           propB: undefined,
@@ -61,7 +61,7 @@ describe('Resource tests for stateful plans', () => {
         super({ type: 'resource' });
       }
 
-      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+      async refresh(): Promise<Partial<TestConfig> | null> {
         return null;
       }
     }
@@ -113,7 +113,7 @@ describe('Resource tests for stateful plans', () => {
         super({ type: 'resource' });
       }
 
-      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+      async refresh(): Promise<Partial<TestConfig> | null> {
         return {
           propA: 'propA',
           propC: 'propC',
@@ -184,7 +184,7 @@ describe('Resource tests for stateful plans', () => {
         });
       }
 
-      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+      async refresh(): Promise<Partial<TestConfig> | null> {
         return {
           propA: 'propA',
           propC: 'propC',

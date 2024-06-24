@@ -3,7 +3,6 @@ import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { spy } from 'sinon';
 import { Plan } from './plan.js';
 import { describe, expect, it } from 'vitest'
-import { ValidationResult } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceOptions } from './resource-options.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from './plan-types.js';
@@ -28,18 +27,12 @@ export class TestResource extends Resource<TestConfig> {
     return Promise.resolve(undefined);
   }
 
-  async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
+  async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
     return {
       propA: 'a',
       propB: 10,
       propC: 'c',
     };
-  }
-
-  async validateResource(config: unknown): Promise<ValidationResult> {
-    return {
-      isValid: true
-    }
   }
 }
 
@@ -298,9 +291,8 @@ describe('Resource tests', () => {
       }
 
       // @ts-ignore
-      async refresh(desired: Map<string, unknown>): Promise<Partial<TestConfig>> {
-        expect(desired.has('propA')).to.be.true;
-        expect(desired.get('propA')).to.be.eq('propADefault');
+      async refresh(desired: Partial<TestConfig>): Promise<Partial<TestConfig>> {
+        expect(desired['propA']).to.be.eq('propADefault');
 
         return {
           propA: 'propAAfter'
@@ -325,11 +317,11 @@ describe('Resource tests', () => {
         });
       }
 
-      async refresh(keys: Map<string, unknown>): Promise<Partial<TestConfig> | null> {
-        expect(keys.has('propE')).to.be.true;
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        expect(parameters['propE']).to.exist;
 
         return {
-          propE: keys.get('propE'),
+          propE: parameters['propE'],
         };
       }
     }
@@ -374,9 +366,8 @@ describe('Resource tests', () => {
       }
 
       // @ts-ignore
-      async refresh(desired: Map<string, unknown>): Promise<Partial<TestConfig>> {
-        expect(desired.has('propA')).to.be.true;
-        expect(desired.get('propA')).to.be.eq('propA');
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig>> {
+        expect(parameters['propA']).to.be.eq('propA');
 
         return {
           propA: 'propAAfter'
@@ -413,7 +404,7 @@ describe('Resource tests', () => {
         super({ type: 'type' });
       }
 
-      async refresh(values: Map<keyof TestConfig, unknown>): Promise<Partial<TestConfig> | null> {
+      async refresh(): Promise<Partial<TestConfig> | null> {
         return null;
       }
 

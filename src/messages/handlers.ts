@@ -1,4 +1,4 @@
-import { Plugin } from '../entities/plugin.js';
+import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import {
   ApplyRequestDataSchema,
@@ -14,32 +14,33 @@ import {
   ValidateRequestDataSchema,
   ValidateResponseDataSchema
 } from 'codify-schemas';
-import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
-import { SudoError } from '../entities/errors.js';
 
-const SupportedRequests: Record<string, { requestValidator: SchemaObject; responseValidator: SchemaObject; handler: (plugin: Plugin, data: any) => Promise<unknown> }> = {
-  'initialize': {
-    requestValidator: InitializeRequestDataSchema,
-    responseValidator: InitializeResponseDataSchema,
-    handler: async (plugin: Plugin) => plugin.initialize()
-  },
-  'validate': {
-    requestValidator: ValidateRequestDataSchema,
-    responseValidator: ValidateResponseDataSchema,
-    handler: async (plugin: Plugin, data: any) => plugin.validate(data)
-  },
-  'plan': {
-    requestValidator: PlanRequestDataSchema,
-    responseValidator: PlanResponseDataSchema,
-    handler: async (plugin: Plugin, data: any) => plugin.plan(data)
-  },
+import { SudoError } from '../entities/errors.js';
+import { Plugin } from '../entities/plugin.js';
+
+const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) => Promise<unknown>; requestValidator: SchemaObject; responseValidator: SchemaObject }> = {
   'apply': {
-    requestValidator: ApplyRequestDataSchema,
-    responseValidator: ApplyResponseDataSchema,
-    handler: async (plugin: Plugin, data: any) => {
+    async handler(plugin: Plugin, data: any) {
       await plugin.apply(data);
       return null;
-    }
+    },
+    requestValidator: ApplyRequestDataSchema,
+    responseValidator: ApplyResponseDataSchema
+  },
+  'initialize': {
+    handler: async (plugin: Plugin) => plugin.initialize(),
+    requestValidator: InitializeRequestDataSchema,
+    responseValidator: InitializeResponseDataSchema
+  },
+  'plan': {
+    handler: async (plugin: Plugin, data: any) => plugin.plan(data),
+    requestValidator: PlanRequestDataSchema,
+    responseValidator: PlanResponseDataSchema
+  },
+  'validate': {
+    handler: async (plugin: Plugin, data: any) => plugin.validate(data),
+    requestValidator: ValidateRequestDataSchema,
+    responseValidator: ValidateResponseDataSchema
   }
 }
 
@@ -51,7 +52,7 @@ export class MessageHandler {
   private responseValidators: Map<string, ValidateFunction>;
 
   constructor(plugin: Plugin) {
-    this.ajv = new Ajv2020.default({ strict: true });
+    this.ajv = new Ajv2020.default({ strict: true, strictRequired: false });
     addFormats.default(this.ajv);
     this.ajv.addSchema(ResourceSchema);
     this.plugin = plugin;
@@ -91,12 +92,12 @@ export class MessageHandler {
 
       process.send!({
         cmd: message.cmd + '_Response',
-        status: MessageStatus.SUCCESS,
         data: result,
+        status: MessageStatus.SUCCESS,
       })
 
-    } catch (e: unknown) {
-      this.handleErrors(message, e as Error);
+    } catch (error: unknown) {
+      this.handleErrors(message, error as Error);
     }
   }
 
@@ -119,8 +120,8 @@ export class MessageHandler {
     if (e instanceof SudoError) {
       return process.send?.({
         cmd,
-        status: MessageStatus.ERROR,
         data: `Plugin: '${this.plugin.name}'. Forbidden usage of sudo for command '${e.command}'. Please contact the plugin developer to fix this.`,
+        status: MessageStatus.ERROR,
       })
     }
 
@@ -128,8 +129,8 @@ export class MessageHandler {
 
     process.send?.({
       cmd,
-      status: MessageStatus.ERROR,
       data: isDebug ? e.stack : e.message,
+      status: MessageStatus.ERROR,
     })
   }
 }

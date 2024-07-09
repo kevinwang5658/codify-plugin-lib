@@ -1,4 +1,3 @@
-import { Resource } from './resource.js';
 import {
   ApplyRequestData,
   InitializeResponseData,
@@ -8,8 +7,10 @@ import {
   ValidateRequestData,
   ValidateResponseData
 } from 'codify-schemas';
-import { Plan } from './plan.js';
+
 import { splitUserConfig } from '../utils/utils.js';
+import { Plan } from './plan.js';
+import { Resource } from './resource.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;
@@ -37,8 +38,8 @@ export class Plugin {
     return {
       resourceDefinitions: [...this.resources.values()]
         .map((r) => ({
-          type: r.typeId,
           dependencies: r.dependencies,
+          type: r.typeId,
         }))
     }
   }
@@ -65,11 +66,17 @@ export class Plugin {
   }
 
   async plan(data: PlanRequestData): Promise<PlanResponseData> {
-    if (!this.resources.has(data.type)) {
-      throw new Error(`Resource type not found: ${data.type}`);
+    const type = data.desired?.type ?? data.state?.type
+
+    if (!type || !this.resources.has(type)) {
+      throw new Error(`Resource type not found: ${type}`);
     }
 
-    const plan = await this.resources.get(data.type)!.plan(data);
+    const plan = await this.resources.get(type)!.plan(
+      data.desired ?? null,
+      data.state ?? null,
+      data.isStateful
+    );
     this.planStorage.set(plan.id, plan);
 
     return plan.toResponse();
@@ -77,7 +84,7 @@ export class Plugin {
 
   async apply(data: ApplyRequestData): Promise<void> {
     if (!data.planId && !data.plan) {
-      throw new Error(`For applies either plan or planId must be supplied`);
+      throw new Error('For applies either plan or planId must be supplied');
     }
 
     const plan = this.resolvePlan(data);
@@ -91,7 +98,7 @@ export class Plugin {
   }
 
   private resolvePlan(data: ApplyRequestData): Plan<ResourceConfig> {
-    const { planId, plan: planRequest } = data;
+    const { plan: planRequest, planId } = data;
 
     if (planId) {
       if (!this.planStorage.has(planId)) {
@@ -106,7 +113,7 @@ export class Plugin {
     }
 
     const resource = this.resources.get(planRequest.resourceType)!;
-    return Plan.fromResponse(data.plan, resource.defaultValues);
+    return Plan.fromResponse(planRequest, resource.defaultValues);
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

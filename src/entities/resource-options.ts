@@ -1,20 +1,11 @@
 import { StringIndexedObject } from 'codify-schemas';
+
+import { ParameterOptions } from './plan-types.js';
+import { ResourceParameterOptions } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { TransformParameter } from './transform-parameter.js';
-import { ResourceParameterOptions } from './resource-types.js';
-import { ParameterOptions } from './plan-types.js';
 
 export interface ResourceOptions<T extends StringIndexedObject> {
-
-  /**
-   * The id of the resource.
-   */
-  type: string;
-
-  /**
-   * Schema to validate user configs with. Must be in the format JSON Schema 2020-12
-   */
-  schema?: unknown
 
   /**
    * If true, statefulParameter.applyRemove() will be called before resource destruction.
@@ -36,16 +27,26 @@ export interface ResourceOptions<T extends StringIndexedObject> {
     | ResourceStatefulParameterOptions<T>
     | ResourceTransformParameterOptions<T>
   >>
+
+  /**
+   * Schema to validate user configs with. Must be in the format JSON Schema draft07
+   */
+  schema?: unknown
+
+  /**
+   * The id of the resource.
+   */
+  type: string;
 }
 
 export interface ResourceStatefulParameterOptions<T extends StringIndexedObject> {
-  statefulParameter: StatefulParameter<T, T[keyof T]>;
   order?: number;
+  statefulParameter: StatefulParameter<T, T[keyof T]>;
 }
 
 export interface ResourceTransformParameterOptions<T extends StringIndexedObject> {
-  transformParameter: TransformParameter<T>;
   order?: number;
+  transformParameter: TransformParameter<T>;
 }
 
 export class ResourceOptionsParser<T extends StringIndexedObject> {
@@ -90,15 +91,13 @@ export class ResourceOptionsParser<T extends StringIndexedObject> {
     );
 
     const statefulParameters = [...this.statefulParameters.entries()]
-      ?.reduce((obj, sp) => {
-        return {
+      ?.reduce((obj, sp) => ({
           ...obj,
           [sp[0]]: {
             ...sp[1].options,
             isStatefulParameter: true,
           }
-        }
-      }, {} as Record<keyof T, ParameterOptions>)
+        }), {} as Record<keyof T, ParameterOptions>)
 
     return {
       ...resourceParameters,

@@ -1,5 +1,4 @@
-import Ajv from 'ajv';
-import Ajv2020, { ValidateFunction } from 'ajv/dist/2020.js';
+import { Ajv, ValidateFunction } from 'ajv';
 import {
   ParameterOperation,
   ResourceConfig,
@@ -38,7 +37,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   readonly options: ResourceOptions<T>;
   readonly defaultValues: Partial<Record<keyof T, unknown>>;
 
-  protected ajv?: Ajv.default;
+  protected ajv?: Ajv;
   protected schemaValidator?: ValidateFunction;
 
   protected constructor(options: ResourceOptions<T>) {
@@ -47,7 +46,7 @@ export abstract class Resource<T extends StringIndexedObject> {
     this.options = options;
 
     if (this.options.schema) {
-      this.ajv = new Ajv2020.default({
+      this.ajv = new Ajv({
         allErrors: true,
         strict: true,
         strictRequired: false,

@@ -1,4 +1,4 @@
-import Ajv2020, { SchemaObject, ValidateFunction } from 'ajv/dist/2020.js';
+import { Ajv, SchemaObject, ValidateFunction } from 'ajv';
 import addFormats from 'ajv-formats';
 import {
   ApplyRequestDataSchema,
@@ -45,14 +45,14 @@ const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) =
 }
 
 export class MessageHandler {
-  private ajv: Ajv2020.default;
+  private ajv: Ajv;
   private readonly plugin: Plugin;
   private messageSchemaValidator: ValidateFunction;
   private requestValidators: Map<string, ValidateFunction>;
   private responseValidators: Map<string, ValidateFunction>;
 
   constructor(plugin: Plugin) {
-    this.ajv = new Ajv2020.default({ strict: true, strictRequired: false });
+    this.ajv = new Ajv({ strict: true, strictRequired: false });
     addFormats.default(this.ajv);
     this.ajv.addSchema(ResourceSchema);
     this.plugin = plugin;

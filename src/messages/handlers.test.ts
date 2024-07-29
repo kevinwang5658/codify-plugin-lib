@@ -25,10 +25,13 @@ describe('Message handler tests', () => {
       await handler.onMessage({
         cmd: 'plan',
         data: {
-          type: 'resourceType',
-          name: 'name',
-          prop1: 'A',
-          prop2: 'B',
+          desired: {
+            type: 'resourceType',
+            name: 'name',
+            prop1: 'A',
+            prop2: 'B',
+          },
+          isStateful: false,
         }
       })
     } catch (e) {}
@@ -165,7 +168,10 @@ describe('Message handler tests', () => {
     expect(async () => await handler.onMessage({
       cmd: 'plan',
       data: {
-        type: 'resourceA'
+        desired: {
+          type: 'resourceA'
+        },
+        isStateful: false,
       }
     })).rejects.to.not.throw;
 

@@ -1,5 +1,6 @@
-import { Plan } from '../plan/plan.js';
 import { StringIndexedObject } from 'codify-schemas';
+
+import { Plan } from '../plan/plan.js';
 
 export interface StatefulParameterOptions<V> {
   isEqual?: (desired: any, current: any) => boolean;
@@ -59,6 +60,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
       if (options.isElementEqual) {
         return options.isElementEqual(n, p);
       }
+
       return n === p;
     }));
 
@@ -66,6 +68,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
       if (options.isElementEqual) {
         return options.isElementEqual(n, p);
       }
+
       return n === p;
     }));
 

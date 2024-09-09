@@ -9,8 +9,8 @@ import {
 } from 'codify-schemas';
 
 import { splitUserConfig } from '../utils/utils.js';
-import { Plan } from './plan.js';
-import { Resource } from './resource.js';
+import { Plan } from '../plan/plan.js';
+import { Resource } from '../resource/resource.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;

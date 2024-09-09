@@ -15,8 +15,8 @@ import {
   ValidateResponseDataSchema
 } from 'codify-schemas';
 
-import { SudoError } from '../entities/errors.js';
-import { Plugin } from '../entities/plugin.js';
+import { SudoError } from '../errors.js';
+import { Plugin } from '../plugin/plugin.js';
 
 const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) => Promise<unknown>; requestValidator: SchemaObject; responseValidator: SchemaObject }> = {
   'apply': {

@@ -1,12 +1,12 @@
 import { Resource } from './resource.js';
 import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { spy } from 'sinon';
-import { Plan } from './plan.js';
+import { Plan } from '../plan/plan.js';
 import { describe, expect, it } from 'vitest'
 import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceOptions } from './resource-options.js';
-import { CreatePlan, DestroyPlan, ModifyPlan } from './plan-types.js';
-import { ParameterChange } from './change-set.js';
+import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
+import { ParameterChange } from '../plan/change-set.js';
 
 export interface TestConfig extends StringIndexedObject {
   propA: string;

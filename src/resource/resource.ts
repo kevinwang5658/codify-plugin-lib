@@ -8,9 +8,9 @@ import {
 } from 'codify-schemas';
 
 import { setsEqual, splitUserConfig } from '../utils/utils.js';
-import { ParameterChange } from './change-set.js';
-import { Plan } from './plan.js';
-import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from './plan-types.js';
+import { ParameterChange } from '../plan/change-set.js';
+import { Plan } from '../plan/plan.js';
+import { CreatePlan, DestroyPlan, ModifyPlan, ParameterOptions, PlanOptions } from '../plan/plan-types.js';
 import { ResourceOptions, ResourceOptionsParser } from './resource-options.js';
 import { ResourceParameterOptions } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';

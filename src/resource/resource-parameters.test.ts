@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ArrayStatefulParameter, StatefulParameter, StatefulParameterOptions } from './stateful-parameter.js';
-import { Plan } from './plan.js';
+import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { TestConfig, TestResource } from './resource.test.js';

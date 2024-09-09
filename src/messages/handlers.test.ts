@@ -1,9 +1,9 @@
 import { MessageHandler } from './handlers.js';
-import { Plugin } from '../entities/plugin.js';
+import { Plugin } from '../plugin/plugin.js';
 import { describe, expect, it } from 'vitest';
 import { mock } from 'vitest-mock-extended'
-import { Resource } from '../entities/resource.js';
-import { Plan } from '../entities/plan.js';
+import { Resource } from '../resource/resource.js';
+import { Plan } from '../plan/plan.js';
 import { MessageStatus, ResourceOperation } from 'codify-schemas';
 
 describe('Message handler tests', () => {

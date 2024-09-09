@@ -1,6 +1,6 @@
 import { StringIndexedObject } from 'codify-schemas';
 
-import { ParameterOptions } from './plan-types.js';
+import { ParameterOptions } from '../plan/plan-types.js';
 import { ResourceParameterOptions } from './resource-types.js';
 import { StatefulParameter } from './stateful-parameter.js';
 import { TransformParameter } from './transform-parameter.js';

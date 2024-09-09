@@ -1,4 +1,4 @@
-import { Plan } from './plan.js';
+import { Plan } from '../plan/plan.js';
 import { StringIndexedObject } from 'codify-schemas';
 
 export interface StatefulParameterOptions<V> {

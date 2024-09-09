@@ -19,11 +19,11 @@ class TestResource extends Resource<TestConfig> {
     };
   }
 
-  applyCreate(plan: Plan<TestConfig>): Promise<void> {
+  create(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyDestroy(plan: Plan<TestConfig>): Promise<void> {
+  destroy(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -50,7 +50,7 @@ describe('Plugin tests', () => {
     };
 
     await plugin.apply({ plan });
-    expect(resource.applyCreate.calledOnce).to.be.true;
+    expect(resource.create.calledOnce).to.be.true;
   });
 
   it('Can destroy resource', async () => {
@@ -66,7 +66,7 @@ describe('Plugin tests', () => {
     };
 
     await testPlugin.apply({ plan })
-    expect(resource.applyDestroy.calledOnce).to.be.true;
+    expect(resource.destroy.calledOnce).to.be.true;
   });
 
   it('Can re-create resource', async () => {
@@ -82,8 +82,8 @@ describe('Plugin tests', () => {
     };
 
     await testPlugin.apply({ plan })
-    expect(resource.applyDestroy.calledOnce).to.be.true;
-    expect(resource.applyCreate.calledOnce).to.be.true;
+    expect(resource.destroy.calledOnce).to.be.true;
+    expect(resource.create.calledOnce).to.be.true;
   });
 
   it('Can modify resource', async () => {
@@ -99,6 +99,6 @@ describe('Plugin tests', () => {
     };
 
     await testPlugin.apply({ plan })
-    expect(resource.applyModify.calledOnce).to.be.true;
+    expect(resource.modify.calledOnce).to.be.true;
   });
 });

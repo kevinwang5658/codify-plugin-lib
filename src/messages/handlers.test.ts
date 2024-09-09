@@ -242,11 +242,11 @@ describe('Message handler tests', () => {
       throw new Error('Refresh error');
     }
 
-    applyCreate(plan: Plan<any>): Promise<void> {
+    create(plan: Plan<any>): Promise<void> {
       throw new Error('Create error');
     }
 
-    applyDestroy(plan: Plan<any>): Promise<void> {
+    destroy(plan: Plan<any>): Promise<void> {
       throw new Error('Destroy error');
     }
   }

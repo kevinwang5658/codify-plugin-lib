@@ -20,11 +20,11 @@ export class TestResource extends Resource<TestConfig> {
     return { type: 'type' }
   }
 
-  applyCreate(plan: CreatePlan<TestConfig>): Promise<void> {
+  create(plan: CreatePlan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyDestroy(plan: DestroyPlan<TestConfig>): Promise<void> {
+  destroy(plan: DestroyPlan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -136,7 +136,7 @@ describe('Resource tests', () => {
       )
     )
 
-    expect(resourceSpy.applyCreate.calledOnce).to.be.true;
+    expect(resourceSpy.create.calledOnce).to.be.true;
   })
 
   it('chooses the destroy apply properly', async () => {
@@ -156,7 +156,7 @@ describe('Resource tests', () => {
       )
     )
 
-    expect(resourceSpy.applyDestroy.calledOnce).to.be.true;
+    expect(resourceSpy.destroy.calledOnce).to.be.true;
   })
 
   it('Defaults parameter changes to recreate', async () => {
@@ -176,8 +176,8 @@ describe('Resource tests', () => {
       )
     );
 
-    expect(resourceSpy.applyDestroy.calledOnce).to.be.true;
-    expect(resourceSpy.applyCreate.calledOnce).to.be.true;
+    expect(resourceSpy.destroy.calledOnce).to.be.true;
+    expect(resourceSpy.create.calledOnce).to.be.true;
   })
 
   it('Allows modification of parameter behavior to allow modify for parameters', async () => {
@@ -205,7 +205,7 @@ describe('Resource tests', () => {
       plan
     );
 
-    expect(resourceSpy.applyModify.calledTwice).to.be.true;
+    expect(resourceSpy.modify.calledTwice).to.be.true;
   })
 
   it('Validates the resource options correct (pass)', () => {
@@ -410,15 +410,15 @@ describe('Resource tests', () => {
         return null;
       }
 
-      async applyCreate(plan: CreatePlan<TestConfig>): Promise<void> {
+      async create(plan: CreatePlan<TestConfig>): Promise<void> {
         plan.desiredConfig.propA
       }
 
-      async applyDestroy(plan: DestroyPlan<TestConfig>): Promise<void> {
+      async destroy(plan: DestroyPlan<TestConfig>): Promise<void> {
         plan.currentConfig.propB
       }
 
-      async applyModify(pc: ParameterChange<TestConfig>, plan: ModifyPlan<TestConfig>): Promise<void> {
+      async modify(pc: ParameterChange<TestConfig>, plan: ModifyPlan<TestConfig>): Promise<void> {
         plan.desiredConfig.propA
         plan.currentConfig.propB
       }

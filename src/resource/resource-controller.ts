@@ -65,7 +65,7 @@ export class ResourceController<T extends StringIndexedObject> {
   }
 
   async initialize(): Promise<void> {
-    return this.resource.onInitialize();
+    return this.resource.initialize();
   }
 
   async validate(
@@ -88,7 +88,7 @@ export class ResourceController<T extends StringIndexedObject> {
     let isValid = true;
     let customValidationErrorMessage;
     try {
-      await this.resource.customValidation(parameters);
+      await this.resource.validate(parameters);
     } catch (error) {
       isValid = false;
       customValidationErrorMessage = (error as Error).message;
@@ -186,7 +186,7 @@ export class ResourceController<T extends StringIndexedObject> {
   }
 
   private async applyCreate(plan: Plan<T>): Promise<void> {
-    await this.resource.applyCreate(plan as CreatePlan<T>);
+    await this.resource.create(plan as CreatePlan<T>);
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
       .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
@@ -209,7 +209,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
-      await this.resource.applyModify(pc, plan as ModifyPlan<T>);
+      await this.resource.modify(pc, plan as ModifyPlan<T>);
     }
 
     const statefulParameterChanges = parameterChanges
@@ -253,7 +253,7 @@ export class ResourceController<T extends StringIndexedObject> {
       }
     }
 
-    await this.resource.applyDestroy(plan as DestroyPlan<T>);
+    await this.resource.destroy(plan as DestroyPlan<T>);
   }
 
   private validateRefreshResults(refresh: Partial<T> | null, desired: Partial<T>) {

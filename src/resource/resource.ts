@@ -13,10 +13,10 @@ import { ResourceOptions } from './resource-options.js';
  */
 export abstract class Resource<T extends StringIndexedObject> {
 
-  async onInitialize(): Promise<void> {
-  };
-
   abstract getSettings(): ResourceOptions<T>;
+
+  async initialize(): Promise<void> {
+  };
 
   /**
    * Add custom validation logic in-addition to the default schema validation.
@@ -24,13 +24,15 @@ export abstract class Resource<T extends StringIndexedObject> {
    * error will be shown to the user.
    * @param parameters
    */
-  async customValidation(parameters: Partial<T>): Promise<void> {};
+  async validate(parameters: Partial<T>): Promise<void> {
+  };
 
   abstract refresh(parameters: Partial<T>): Promise<Partial<T> | null>;
 
-  abstract applyCreate(plan: CreatePlan<T>): Promise<void>;
+  abstract create(plan: CreatePlan<T>): Promise<void>;
 
-  async applyModify(pc: ParameterChange<T>, plan: ModifyPlan<T>): Promise<void> {};
+  async modify(pc: ParameterChange<T>, plan: ModifyPlan<T>): Promise<void> {
+  };
 
-  abstract applyDestroy(plan: DestroyPlan<T>): Promise<void>;
+  abstract destroy(plan: DestroyPlan<T>): Promise<void>;
 }

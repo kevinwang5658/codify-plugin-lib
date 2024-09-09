@@ -3,7 +3,7 @@ import { ArrayStatefulParameter, StatefulParameter, StatefulParameterOptions } f
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { TestConfig, TestResource } from './resource.test.js';
+import { TestConfig, TestResource } from './resource-controller.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
 export class TestParameter extends StatefulParameter<TestConfig, string> {
@@ -96,7 +96,7 @@ describe('Resource parameter tests', () => {
     );
 
     expect(statefulParameterSpy.applyAdd.calledOnce).to.be.true;
-    expect(resourceSpy.applyCreate.calledOnce).to.be.true;
+    expect(resourceSpy.create.calledOnce).to.be.true;
   })
 
   it('supports the modification of stateful parameters', async () => {
@@ -131,7 +131,7 @@ describe('Resource parameter tests', () => {
     const result = await resourceSpy.apply(plan);
 
     expect(statefulParameterSpy.applyModify.calledOnce).to.be.true;
-    expect(resourceSpy.applyModify.calledOnce).to.be.true;
+    expect(resourceSpy.modify.calledOnce).to.be.true;
   })
 
   it('Allows stateful parameters to have default values', async () => {

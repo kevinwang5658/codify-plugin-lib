@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Plan } from './plan.js';
-import { TestResource } from '../resource/resource.test.js';
+import { TestResource } from '../resource/resource-controller.test.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { Resource } from '../resource/resource.js';
 

@@ -8,35 +8,39 @@ import {
   ValidateResponseData
 } from 'codify-schemas';
 
-import { splitUserConfig } from '../utils/utils.js';
 import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
+import { ResourceController } from '../resource/resource-controller.js';
+import { splitUserConfig } from '../utils/utils.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;
 
-  static create(name: string, resources: Resource<any>[]) {
-    const resourceMap = new Map<string, Resource<any>>(
-      resources.map((r) => [r.typeId, r] as const)
-    );
-
-    return new Plugin(name, resourceMap);
-  }
-
   constructor(
     public name: string,
-    public resources: Map<string, Resource<ResourceConfig>>
+    public resourceControllers: Map<string, ResourceController<ResourceConfig>>
   ) {
     this.planStorage = new Map();
   }
 
+  static create(name: string, resources: Resource<any>[]) {
+    const controllers = resources
+      .map((resource) => new ResourceController(resource))
+
+    const controllersMap = new Map<string, ResourceController<any>>(
+      controllers.map((r) => [r.typeId, r] as const)
+    );
+
+    return new Plugin(name, controllersMap);
+  }
+
   async initialize(): Promise<InitializeResponseData> {
-    for (const resource of this.resources.values()) {
-      await resource.onInitialize();
+    for (const controller of this.resourceControllers.values()) {
+      await controller.initialize();
     }
 
     return {
-      resourceDefinitions: [...this.resources.values()]
+      resourceDefinitions: [...this.resourceControllers.values()]
         .map((r) => ({
           dependencies: r.dependencies,
           type: r.typeId,
@@ -47,12 +51,12 @@ export class Plugin {
   async validate(data: ValidateRequestData): Promise<ValidateResponseData> {
     const validationResults = [];
     for (const config of data.configs) {
-      if (!this.resources.has(config.type)) {
+      if (!this.resourceControllers.has(config.type)) {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
       const { parameters, resourceMetadata } = splitUserConfig(config);
-      const validation = await this.resources
+      const validation = await this.resourceControllers
         .get(config.type)!
         .validate(parameters, resourceMetadata);
 
@@ -68,11 +72,11 @@ export class Plugin {
   async plan(data: PlanRequestData): Promise<PlanResponseData> {
     const type = data.desired?.type ?? data.state?.type
 
-    if (!type || !this.resources.has(type)) {
+    if (!type || !this.resourceControllers.has(type)) {
       throw new Error(`Resource type not found: ${type}`);
     }
 
-    const plan = await this.resources.get(type)!.plan(
+    const plan = await this.resourceControllers.get(type)!.plan(
       data.desired ?? null,
       data.state ?? null,
       data.isStateful
@@ -89,7 +93,7 @@ export class Plugin {
 
     const plan = this.resolvePlan(data);
 
-    const resource = this.resources.get(plan.getResourceType());
+    const resource = this.resourceControllers.get(plan.getResourceType());
     if (!resource) {
       throw new Error('Malformed plan with resource that cannot be found');
     }
@@ -108,11 +112,11 @@ export class Plugin {
       return this.planStorage.get(planId)!
     }
 
-    if (!planRequest?.resourceType || !this.resources.has(planRequest.resourceType)) {
+    if (!planRequest?.resourceType || !this.resourceControllers.has(planRequest.resourceType)) {
       throw new Error('Malformed plan. Resource type must be supplied or resource type was not found');
     }
 
-    const resource = this.resources.get(planRequest.resourceType)!;
+    const resource = this.resourceControllers.get(planRequest.resourceType)!;
     return Plan.fromResponse(planRequest, resource.defaultValues);
   }
 

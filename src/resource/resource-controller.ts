@@ -112,8 +112,6 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
-  // TODO: Currently stateful mode expects that the currentConfig does not need any additional transformations (default and transform parameters)
-  //   This may change in the future?
   async plan(
     desiredConfig: Partial<T> & ResourceConfig | null,
     currentConfig: Partial<T> & ResourceConfig | null = null,
@@ -169,25 +167,25 @@ export class ResourceController<T extends StringIndexedObject> {
 
     switch (plan.changeSet.operation) {
       case ResourceOperation.CREATE: {
-        return this._applyCreate(plan); // TODO: Add new parameters value so that apply
+        return this.applyCreate(plan); // TODO: Add new parameters value so that apply
       }
 
       case ResourceOperation.MODIFY: {
-        return this._applyModify(plan);
+        return this.applyModify(plan);
       }
 
       case ResourceOperation.RECREATE: {
-        await this._applyDestroy(plan);
-        return this._applyCreate(plan);
+        await this.applyDestroy(plan);
+        return this.applyCreate(plan);
       }
 
       case ResourceOperation.DESTROY: {
-        return this._applyDestroy(plan);
+        return this.applyDestroy(plan);
       }
     }
   }
 
-  private async _applyCreate(plan: Plan<T>): Promise<void> {
+  private async applyCreate(plan: Plan<T>): Promise<void> {
     await this.resource.applyCreate(plan as CreatePlan<T>);
 
     const statefulParameterChanges = plan.changeSet.parameterChanges
@@ -200,7 +198,7 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyModify(plan: Plan<T>): Promise<void> {
+  private async applyModify(plan: Plan<T>): Promise<void> {
     const parameterChanges = plan
       .changeSet
       .parameterChanges
@@ -241,7 +239,7 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
-  private async _applyDestroy(plan: Plan<T>): Promise<void> {
+  private async applyDestroy(plan: Plan<T>): Promise<void> {
     // If this option is set (defaults to false), then stateful parameters need to be destroyed
     // as well. This means that the stateful parameter wouldn't have been normally destroyed with applyDestroy()
     if (this.settings.callStatefulParameterRemoveOnDestroy) {

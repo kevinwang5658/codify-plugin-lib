@@ -4,6 +4,7 @@ import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codi
 import { Resource } from '../resource/resource.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
+import { ResourceOptions } from '../resource/resource-options.js';
 
 interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -12,10 +13,10 @@ interface TestConfig extends StringIndexedObject {
 }
 
 class TestResource extends Resource<TestConfig> {
-  constructor() {
-    super({
+  getSettings(): ResourceOptions<TestConfig> {
+    return {
       type: 'testResource'
-    });
+    };
   }
 
   applyCreate(plan: Plan<TestConfig>): Promise<void> {

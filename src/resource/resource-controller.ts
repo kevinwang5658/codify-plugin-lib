@@ -11,10 +11,10 @@ import { ParameterChange } from '../plan/change-set.js';
 import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan, PlanOptions } from '../plan/plan-types.js';
 import { setsEqual } from '../utils/utils.js';
+import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
 import { Resource } from './resource.js';
 import { ResourceSettings } from './resource-settings.js';
-import { ConfigParser } from './config-parser.js';
 
 export class ResourceController<T extends StringIndexedObject> {
   readonly resource: Resource<T>
@@ -173,9 +173,7 @@ export class ResourceController<T extends StringIndexedObject> {
   private async applyCreate(plan: Plan<T>): Promise<void> {
     await this.resource.create(plan as CreatePlan<T>);
 
-    const statefulParameterChanges = plan.changeSet.parameterChanges
-      .filter((pc: ParameterChange<T>) => this.parsedSettings.statefulParameters.has(pc.name))
-      .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+    const statefulParameterChanges = this.getSortedStatefulParameterChanges(plan.changeSet.parameterChanges)
 
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.parsedSettings.statefulParameters.get(parameterChange.name)!;
@@ -190,19 +188,17 @@ export class ResourceController<T extends StringIndexedObject> {
       .filter((c: ParameterChange<T>) => c.operation !== ParameterOperation.NOOP);
 
     const statelessParameterChanges = parameterChanges
-      .filter((pc: ParameterChange<T>) => !this.statefulParameters.has(pc.name))
+      .filter((pc: ParameterChange<T>) => !this.parsedSettings.statefulParameters.has(pc.name))
 
     for (const pc of statelessParameterChanges) {
       // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
       await this.resource.modify(pc, plan as ModifyPlan<T>);
     }
 
-    const statefulParameterChanges = parameterChanges
-      .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
-      .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+    const statefulParameterChanges = this.getSortedStatefulParameterChanges(plan.changeSet.parameterChanges)
 
     for (const parameterChange of statefulParameterChanges) {
-      const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
+      const statefulParameter = this.parsedSettings.statefulParameters.get(parameterChange.name)!;
 
       switch (parameterChange.operation) {
         case ParameterOperation.ADD: {
@@ -228,12 +224,10 @@ export class ResourceController<T extends StringIndexedObject> {
     // If this option is set (defaults to false), then stateful parameters need to be destroyed
     // as well. This means that the stateful parameter wouldn't have been normally destroyed with applyDestroy()
     if (this.settings.removeStatefulParametersBeforeDestroy) {
-      const statefulParameterChanges = plan.changeSet.parameterChanges
-        .filter((pc: ParameterChange<T>) => this.statefulParameters.has(pc.name))
-        .sort((a, b) => this.statefulParameterOrder.get(a.name)! - this.statefulParameterOrder.get(b.name)!)
+      const statefulParameterChanges = this.getSortedStatefulParameterChanges(plan.changeSet.parameterChanges)
 
       for (const parameterChange of statefulParameterChanges) {
-        const statefulParameter = this.statefulParameters.get(parameterChange.name)!;
+        const statefulParameter = this.parsedSettings.statefulParameters.get(parameterChange.name)!;
         await statefulParameter.applyRemove(parameterChange.previousValue, plan);
       }
     }
@@ -249,6 +243,7 @@ export class ResourceController<T extends StringIndexedObject> {
     const desiredKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
     const refreshKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
 
+    // TODO: Need to fix this
     if (!setsEqual(desiredKeys, refreshKeys)) {
       throw new Error(
         `Resource ${this.typeId}
@@ -264,28 +259,17 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       return;
     }
 
-    const transformParameters = [...this.transformParameters.entries()]
-      .sort(([keyA], [keyB]) => this.transformParameterOrder.get(keyA)! - this.transformParameterOrder.get(keyB)!)
-
-    for (const [key, transformParameter] of transformParameters) {
-      if (desired[key] === undefined) {
+    for (const [key, inputTransformation] of Object.entries(this.parsedSettings.inputTransformations)) {
+      if (desired[key] === undefined || !inputTransformation) {
         continue;
       }
 
-      const transformedValue = await transformParameter.transform(desired[key]);
+      (desired as Record<string, unknown>)[key] = await inputTransformation(desired[key]);
+    }
 
-      if (Object.keys(transformedValue).some((k) => desired[k] !== undefined)) {
-        throw new Error(`Transform parameter ${key as string} is attempting to override existing values ${JSON.stringify(transformedValue, null, 2)}`);
-      }
-
-      // Remove original transform parameter from the config
-      delete desired[key];
-
-      // Add the new transformed values
-      for (const [tvKey, tvValue] of Object.entries(transformedValue)) {
-        // @ts-ignore
-        desired[tvKey] = tvValue;
-      }
+    if (this.settings.inputTransformation) {
+      const transformed = await this.settings.inputTransformation(desired)
+      Object.assign(desired, transformed);
     }
   }
 
@@ -294,10 +278,9 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
       return;
     }
 
-    for (const [key, defaultValue] of Object.entries(this.defaultValues)) {
-      if (defaultValue !== undefined && desired[key as any] === undefined) {
-        // @ts-ignore
-        desired[key] = defaultValue;
+    for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
+      if (defaultValue !== undefined && desired[key] === undefined) {
+        (desired as Record<string, unknown>)[key] = defaultValue;
       }
     }
   }
@@ -313,16 +296,19 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
   private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, isStatefulMode: boolean): Promise<Partial<T>> {
     const currentParameters: Partial<T> = {}
     const sortedEntries = Object.entries(statefulParametersConfig)
-      .sort(([key1], [key2]) => this.statefulParameterOrder.get(key1)! - this.statefulParameterOrder.get(key2)!)
+      .sort(
+        ([key1], [key2]) => this.parsedSettings.statefulParameterOrder.get(key1)! - this.parsedSettings.statefulParameterOrder.get(key2)!
+      )
 
     for (const [key, desiredValue] of sortedEntries) {
-      const statefulParameter = this.statefulParameters.get(key);
+      const statefulParameter = this.parsedSettings.statefulParameters.get(key);
       if (!statefulParameter) {
         throw new Error(`Stateful parameter ${key} was not found`);
       }
 
       let currentValue = await statefulParameter.refresh(desiredValue ?? null);
 
+      // TODO move this to the plan / change set
       // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
       // Otherwise the change set will pick up the extra keys from the current and try to delete them
       // This allows arrays within stateful parameters to be first class objects
@@ -332,17 +318,16 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
         && !statefulParameter.options.disableStatelessModeArrayFiltering
       ) {
         currentValue = currentValue.filter((c) => desiredValue?.some((d) => {
-          const parameterOptions = statefulParameter.options as any;
+          const parameterOptions = statefulParameter.options;
           if (parameterOptions && parameterOptions.isElementEqual) {
             return parameterOptions.isElementEqual(d, c);
           }
 
           return d === c;
-        })) as any;
+        }));
       }
 
-      // @ts-ignore
-      currentParameters[key] = currentValue;
+      (currentParameters as Record<string, unknown>)[key] = currentValue;
     }
 
     return currentParameters;
@@ -360,6 +345,14 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     if (!statefulMode && !desired) {
       throw new Error('Desired config must be provided in non-stateful mode')
     }
+  }
+
+  private getSortedStatefulParameterChanges(parameterChanges: ParameterChange<T>[]) {
+    return parameterChanges
+      .filter((pc: ParameterChange<T>) => this.parsedSettings.statefulParameters.has(pc.name))
+      .sort((a, b) =>
+        this.parsedSettings.statefulParameterOrder.get(a.name)! - this.parsedSettings.statefulParameterOrder.get(b.name)!
+      )
   }
 
 }

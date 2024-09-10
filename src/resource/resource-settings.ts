@@ -53,6 +53,8 @@ export interface ResourceSettings<T extends StringIndexedObject> {
     | ParameterSetting
     | StatefulParameter<T, T[keyof T]>
   >>;
+
+  inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
 }
 
 export type ParameterSettingType =
@@ -68,7 +70,7 @@ export type ParameterSettingType =
 export interface ParameterSetting {
   type: ParameterSettingType;
   default?: unknown;
-  inputTransformation?: (input: unknown) => unknown;
+  inputTransformation?: (input: unknown) => Promise<unknown> | unknown;
   isEqual?: (desired: unknown, current: unknown) => boolean
 }
 

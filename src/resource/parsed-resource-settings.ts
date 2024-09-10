@@ -64,6 +64,20 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     });
   }
 
+  get inputTransformations(): Partial<Record<keyof T, (a: unknown) => unknown>> {
+    return this.getFromCacheOrCreate('inputTransformations', () => {
+      if (!this.settings.parameterOptions) {
+        return {};
+      }
+
+      return Object.fromEntries(
+        Object.entries(this.settings.parameterOptions)
+          .filter(([, v]) => v!.inputTransformation !== undefined)
+          .map(([k, v]) => [k, v!.inputTransformation!] as const)
+      ) as Record<keyof T, (a: unknown) => unknown>;
+    });
+  }
+
   get statefulParameterOrder(): Map<keyof T, number> {
     return this.getFromCacheOrCreate('stateParameterOrder', () => {
 
@@ -165,12 +179,12 @@ Was provided to ${name} even though type array was specified.
   for (let counter = desiredCopy.length - 1; counter--; counter >= 0) {
     const idx = currentCopy.findIndex((e2) => parameter.isElementEqual!(desiredCopy[counter], e2))
 
-    if (idx !== -1) {
-      desiredCopy.splice(counter, 1)
-      currentCopy.splice(idx, 1)
-    } else {
+    if (idx === -1) {
       return false;
     }
+
+    desiredCopy.splice(counter, 1)
+    currentCopy.splice(idx, 1)
   }
 
   return currentCopy.length === 0;

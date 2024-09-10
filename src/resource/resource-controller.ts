@@ -10,7 +10,6 @@ import {
 import { ParameterChange } from '../plan/change-set.js';
 import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan, PlanOptions } from '../plan/plan-types.js';
-import { setsEqual } from '../utils/utils.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
 import { Resource } from './resource.js';
@@ -22,8 +21,7 @@ export class ResourceController<T extends StringIndexedObject> {
   readonly parsedSettings: ParsedResourceSettings<T>
 
   readonly typeId: string;
-
-  readonly dependencies: string[]; // TODO: Change this to a string
+  readonly dependencies: string[];
 
   protected ajv?: Ajv;
   protected schemaValidator?: ValidateFunction;
@@ -125,7 +123,7 @@ export class ResourceController<T extends StringIndexedObject> {
     const currentParameters = await this.refreshNonStatefulParameters(nonStatefulParameters);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
-    if (currentParameters === null || currentParameters === undefined) {
+    if (currentParameters === null || currentParameters === undefined || this.settings.allowMultiple) {
       return Plan.create(
         desiredParameters,
         null,
@@ -134,12 +132,13 @@ export class ResourceController<T extends StringIndexedObject> {
       );
     }
 
-    // Refresh stateful parameters. These parameters have state external to the resource
-    const statefulCurrentParameters = await this.refreshStatefulParameters(statefulParameters, planOptions.statefulMode);
+    // Refresh stateful parameters. These parameters have state external to the resource. allowMultiple
+    // does not work together with stateful parameters
+    const statefulCurrentParameters = await this.refreshStatefulParameters(statefulParameters);
 
     return Plan.create(
       desiredParameters,
-      { ...currentParameters, ...statefulCurrentParameters } as Partial<T>,
+      [{ ...currentParameters[0], ...statefulCurrentParameters }] as Partial<T>[],
       coreParameters,
       planOptions,
     )
@@ -152,7 +151,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
     switch (plan.changeSet.operation) {
       case ResourceOperation.CREATE: {
-        return this.applyCreate(plan); // TODO: Add new parameters value so that apply
+        return this.applyCreate(plan);
       }
 
       case ResourceOperation.MODIFY: {
@@ -191,7 +190,6 @@ export class ResourceController<T extends StringIndexedObject> {
       .filter((pc: ParameterChange<T>) => !this.parsedSettings.statefulParameters.has(pc.name))
 
     for (const pc of statelessParameterChanges) {
-      // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
       await this.resource.modify(pc, plan as ModifyPlan<T>);
     }
 
@@ -207,7 +205,6 @@ export class ResourceController<T extends StringIndexedObject> {
         }
 
         case ParameterOperation.MODIFY: {
-          // TODO: When stateful mode is added in the future. Dynamically choose if deletes are allowed
           await statefulParameter.applyModify(parameterChange.newValue, parameterChange.previousValue, false, plan);
           break;
         }
@@ -235,22 +232,16 @@ export class ResourceController<T extends StringIndexedObject> {
     await this.resource.destroy(plan as DestroyPlan<T>);
   }
 
-  private validateRefreshResults(refresh: Partial<T> | null, desired: Partial<T>) {
+  private validateRefreshResults(refresh: Array<Partial<T>> | null) {
     if (!refresh) {
       return;
     }
 
-    const desiredKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
-    const refreshKeys = new Set(Object.keys(refresh)) as Set<keyof T>;
+    if (!this.settings.allowMultiple && refresh.length > 1) {
+      throw new Error(`Resource: ${this.settings.type}. Allow multiple was set to false but multiple refresh results were returned.
 
-    // TODO: Need to fix this
-    if (!setsEqual(desiredKeys, refreshKeys)) {
-      throw new Error(
-        `Resource ${this.typeId}
-refresh() must return back exactly the keys that were provided
-Missing: ${[...desiredKeys].filter((k) => !refreshKeys.has(k))};
-Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
-      );
+${JSON.stringify(refresh, null, 2)}     
+`)
     }
   }
 
@@ -285,16 +276,16 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
     }
   }
 
-  private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Partial<T> | null> {
+  private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Array<Partial<T>> | null> {
     const currentParameters = await this.resource.refresh(resourceParameters);
-    this.validateRefreshResults(currentParameters, resourceParameters);
+    this.validateRefreshResults(currentParameters);
     return currentParameters;
   }
 
   // Refresh stateful parameters
   // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, isStatefulMode: boolean): Promise<Partial<T>> {
-    const currentParameters: Partial<T> = {}
+  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>): Promise<Partial<T>> {
+    const result: Partial<T> = {}
     const sortedEntries = Object.entries(statefulParametersConfig)
       .sort(
         ([key1], [key2]) => this.parsedSettings.statefulParameterOrder.get(key1)! - this.parsedSettings.statefulParameterOrder.get(key2)!
@@ -306,31 +297,10 @@ Additional: ${[...refreshKeys].filter(k => !desiredKeys.has(k))};`
         throw new Error(`Stateful parameter ${key} was not found`);
       }
 
-      let currentValue = await statefulParameter.refresh(desiredValue ?? null);
-
-      // TODO move this to the plan / change set
-      // In stateless mode, filter the refreshed parameters by the desired to ensure that no deletes happen
-      // Otherwise the change set will pick up the extra keys from the current and try to delete them
-      // This allows arrays within stateful parameters to be first class objects
-      if (Array.isArray(currentValue)
-        && Array.isArray(desiredValue)
-        && !isStatefulMode
-        && !statefulParameter.options.disableStatelessModeArrayFiltering
-      ) {
-        currentValue = currentValue.filter((c) => desiredValue?.some((d) => {
-          const parameterOptions = statefulParameter.options;
-          if (parameterOptions && parameterOptions.isElementEqual) {
-            return parameterOptions.isElementEqual(d, c);
-          }
-
-          return d === c;
-        }));
-      }
-
-      (currentParameters as Record<string, unknown>)[key] = currentValue;
+      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null)
     }
 
-    return currentParameters;
+    return result;
   }
 
   private validatePlanInputs(

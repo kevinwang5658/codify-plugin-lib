@@ -104,11 +104,16 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     if (this.settings.parameterOptions) {
       for (const [k, v] of Object.entries(this.settings.parameterOptions)) {
         if (!v) {
-          throw new Error(`Parameter setting ${k} was left undefined`);
+          throw new Error(`Resource: ${this.settings.type}. Parameter setting ${k} was left undefined`);
         }
 
         this.validateParameterEqualsFn(v, k);
       }
+    }
+
+    if (this.settings.allowMultiple
+      && Object.values(this.parameterSettings).some((v) => v.type === 'stateful')) {
+      throw new Error(`Resource: ${this.settings.type}. Stateful parameters are not allowed if multiples of a resource exist`)
     }
   }
 

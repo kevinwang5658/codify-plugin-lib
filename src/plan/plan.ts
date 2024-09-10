@@ -1,4 +1,3 @@
-import { ChangeSet, ParameterChange } from './change-set.js';
 import {
   ApplyRequestData,
   ParameterOperation,
@@ -7,7 +6,9 @@ import {
   ResourceOperation,
   StringIndexedObject,
 } from 'codify-schemas';
-import { randomUUID } from 'crypto';
+import { v4 as uuidV4 } from 'uuid';
+
+import { ChangeSet, ParameterChange } from './change-set.js';
 import { ParameterOptions, PlanOptions } from './plan-types.js';
 
 export class Plan<T extends StringIndexedObject> {
@@ -23,15 +24,15 @@ export class Plan<T extends StringIndexedObject> {
 
   static create<T extends StringIndexedObject>(
     desiredParameters: Partial<T> | null,
-    currentParameters: Partial<T> | null,
+    currentParameters: Partial<T>[] | null,
     resourceMetadata: ResourceConfig,
     options: PlanOptions<T>
   ): Plan<T> {
     const parameterOptions = options.parameterSettings ?? {} as Record<keyof T, ParameterOptions>;
     const statefulParameterNames = new Set(
       [...Object.entries(parameterOptions)]
-        .filter(([k, v]) => v.isStatefulParameter)
-        .map(([k, v]) => k)
+        .filter(([, v]) => v.isStatefulParameter)
+        .map(([k]) => k)
     );
 
     // Explanation: This calculates the change set of the parameters between the
@@ -60,12 +61,13 @@ export class Plan<T extends StringIndexedObject> {
           } else {
             newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
           }
+
           return ChangeSet.combineResourceOperations(operation, newOperation);
         }, ResourceOperation.NOOP);
     }
 
     return new Plan(
-      randomUUID(),
+      uuidV4(),
       new ChangeSet<T>(resourceOperation, parameterChangeSet),
       resourceMetadata,
     );
@@ -83,7 +85,7 @@ export class Plan<T extends StringIndexedObject> {
     addDefaultValues();
 
     return new Plan(
-      randomUUID(),
+      uuidV4(),
       new ChangeSet<T>(
         data.operation,
         data.parameters

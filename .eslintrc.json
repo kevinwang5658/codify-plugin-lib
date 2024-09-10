@@ -12,6 +12,9 @@
     "perfectionist/sort-classes": "off",
     "perfectionist/sort-interfaces": "off",
     "perfectionist/sort-objects": "off",
+    "unicorn/no-array-reduce": "off",
+    "unicorn/no-array-for-each": "off",
+    "unicorn/prefer-type-error": "off",
     "quotes": [
       "error",
       "single"

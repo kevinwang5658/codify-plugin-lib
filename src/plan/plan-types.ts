@@ -25,7 +25,7 @@ export interface ParameterOptions {
 
 export interface PlanOptions<T> {
   statefulMode: boolean;
-  parameterOptions?: Record<keyof T, ParameterOptions>;
+  parameterSettings?: Record<keyof T, ParameterOptions>;
 }
 
 export interface CreatePlan<T extends StringIndexedObject> extends Plan<T> {

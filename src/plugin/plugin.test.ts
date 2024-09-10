@@ -4,7 +4,7 @@ import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codi
 import { Resource } from '../resource/resource.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
-import { ResourceOptions } from '../resource/resource-options.js';
+import { ResourceSettings } from '../resource/resource-settings.js';
 
 interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -13,7 +13,7 @@ interface TestConfig extends StringIndexedObject {
 }
 
 class TestResource extends Resource<TestConfig> {
-  getSettings(): ResourceOptions<TestConfig> {
+  getSettings(): ResourceSettings<TestConfig> {
     return {
       type: 'testResource'
     };

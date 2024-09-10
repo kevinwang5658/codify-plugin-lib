@@ -4,7 +4,7 @@ import { spy } from 'sinon';
 import { Plan } from '../plan/plan.js';
 import { describe, expect, it } from 'vitest'
 import { StatefulParameter } from './stateful-parameter.js';
-import { ResourceOptions } from './resource-options.js';
+import { ResourceSettings } from './resource-settings.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ParameterChange } from '../plan/change-set.js';
 import { ResourceController } from './resource-controller.js';
@@ -16,7 +16,7 @@ export interface TestConfig extends StringIndexedObject {
 }
 
 export class TestResource extends Resource<TestConfig> {
-  getSettings(): ResourceOptions<TestConfig> {
+  getSettings(): ResourceSettings<TestConfig> {
     return { type: 'type' }
   }
 
@@ -182,7 +182,7 @@ describe('Resource tests', () => {
 
   it('Allows modification of parameter behavior to allow modify for parameters', async () => {
     const resource = new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'resource',
           parameterOptions: {
@@ -228,7 +228,7 @@ describe('Resource tests', () => {
     }
 
     expect(() => new ResourceController(new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           dependencies: ['homebrew', 'python'],
@@ -262,7 +262,7 @@ describe('Resource tests', () => {
     }
 
     expect(() => new ResourceController(new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           dependencies: ['homebrew', 'python'],
@@ -278,7 +278,7 @@ describe('Resource tests', () => {
 
   it('Allows default values to be added', async () => {
     const resource = new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           parameterOptions: {
@@ -306,7 +306,7 @@ describe('Resource tests', () => {
 
   it('Allows default values to be added to both desired and current', async () => {
     const resource = new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           parameterOptions: {
@@ -333,7 +333,7 @@ describe('Resource tests', () => {
 
   it('Allows default values to be added even when refresh returns null', async () => {
     const resource = new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           parameterOptions: {
@@ -356,7 +356,7 @@ describe('Resource tests', () => {
 
   it('Allows default values to be added (ignore default value if already present)', async () => {
     const resource = new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           parameterOptions: {
@@ -384,7 +384,7 @@ describe('Resource tests', () => {
 
   it('Sets the default value properly on the resource', () => {
     const resource = new class extends TestResource {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
           parameterOptions: {
@@ -402,7 +402,7 @@ describe('Resource tests', () => {
 
   it('Has the correct typing for applys', () => {
     const resource = new class extends Resource<TestConfig> {
-      getSettings(): ResourceOptions<TestConfig> {
+      getSettings(): ResourceSettings<TestConfig> {
         return { type: 'type' }
       }
 

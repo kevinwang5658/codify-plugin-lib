@@ -1,9 +1,11 @@
 import { StringIndexedObject } from 'codify-schemas';
 
 import { Plan } from '../plan/plan.js';
+import { ParameterSettingType } from './resource-settings.js';
 
-export interface StatefulParameterOptions<V> {
-  isEqual?: (desired: any, current: any) => boolean;
+export interface StatefulParameterOptions {
+
+  type: Omit<ParameterSettingType, 'stateful'>
 
   /**
    * In stateless mode, array refresh results (current) will be automatically filtered by the user config (desired).
@@ -15,14 +17,11 @@ export interface StatefulParameterOptions<V> {
    * Set this flag to true to disable this behaviour
    */
   disableStatelessModeArrayFiltering?: boolean;
-  default?: V;
-}
 
-export interface ArrayStatefulParameterOptions<V> extends StatefulParameterOptions<V> {
-  isEqual?: (desired: any[], current: any[]) => boolean;
-  isElementEqual?: (desired: any, current: any) => boolean;
+  default?: unknown;
+  inputTransformation?: (input: unknown) => unknown;
+  isEqual?: (desired: unknown, current: unknown) => boolean
 }
-
 
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly options: StatefulParameterOptions<V>;

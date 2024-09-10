@@ -27,7 +27,7 @@ export class Plan<T extends StringIndexedObject> {
     resourceMetadata: ResourceConfig,
     options: PlanOptions<T>
   ): Plan<T> {
-    const parameterOptions = options.parameterOptions ?? {} as Record<keyof T, ParameterOptions>;
+    const parameterOptions = options.parameterSettings ?? {} as Record<keyof T, ParameterOptions>;
     const statefulParameterNames = new Set(
       [...Object.entries(parameterOptions)]
         .filter(([k, v]) => v.isStatefulParameter)

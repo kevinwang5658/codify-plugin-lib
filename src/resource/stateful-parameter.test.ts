@@ -64,7 +64,7 @@ describe('Stateful parameter tests', () => {
       { propA: ['a', 'c', 'd', 'e', 'f'] }, // b to remove, d, e, f to add
       { propA: ['a', 'b', 'c'] },
       { type: 'typeA' },
-      { statefulMode: true, parameterOptions: { propA: { isStatefulParameter: true }} }
+      { statefulMode: true, parameterSettings: { propA: { isStatefulParameter: true } } }
     );
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);
@@ -87,7 +87,7 @@ describe('Stateful parameter tests', () => {
       { propA: ['9.12', '9.13'] }, // b to remove, d, e, f to add
       { propA: ['9.12.9'] },
       { type: 'typeA' },
-      { statefulMode: false, parameterOptions: { propA: { isStatefulParameter: true }} }
+      { statefulMode: false, parameterSettings: { propA: { isStatefulParameter: true } } }
     );
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);

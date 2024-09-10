@@ -2,7 +2,7 @@ import { StringIndexedObject, } from 'codify-schemas';
 
 import { ParameterChange } from '../plan/change-set.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
-import { ResourceOptions } from './resource-options.js';
+import { ResourceSettings } from './resource-settings.js';
 
 /**
  * Description of resource here
@@ -13,7 +13,7 @@ import { ResourceOptions } from './resource-options.js';
  */
 export abstract class Resource<T extends StringIndexedObject> {
 
-  abstract getSettings(): ResourceOptions<T>;
+  abstract getSettings(): ResourceSettings<T>;
 
   async initialize(): Promise<void> {
   };

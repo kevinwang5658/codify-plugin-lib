@@ -1,6 +1,7 @@
 import promiseSpawn from '@npmcli/promise-spawn';
 import { SpawnOptions } from 'child_process';
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
+import os from 'node:os';
 
 export enum SpawnStatus {
   SUCCESS = 'success',
@@ -98,4 +99,10 @@ export function splitUserConfig<T extends StringIndexedObject>(
 
 export function setsEqual(set1: Set<unknown>, set2: Set<unknown>): boolean {
   return set1.size === set2.size && [...set1].every((v) => set2.has(v));
+}
+
+const homeDirectory = os.homedir();
+
+export function untildify(pathWithTilde: string) {
+  return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
 }

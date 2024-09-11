@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ResourceSettings } from './resource-settings.js';
-import { TestConfig } from './resource-controller.test.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
+import { TestConfig } from '../utils/test-utils.test.js';
 
 describe('Resource options parser tests', () => {
   it('Parses default values from options', () => {

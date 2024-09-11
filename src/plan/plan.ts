@@ -44,75 +44,6 @@ export class Plan<T extends StringIndexedObject> {
     }
   }
 
-  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
-    if (!data) {
-      throw new Error('Data is empty');
-    }
-
-    addDefaultValues();
-
-    return new Plan(
-      uuidV4(),
-      new ChangeSet<T>(
-        data.operation,
-        data.parameters
-      ),
-      {
-        type: data.resourceType,
-        name: data.resourceName,
-      },
-    );
-
-   function addDefaultValues(): void {
-      Object.entries(defaultValues ?? {})
-        .forEach(([key, defaultValue]) => {
-          const configValueExists = data!
-            .parameters
-            .some((p) => p.name === key);
-
-          // Only set default values if the value does not exist in the config
-          if (configValueExists) {
-            return;
-          }
-
-          switch (data!.operation) {
-            case ResourceOperation.CREATE: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.ADD,
-                previousValue: null,
-                newValue: defaultValue,
-              });
-              break;
-            }
-
-            case ResourceOperation.DESTROY: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.REMOVE,
-                previousValue: defaultValue,
-                newValue: null,
-              });
-              break;
-            }
-
-            case ResourceOperation.MODIFY:
-            case ResourceOperation.RECREATE:
-            case ResourceOperation.NOOP: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.NOOP,
-                previousValue: defaultValue,
-                newValue: defaultValue,
-              });
-              break;
-            }
-          }
-        });
-    }
-
-  }
-
   static calculate<T extends StringIndexedObject>(params: {
     desiredParameters: Partial<T> | null,
     currentParametersArray: Partial<T>[] | null,
@@ -187,38 +118,6 @@ export class Plan<T extends StringIndexedObject> {
     );
   }
 
-  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    settings: ResourceSettings<T>,
-    statefulMode: boolean,
-  }): Partial<T> | null {
-    const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      settings,
-      statefulMode
-    } = params;
-
-    if (!settings.allowMultiple) {
-      return currentParametersArray?.[0] ?? null;
-    }
-
-    if (!currentParametersArray) {
-      return null;
-    }
-
-    if (statefulMode) {
-      return stateParameters
-        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
-        : null
-    }
-
-    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
-  }
-
   /**
    *  Only keep relevant params for the plan. We don't want to change settings that were not already
    *  defined.
@@ -253,11 +152,12 @@ export class Plan<T extends StringIndexedObject> {
     }
 
     // For stateful mode, we're done after filtering by the keys of desired + state. Stateless mode
-    // requires additional filtering for stateful arrays and objects.
+    // requires additional filtering for stateful parameter arrays and objects.
     if (statefulMode) {
       return filteredCurrent;
     }
 
+    // TODO: Add object handling here in addition to arrays in the future
     const arrayStatefulParameters = Object.fromEntries(
       Object.entries(filteredCurrent)
         .filter(([k, v]) => isArrayStatefulParameter(k, v))
@@ -272,11 +172,7 @@ export class Plan<T extends StringIndexedObject> {
       }
 
       if (statefulMode) {
-        if (!state) {
-          return null;
-        }
-
-        const keys = new Set([...Object.keys(state), ...Object.keys(desired ?? {})]);
+        const keys = new Set([...Object.keys(state ?? {}), ...Object.keys(desired ?? {})]);
         return Object.fromEntries(
           Object.entries(current)
             .filter(([k]) => keys.has(k))
@@ -306,14 +202,114 @@ export class Plan<T extends StringIndexedObject> {
         .isElementEqual;
 
       return v.filter((cv) =>
-        desiredArray.find((dv) => matcher(cv, dv))
+        desiredArray.find((dv) => (matcher ?? ((a, b) => a === b))(cv, dv))
       )
     }
-
   }
 
   getResourceType(): string {
     return this.coreParameters.type
+  }
+
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
+    if (!data) {
+      throw new Error('Data is empty');
+    }
+
+    addDefaultValues();
+
+    return new Plan(
+      uuidV4(),
+      new ChangeSet<T>(
+        data.operation,
+        data.parameters
+      ),
+      {
+        type: data.resourceType,
+        name: data.resourceName,
+      },
+    );
+
+   function addDefaultValues(): void {
+      Object.entries(defaultValues ?? {})
+        .forEach(([key, defaultValue]) => {
+          const configValueExists = data!
+            .parameters
+            .some((p) => p.name === key);
+
+          // Only set default values if the value does not exist in the config
+          if (configValueExists) {
+            return;
+          }
+
+          switch (data!.operation) {
+            case ResourceOperation.CREATE: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.ADD,
+                previousValue: null,
+                newValue: defaultValue,
+              });
+              break;
+            }
+
+            case ResourceOperation.DESTROY: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.REMOVE,
+                previousValue: defaultValue,
+                newValue: null,
+              });
+              break;
+            }
+
+            case ResourceOperation.MODIFY:
+            case ResourceOperation.RECREATE:
+            case ResourceOperation.NOOP: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.NOOP,
+                previousValue: defaultValue,
+                newValue: defaultValue,
+              });
+              break;
+            }
+          }
+        });
+    }
+
+  }
+
+  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParametersArray: Partial<T>[] | null,
+    stateParameters: Partial<T> | null,
+    settings: ResourceSettings<T>,
+    statefulMode: boolean,
+  }): Partial<T> | null {
+    const {
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      settings,
+      statefulMode
+    } = params;
+
+    if (!settings.allowMultiple) {
+      return currentParametersArray?.[0] ?? null;
+    }
+
+    if (!currentParametersArray) {
+      return null;
+    }
+
+    if (statefulMode) {
+      return stateParameters
+        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
+        : null
+    }
+
+    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
   }
 
   toResponse(): PlanResponseData {
@@ -325,4 +321,6 @@ export class Plan<T extends StringIndexedObject> {
       parameters: this.changeSet.parameterChanges,
     }
   }
+
+
 }

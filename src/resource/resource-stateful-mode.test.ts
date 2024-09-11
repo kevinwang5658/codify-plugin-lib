@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { TestConfig, TestResource } from './resource-controller.test.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { TestParameter } from './resource-parameters.test.js';
 import { StatefulParameter } from './stateful-parameter.js';
+import { TestConfig, TestResource } from '../utils/test-utils.test.js';
 
 
 describe('Resource tests for stateful plans', () => {

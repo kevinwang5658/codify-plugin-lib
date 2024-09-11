@@ -5,7 +5,7 @@ import { ParameterSettingType } from './resource-settings.js';
 
 export interface StatefulParameterSetting {
 
-  type: Omit<ParameterSettingType, 'stateful'>
+  type?: Omit<ParameterSettingType, 'stateful'>
 
   default?: unknown;
   inputTransformation?: (input: unknown) => unknown;

@@ -3,8 +3,8 @@ import { ArrayStatefulParameter, StatefulParameter, StatefulParameterSetting } f
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { TestConfig, TestResource } from './resource-controller.test.js';
 import { TransformParameter } from './transform-parameter.js';
+import { TestConfig, TestResource } from '../utils/test-utils.test.js';
 
 export class TestParameter extends StatefulParameter<TestConfig, string> {
   constructor(options?: StatefulParameterSetting<string>) {

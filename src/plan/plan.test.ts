@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Plan } from './plan.js';
-import { TestResource } from '../resource/resource-controller.test.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { Resource } from '../resource/resource.js';
+import { TestResource } from '../utils/test-utils.test.js';
 
 describe('Plan entity tests', () => {
   it('Adds default values properly when plan is parsed from request (Create)', () => {

@@ -119,11 +119,6 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
   }
 
   private validateParameterEqualsFn(parameter: ParameterSetting | StatefulParameterSetting, key: string): void {
-    // Type any has no defaults and so isEquals must be specified
-    if (parameter.type === 'any' && !parameter.isEqual) {
-      throw new Error(`Type any has no defaults and so isEquals must be specified for ${key}`);
-    }
-
     if (parameter.type === 'stateful') {
       const nestedSettings = (parameter as StatefulParameter<T>).definition.getSettings();
 
@@ -146,7 +141,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
       return this.resolveEqualsFn((parameter as StatefulParameter<T>).definition.getSettings(), key)
     }
 
-    return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType]!;
+    return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
   }
 
   private getFromCacheOrCreate<T2>(key: string, create: () => T2): T2 {

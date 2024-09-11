@@ -282,9 +282,14 @@ ${JSON.stringify(refresh, null, 2)}
   }
 
   private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Array<Partial<T>> | null> {
-    const currentParameters = await this.resource.refresh(resourceParameters);
-    this.validateRefreshResults(currentParameters);
-    return currentParameters;
+    const result = await this.resource.refresh(resourceParameters);
+
+    const currentParametersArray = Array.isArray(result) || result === null
+      ? result
+      : [result]
+
+    this.validateRefreshResults(currentParametersArray);
+    return currentParametersArray;
   }
 
   // Refresh stateful parameters

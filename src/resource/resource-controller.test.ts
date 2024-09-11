@@ -1,41 +1,12 @@
 import { Resource } from './resource.js';
-import { ResourceOperation, StringIndexedObject } from 'codify-schemas';
+import { ResourceOperation } from 'codify-schemas';
 import { spy } from 'sinon';
-import { Plan } from '../plan/plan.js';
 import { describe, expect, it } from 'vitest'
-import { StatefulParameter } from './stateful-parameter.js';
 import { ResourceSettings } from './resource-settings.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ParameterChange } from '../plan/change-set.js';
 import { ResourceController } from './resource-controller.js';
-
-export interface TestConfig extends StringIndexedObject {
-  propA: string;
-  propB: number;
-  propC?: string;
-}
-
-export class TestResource extends Resource<TestConfig> {
-  getSettings(): ResourceSettings<TestConfig> {
-    return { type: 'type' }
-  }
-
-  create(plan: CreatePlan<TestConfig>): Promise<void> {
-    return Promise.resolve(undefined);
-  }
-
-  destroy(plan: DestroyPlan<TestConfig>): Promise<void> {
-    return Promise.resolve(undefined);
-  }
-
-  async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
-    return {
-      propA: 'a',
-      propB: 10,
-      propC: 'c',
-    };
-  }
-}
+import { TestConfig, testPlan, TestResource, TestStatefulParameter } from '../utils/test-utils.test.js';
 
 describe('Resource tests', () => {
 
@@ -100,6 +71,8 @@ describe('Resource tests', () => {
       propC: 'somethingAfter'
     })
 
+    console.log(result.changeSet.parameterChanges)
+
     expect(result.changeSet.operation).to.eq(ResourceOperation.CREATE);
     expect(result.changeSet.parameterChanges.length).to.eq(3);
   })
@@ -128,12 +101,9 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     const result = await controllerSpy.apply(
-      Plan.calculate<TestConfig>(
-        { type: 'type', propA: 'a', propB: 0 },
-        null,
-        { type: 'type' },
-        { statefulMode: false },
-      )
+      testPlan({
+        desired: { propA: 'a', propB: 0 },
+      })
     )
 
     expect(resourceSpy.create.calledOnce).to.be.true;
@@ -147,13 +117,12 @@ describe('Resource tests', () => {
     const controllerSpy = spy(controller);
     const resourceSpy = spy(resource);
 
-    const result = await controllerSpy.apply(
-      Plan.calculate<TestConfig>(
-        null,
-        { propA: 'a', propB: 0 },
-        { type: 'type' },
-        { statefulMode: true },
-      )
+    await controllerSpy.apply(
+      testPlan({
+        current: [{ propA: 'a', propB: 0 }],
+        state: { propA: 'a', propB: 0 },
+        statefulMode: true,
+      })
     )
 
     expect(resourceSpy.destroy.calledOnce).to.be.true;
@@ -167,13 +136,12 @@ describe('Resource tests', () => {
     const controllerSpy = spy(controller);
     const resourceSpy = spy(resource);
 
-    const result = await controllerSpy.apply(
-      Plan.calculate<TestConfig>(
-        { propA: 'a', propB: 0 },
-        { propA: 'b', propB: -1 },
-        { type: 'type' },
-        { statefulMode: true },
-      )
+    await controllerSpy.apply(
+      testPlan({
+        desired: { propA: 'a', propB: 0 },
+        current: [{ propA: 'b', propB: -1 }],
+        statefulMode: true
+      })
     );
 
     expect(resourceSpy.destroy.calledOnce).to.be.true;
@@ -186,8 +154,8 @@ describe('Resource tests', () => {
         return {
           type: 'resource',
           parameterSettings: {
-            propA: { modifyOnChange: true },
-            propB: { modifyOnChange: true },
+            propA: { canModify: true },
+            propB: { canModify: true },
           }
         }
       }
@@ -209,23 +177,7 @@ describe('Resource tests', () => {
   })
 
   it('Validates the resource options correct (pass)', () => {
-    const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
-      async refresh(): Promise<string | null> {
-        return null;
-      }
-
-      add(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
-        throw new Error('Method not implemented.');
-      }
-
-      modify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
-        throw new Error('Method not implemented.');
-      }
-
-      remove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
-        throw new Error('Method not implemented.');
-      }
-    }
+    const statefulParameter = new TestStatefulParameter();
 
     expect(() => new ResourceController(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
@@ -233,8 +185,8 @@ describe('Resource tests', () => {
           type: 'type',
           dependencies: ['homebrew', 'python'],
           parameterSettings: {
-            propA: { modifyOnChange: true },
-            propB: { statefulParameter },
+            propA: { canModify: true },
+            propB: { type: 'stateful', definition: statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
         }
@@ -243,21 +195,9 @@ describe('Resource tests', () => {
   })
 
   it('Validates the resource options correct (fail)', () => {
-    const statefulParameter = new class extends StatefulParameter<TestConfig, string> {
-      async refresh(): Promise<string | null> {
+    const statefulParameter = new class extends TestStatefulParameter {
+      async refresh(desired: string | null): Promise<string | null> {
         return null;
-      }
-
-      add(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
-        throw new Error('Method not implemented.');
-      }
-
-      modify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
-        throw new Error('Method not implemented.');
-      }
-
-      remove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
-        throw new Error('Method not implemented.');
       }
     }
 
@@ -267,8 +207,8 @@ describe('Resource tests', () => {
           type: 'type',
           dependencies: ['homebrew', 'python'],
           parameterSettings: {
-            propA: { modifyOnChange: true },
-            propB: { statefulParameter },
+            propA: { canModify: true },
+            propB: { type: 'stateful', definition: statefulParameter },
             propC: { isEqual: (a, b) => true },
           }
         }
@@ -395,7 +335,7 @@ describe('Resource tests', () => {
     }
     const controller = new ResourceController(resource);
 
-    expect(controller.defaultValues).to.deep.eq({
+    expect(controller.parsedSettings.defaultValues).to.deep.eq({
       propA: 'propADefault',
     })
   })

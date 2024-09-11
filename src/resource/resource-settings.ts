@@ -68,7 +68,7 @@ export type ParameterSettingType =
   | 'version';
 
 export interface ParameterSetting {
-  type: ParameterSettingType;
+  type?: ParameterSettingType;
   default?: unknown;
   inputTransformation?: (input: unknown) => Promise<unknown> | unknown;
   isEqual?: (desired: unknown, current: unknown) => boolean;

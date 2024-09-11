@@ -27,7 +27,7 @@ export abstract class Resource<T extends StringIndexedObject> {
   async validate(parameters: Partial<T>): Promise<void> {
   };
 
-  abstract refresh(parameters: Partial<T>): Promise<Array<Partial<T>> | null>;
+  abstract refresh(parameters: Partial<T>): Promise<Array<Partial<T>> | Partial<T> | null>;
 
   abstract create(plan: CreatePlan<T>): Promise<void>;
 

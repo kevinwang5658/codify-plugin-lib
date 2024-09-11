@@ -14,8 +14,11 @@ class TestArrayParameter extends ArrayStatefulParameter<TestConfig, string> {
     super(options)
   }
 
-  async applyAddItem(item: string, plan: Plan<TestConfig>): Promise<void> {}
-  async applyRemoveItem(item: string, plan: Plan<TestConfig>): Promise<void> {}
+  async addItem(item: string, plan: Plan<TestConfig>): Promise<void> {
+  }
+
+  async removeItem(item: string, plan: Plan<TestConfig>): Promise<void> {
+  }
 
   async refresh(): Promise<string[] | null> {
     return null;
@@ -37,8 +40,8 @@ describe('Stateful parameter tests', () => {
     const testParameter = spy(new TestArrayParameter());
     await testParameter.add(plan.desiredConfig!.propA, plan);
 
-    expect(testParameter.applyAddItem.callCount).to.eq(3);
-    expect(testParameter.applyRemoveItem.called).to.be.false;
+    expect(testParameter.addItem.callCount).to.eq(3);
+    expect(testParameter.removeItem.called).to.be.false;
   })
 
   it('applyRemoveItem is called the correct number of times', async () => {
@@ -55,8 +58,8 @@ describe('Stateful parameter tests', () => {
     const testParameter = spy(new TestArrayParameter());
     await testParameter.remove(plan.currentConfig!.propA, plan);
 
-    expect(testParameter.applyAddItem.called).to.be.false;
-    expect(testParameter.applyRemoveItem.callCount).to.eq(3);
+    expect(testParameter.addItem.called).to.be.false;
+    expect(testParameter.removeItem.callCount).to.eq(3);
   })
 
   it('In stateless mode only applyAddItem is called only for modifies', async () => {
@@ -78,8 +81,8 @@ describe('Stateful parameter tests', () => {
     const testParameter = spy(new TestArrayParameter());
     await testParameter.modify(plan.desiredConfig!.propA, plan.currentConfig!.propA, false, plan);
 
-    expect(testParameter.applyAddItem.calledThrice).to.be.true;
-    expect(testParameter.applyRemoveItem.called).to.be.false;
+    expect(testParameter.addItem.calledThrice).to.be.true;
+    expect(testParameter.removeItem.called).to.be.false;
   })
 
   it('isElementEqual is called for modifies', async () => {
@@ -108,7 +111,7 @@ describe('Stateful parameter tests', () => {
 
     await testParameter.modify(plan.desiredConfig!.propA, plan.currentConfig!.propA, false, plan);
 
-    expect(testParameter.applyAddItem.calledOnce).to.be.true;
-    expect(testParameter.applyRemoveItem.called).to.be.false;
+    expect(testParameter.addItem.calledOnce).to.be.true;
+    expect(testParameter.removeItem.called).to.be.false;
   })
 })

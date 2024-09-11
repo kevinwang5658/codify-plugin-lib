@@ -275,7 +275,7 @@ ${JSON.stringify(refresh, null, 2)}
     }
 
     for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
-      if (defaultValue !== undefined && desired[key] === undefined) {
+      if ((defaultValue !== undefined) && desired[key] === undefined) {
         (desired as Record<string, unknown>)[key] = defaultValue;
       }
     }

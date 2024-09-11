@@ -2,6 +2,7 @@ import promiseSpawn from '@npmcli/promise-spawn';
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 import { SpawnOptions } from 'node:child_process';
 import os from 'node:os';
+import { ArrayParameter } from '../resource/resource-settings.js';
 
 export enum SpawnStatus {
   SUCCESS = 'success',
@@ -107,4 +108,39 @@ const homeDirectory = os.homedir();
 
 export function untildify(pathWithTilde: string) {
   return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
+}
+
+export function areArraysEqual(parameter: ArrayParameter, desired: unknown, current: unknown) {
+  if (!Array.isArray(desired) || !Array.isArray(current)) {
+    throw new Error(`A non-array value:
+          
+Desired: ${JSON.stringify(desired, null, 2)}
+
+Current: ${JSON.stringify(desired, null, 2)}
+
+Was provided even though type array was specified.
+`)
+  }
+
+  if (desired.length !== current.length) {
+    return false;
+  }
+
+  const desiredCopy = [...desired];
+  const currentCopy = [...current];
+
+  // Algorithm for to check equality between two un-ordered; un-hashable arrays using
+  // an isElementEqual method. Time: O(n^2)
+  for (let counter = desiredCopy.length - 1; counter--; counter >= 0) {
+    const idx = currentCopy.findIndex((e2) => parameter.isElementEqual!(desiredCopy[counter], e2))
+
+    if (idx === -1) {
+      return false;
+    }
+
+    desiredCopy.splice(counter, 1)
+    currentCopy.splice(idx, 1)
+  }
+
+  return currentCopy.length === 0;
 }

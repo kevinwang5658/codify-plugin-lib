@@ -3,7 +3,7 @@ import { ResourceSettings } from '../resource/resource-settings.js';
 import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
 import { CreatePlan, DestroyPlan } from '../plan/plan-types.js';
-import { StatefulParameter, StatefulParameterSetting } from '../resource/stateful-parameter.js';
+import { ArrayStatefulParameter, StatefulParameter, StatefulParameterSetting } from '../resource/stateful-parameter.js';
 
 export function testPlan<T extends StringIndexedObject>(params: {
   desired?: Partial<T> | null;
@@ -70,5 +70,25 @@ export class TestStatefulParameter extends StatefulParameter<TestConfig, string>
 
   async remove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
     return;
+  }
+}
+
+export class TestArrayStatefulParameter extends ArrayStatefulParameter<TestConfig, string> {
+  getSettings(): StatefulParameterSetting {
+    return {
+      type: 'array'
+    }
+  }
+
+  async refresh(): Promise<any | null> {
+    return ['3.11.9']
+  }
+
+  addItem(item: string, plan: Plan<TestConfig>): Promise<void> {
+    return Promise.resolve(undefined);
+  }
+
+  removeItem(item: string, plan: Plan<TestConfig>): Promise<void> {
+    return Promise.resolve(undefined);
   }
 }

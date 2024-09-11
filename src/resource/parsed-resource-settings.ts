@@ -1,5 +1,6 @@
 import { StringIndexedObject } from 'codify-schemas';
 
+import { areArraysEqual } from '../utils/utils.js';
 import {
   ArrayParameter,
   ParameterEqualsDefaults,
@@ -57,11 +58,20 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
         return {};
       }
 
-      return Object.fromEntries(
+      const defaultValues = Object.fromEntries(
         Object.entries(this.settings.parameterSettings)
           .filter(([, v]) => v!.default !== undefined)
-          .map(([k, v]) => [k, v!.default])
-      ) as Partial<Record<keyof T, unknown>>;
+          .map(([k, v]) => [k, v!.default] as const)
+      )
+
+      const statefulParameterDefaultValues = Object.fromEntries(
+        Object.entries(this.settings.parameterSettings)
+          .filter(([, v]) => v?.type === 'stateful')
+          .filter(([, v]) => (v as StatefulParameter<T>).definition.getSettings().default !== undefined)
+          .map(([k, v]) => [k, (v as StatefulParameter<T>).definition.getSettings().default] as const)
+      )
+
+      return { ...defaultValues, ...statefulParameterDefaultValues } as Partial<Record<keyof T, unknown>>;
     });
   }
 
@@ -134,7 +144,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
 
   private resolveEqualsFn(parameter: ParameterSetting | StatefulParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
     if (parameter.type === 'array') {
-      return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameter, key)
+      return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameter)
     }
 
     if (parameter.type === 'stateful') {
@@ -154,39 +164,4 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     this.cache.set(key, result)
     return result;
   }
-}
-
-function areArraysEqual(parameter: ArrayParameter, key: string, desired: unknown, current: unknown) {
-  if (!Array.isArray(desired) || !Array.isArray(current)) {
-    throw new Error(`A non-array value:
-          
-Desired: ${JSON.stringify(desired, null, 2)}
-
-Current: ${JSON.stringify(desired, null, 2)}
-
-Was provided to ${key} even though type array was specified.
-`)
-  }
-
-  if (desired.length !== current.length) {
-    return false;
-  }
-
-  const desiredCopy = [...desired];
-  const currentCopy = [...current];
-
-  // Algorithm for to check equality between two un-ordered; un-hashable arrays using
-  // an isElementEqual method. Time: O(n^2)
-  for (let counter = desiredCopy.length - 1; counter--; counter >= 0) {
-    const idx = currentCopy.findIndex((e2) => parameter.isElementEqual!(desiredCopy[counter], e2))
-
-    if (idx === -1) {
-      return false;
-    }
-
-    desiredCopy.splice(counter, 1)
-    currentCopy.splice(idx, 1)
-  }
-
-  return currentCopy.length === 0;
 }

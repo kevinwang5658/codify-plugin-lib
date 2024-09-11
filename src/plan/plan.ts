@@ -161,7 +161,7 @@ export class Plan<T extends StringIndexedObject> {
     const arrayStatefulParameters = Object.fromEntries(
       Object.entries(filteredCurrent)
         .filter(([k, v]) => isArrayStatefulParameter(k, v))
-        .map(([k, v]) => filterArrayStatefulParameter(k, v))
+        .map(([k, v]) => [k, filterArrayStatefulParameter(k, v)])
     )
 
     return { ...filteredCurrent, ...arrayStatefulParameters }

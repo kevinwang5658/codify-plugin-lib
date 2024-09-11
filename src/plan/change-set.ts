@@ -1,7 +1,7 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-import { ParameterSetting } from '../resource/resource-settings.js';
-import { ParameterOptions } from './plan-types.js';
+import { ArrayParameter, ParameterSetting, StatefulParameter } from '../resource/resource-settings.js';
+import { areArraysEqual } from '../utils/utils.js';
 
 export interface ParameterChange<T extends StringIndexedObject> {
   name: keyof T & string;
@@ -115,30 +115,24 @@ export class ChangeSet<T extends StringIndexedObject> {
   static isSame(
     desired: unknown,
     current: unknown,
-    options?: ParameterOptions,
+    setting?: ParameterSetting,
   ): boolean {
-    if (options?.isEqual) {
-      return options.isEqual(desired, current);
-    }
+    switch (setting?.type) {
+      case 'stateful': {
+        const statefulSetting = (setting as StatefulParameter<any>).definition.getSettings()
 
-    if (Array.isArray(desired) && Array.isArray(current)) {
-      const sortedDesired = desired.map((x) => x).sort();
-      const sortedCurrent = current.map((x) => x).sort();
-
-      if (sortedDesired.length !== sortedCurrent.length) {
-        return false;
+        return ChangeSet.isSame(desired, current, statefulSetting as ParameterSetting);
       }
 
-      if (options?.isElementEqual) {
-        return sortedDesired.every((value, index) =>
-          options.isElementEqual!(value, sortedCurrent[index])
-        );
+      case 'array': {
+        const arrayParameter = setting as ArrayParameter;
+        return areArraysEqual(arrayParameter, desired, current)
       }
 
-      return JSON.stringify(sortedDesired) === JSON.stringify(sortedCurrent);
+      default: {
+        return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
+      }
     }
-
-    return desired === current;
   }
 
   private static calculateParameterChanges<T extends StringIndexedObject>(

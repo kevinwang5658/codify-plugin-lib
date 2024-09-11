@@ -21,7 +21,7 @@ export interface StatefulParameterSetting {
    * Set this flag to true to disable this behaviour
    */
   disableStatelessModeArrayFiltering?: boolean;
-  isElementEqual?: (desired: unknown, current: unknown) => boolean
+  isElementEqual?: (desired: any, current: any) => boolean
 }
 
 
@@ -43,7 +43,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
 
   async add(valuesToAdd: V[], plan: Plan<T>): Promise<void> {
     for (const value of valuesToAdd) {
-      await this.applyAddItem(value, plan);
+      await this.addItem(value, plan);
     }
   }
 
@@ -67,21 +67,23 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
     }));
 
     for (const value of valuesToAdd) {
-      await this.applyAddItem(value, plan)
+      await this.addItem(value, plan)
     }
 
     for (const value of valuesToRemove) {
-      await this.applyRemoveItem(value, plan)
+      await this.removeItem(value, plan)
     }
   }
 
   async remove(valuesToRemove: V[], plan: Plan<T>): Promise<void> {
     for (const value of valuesToRemove) {
-      await this.applyRemoveItem(value as V, plan);
+      await this.removeItem(value as V, plan);
     }
   }
 
   abstract refresh(desired: V[] | null): Promise<V[] | null>;
-  abstract applyAddItem(item: V, plan: Plan<T>): Promise<void>;
-  abstract applyRemoveItem(item: V, plan: Plan<T>): Promise<void>;
+
+  abstract addItem(item: V, plan: Plan<T>): Promise<void>;
+
+  abstract removeItem(item: V, plan: Plan<T>): Promise<void>;
 }

@@ -69,26 +69,36 @@ export type ParameterSettingType =
 
 export interface ParameterSetting {
   type?: ParameterSettingType;
+
+  /**
+   * Default value for the parameter. If a value is not provided in the config, then this value will be used.
+   */
   default?: unknown;
-  inputTransformation?: (input: unknown) => Promise<unknown> | unknown;
-  isEqual?: (desired: unknown, current: unknown) => boolean;
+
+  inputTransformation?: (input: any) => Promise<any> | unknown;
+
+  /**
+   * Customize the equality comparison for a parameter.
+   * @param desired
+   * @param current
+   */
+  isEqual?: (desired: any, current: any) => boolean;
+
+  /**
+   * Chose if the resource can be modified instead of re-created to change this parameter. Defaults to false (re-create).
+   */
   canModify?: boolean
 }
 
 export interface ArrayParameter extends ParameterSetting {
   type: 'array'
-  isElementEqual?: (desired: unknown, current: unknown) => boolean
+  isElementEqual?: (desired: any, current: any) => boolean
 }
 
 export interface StatefulParameter<T extends StringIndexedObject> extends ParameterSetting {
   type: 'stateful',
   definition: StatefulParameterObj<T, T[keyof T]>,
   order?: number,
-}
-
-export interface AnyParameter extends ParameterSetting {
-  type: 'any',
-  isEqual: (a: unknown, b: unknown) => boolean
 }
 
 export const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown, b: unknown) => boolean>> = {

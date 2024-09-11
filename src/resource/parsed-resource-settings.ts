@@ -11,18 +11,30 @@ import {
 } from './resource-settings.js';
 import { StatefulParameter as StatefulParameterImpl, StatefulParameterSetting } from './stateful-parameter.js'
 
-export class ParsedResourceSettings<T extends StringIndexedObject> {
-  private settings: ResourceSettings<T>;
+export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
+  type!: string;
+  schema?: unknown;
+  allowMultiple?: { matcher: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>; } | undefined;
+  removeStatefulParametersBeforeDestroy?: boolean | undefined;
+  dependencies?: string[] | undefined;
+  inputTransformation?: ((desired: Partial<T>) => unknown) | undefined;
+  private settings: ResourceSettings<T>;
 
-  constructor(options: ResourceSettings<T>) {
-    this.settings = options;
+  constructor(settings: ResourceSettings<T>) {
+    this.settings = settings;
+    this.type = settings.type;
+    this.schema = settings.schema;
+    this.allowMultiple = settings.allowMultiple;
+    this.removeStatefulParametersBeforeDestroy = settings.removeStatefulParametersBeforeDestroy;
+    this.dependencies = settings.dependencies;
+    this.inputTransformation = settings.inputTransformation;
 
     this.validateSettings();
   }
 
   get typeId(): string {
-    return this.settings.type;
+    return this.type;
   }
 
   get statefulParameters(): Map<keyof T, StatefulParameterImpl<T, T[keyof T]>> {
@@ -115,16 +127,16 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     if (this.settings.parameterSettings) {
       for (const [k, v] of Object.entries(this.settings.parameterSettings)) {
         if (!v) {
-          throw new Error(`Resource: ${this.settings.type}. Parameter setting ${k} was left undefined`);
+          throw new Error(`Resource: ${this.type}. Parameter setting ${k} was left undefined`);
         }
 
         this.validateParameterEqualsFn(v, k);
       }
     }
 
-    if (this.settings.allowMultiple
+    if (this.allowMultiple
       && Object.values(this.parameterSettings).some((v) => v.type === 'stateful')) {
-      throw new Error(`Resource: ${this.settings.type}. Stateful parameters are not allowed if multiples of a resource exist`)
+      throw new Error(`Resource: ${this.type}. Stateful parameters are not allowed if multiples of a resource exist`)
     }
   }
 

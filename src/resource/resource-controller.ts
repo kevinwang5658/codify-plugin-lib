@@ -130,7 +130,7 @@ export class ResourceController<T extends StringIndexedObject> {
         currentParametersArray,
         stateParameters,
         coreParameters,
-        settings: this.settings,
+        settings: this.parsedSettings,
         statefulMode,
       });
     }
@@ -144,7 +144,7 @@ export class ResourceController<T extends StringIndexedObject> {
       currentParametersArray: [{ ...currentParametersArray[0], ...statefulCurrentParameters }] as Partial<T>[],
       stateParameters,
       coreParameters,
-      settings: this.settings,
+      settings: this.parsedSettings,
       statefulMode
     })
   }
@@ -265,6 +265,7 @@ ${JSON.stringify(refresh, null, 2)}
 
     if (this.settings.inputTransformation) {
       const transformed = await this.settings.inputTransformation(desired)
+      Object.keys(desired).forEach((k) => delete desired[k])
       Object.assign(desired, transformed);
     }
   }
@@ -275,7 +276,7 @@ ${JSON.stringify(refresh, null, 2)}
     }
 
     for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
-      if ((defaultValue !== undefined) && desired[key] === undefined) {
+      if (defaultValue !== undefined && (desired[key] === undefined || desired[key] === null)) {
         (desired as Record<string, unknown>)[key] = defaultValue;
       }
     }

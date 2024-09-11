@@ -10,6 +10,7 @@ import { v4 as uuidV4 } from 'uuid';
 
 import { ResourceSettings, StatefulParameter } from '../resource/resource-settings.js';
 import { ChangeSet } from './change-set.js';
+import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
@@ -49,7 +50,7 @@ export class Plan<T extends StringIndexedObject> {
     currentParametersArray: Partial<T>[] | null,
     stateParameters: Partial<T> | null,
     coreParameters: ResourceConfig,
-    settings: ResourceSettings<T>,
+    settings: ParsedResourceSettings<T>,
     statefulMode: boolean,
   }): Plan<T> {
     const {
@@ -202,7 +203,7 @@ export class Plan<T extends StringIndexedObject> {
         .isElementEqual;
 
       return v.filter((cv) =>
-        desiredArray.find((dv) => (matcher ?? ((a, b) => a === b))(cv, dv))
+        desiredArray.find((dv) => (matcher ?? ((a, b) => a === b))(dv, cv))
       )
     }
   }

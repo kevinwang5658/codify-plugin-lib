@@ -243,7 +243,9 @@ describe('Resource parameter tests', () => {
       getSettings(): StatefulParameterSetting {
         return {
           type: 'array',
-          isElementEqual: (desired, current) => current.includes(desired),
+          isElementEqual: (desired, current) => {
+            return current.includes(desired)
+          },
         }
       }
 

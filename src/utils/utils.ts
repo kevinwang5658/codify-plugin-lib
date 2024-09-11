@@ -131,8 +131,8 @@ Was provided even though type array was specified.
 
   // Algorithm for to check equality between two un-ordered; un-hashable arrays using
   // an isElementEqual method. Time: O(n^2)
-  for (let counter = desiredCopy.length - 1; counter--; counter >= 0) {
-    const idx = currentCopy.findIndex((e2) => parameter.isElementEqual!(desiredCopy[counter], e2))
+  for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
+    const idx = currentCopy.findIndex((e2) => (parameter.isElementEqual ?? ((a, b) => a === b))(desiredCopy[counter], e2))
 
     if (idx === -1) {
       return false;

@@ -8,73 +8,40 @@ import {
 } from 'codify-schemas';
 import { v4 as uuidV4 } from 'uuid';
 
-import { ChangeSet, ParameterChange } from './change-set.js';
-import { ParameterOptions, PlanOptions } from './plan-types.js';
+import { ResourceSettings, StatefulParameter } from '../resource/resource-settings.js';
+import { ChangeSet } from './change-set.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
   changeSet: ChangeSet<T>;
-  resourceMetadata: ResourceConfig
+  coreParameters: ResourceConfig
 
   constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig) {
     this.id = id;
     this.changeSet = changeSet;
-    this.resourceMetadata = resourceMetadata;
+    this.coreParameters = resourceMetadata;
   }
 
-  static create<T extends StringIndexedObject>(
-    desiredParameters: Partial<T> | null,
-    currentParameters: Partial<T>[] | null,
-    resourceMetadata: ResourceConfig,
-    options: PlanOptions<T>
-  ): Plan<T> {
-    const parameterOptions = options.parameterSettings ?? {} as Record<keyof T, ParameterOptions>;
-    const statefulParameterNames = new Set(
-      [...Object.entries(parameterOptions)]
-        .filter(([, v]) => v.isStatefulParameter)
-        .map(([k]) => k)
-    );
-
-    // Explanation: This calculates the change set of the parameters between the
-    // two configs and then passes it to ChangeSet to calculate the overall
-    // operation for the resource
-    const parameterChangeSet = ChangeSet.calculateParameterChangeSet(
-      desiredParameters,
-      currentParameters,
-      { statefulMode: options.statefulMode, parameterOptions }
-    );
-
-    let resourceOperation: ResourceOperation;
-    if (!currentParameters && desiredParameters) {
-      resourceOperation = ResourceOperation.CREATE;
-    } else if (currentParameters && !desiredParameters) {
-      resourceOperation = ResourceOperation.DESTROY;
-    } else {
-      resourceOperation = parameterChangeSet
-        .filter((change) => change.operation !== ParameterOperation.NOOP)
-        .reduce((operation: ResourceOperation, curr: ParameterChange<T>) => {
-          let newOperation: ResourceOperation;
-          if (statefulParameterNames.has(curr.name)) {
-            newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
-          } else if (parameterOptions[curr.name]?.modifyOnChange) {
-            newOperation = parameterOptions[curr.name].modifyOnChange ? ResourceOperation.MODIFY : ResourceOperation.RECREATE;
-          } else {
-            newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
-          }
-
-          return ChangeSet.combineResourceOperations(operation, newOperation);
-        }, ResourceOperation.NOOP);
+  get desiredConfig(): T | null {
+    if (this.changeSet.operation === ResourceOperation.DESTROY) {
+      return null;
     }
 
-    return new Plan(
-      uuidV4(),
-      new ChangeSet<T>(resourceOperation, parameterChangeSet),
-      resourceMetadata,
-    );
+    return {
+      ...this.coreParameters,
+      ...this.changeSet.desiredParameters,
+    }
   }
 
-  getResourceType(): string {
-    return this.resourceMetadata.type
+  get currentConfig(): T | null {
+    if (this.changeSet.operation === ResourceOperation.CREATE) {
+      return null;
+    }
+
+    return {
+      ...this.coreParameters,
+      ...this.changeSet.currentParameters,
+    }
   }
 
   static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
@@ -146,34 +113,215 @@ export class Plan<T extends StringIndexedObject> {
 
   }
 
-  get desiredConfig(): T | null {
-    if (this.changeSet.operation === ResourceOperation.DESTROY) {
-      return null;
+  static calculate<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParametersArray: Partial<T>[] | null,
+    stateParameters: Partial<T> | null,
+    coreParameters: ResourceConfig,
+    settings: ResourceSettings<T>,
+    statefulMode: boolean,
+  }): Plan<T> {
+    const {
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      coreParameters,
+      settings,
+      statefulMode
+    } = params
+
+    const currentParameters = Plan.matchCurrentParameters<T>({
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      settings,
+      statefulMode
+    });
+
+    const filteredCurrentParameters = Plan.filterCurrentParams<T>({
+      desiredParameters,
+      currentParameters,
+      stateParameters,
+      settings,
+      statefulMode
+    });
+
+    // Empty
+    if (!filteredCurrentParameters && !desiredParameters) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.empty<T>(),
+        coreParameters,
+      )
     }
 
-    return {
-      ...this.resourceMetadata,
-      ...this.changeSet.desiredParameters,
+    // CREATE
+    if (!filteredCurrentParameters && desiredParameters) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.create(desiredParameters),
+        coreParameters
+      )
     }
+
+    // DESTROY
+    if (filteredCurrentParameters && !desiredParameters) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.destroy(filteredCurrentParameters),
+        coreParameters
+      )
+    }
+
+    // NO-OP, MODIFY or RE-CREATE
+    const changeSet = ChangeSet.calculateModification(
+      desiredParameters!,
+      filteredCurrentParameters!,
+      settings.parameterSettings ?? {},
+    );
+
+    return new Plan(
+      uuidV4(),
+      changeSet,
+      coreParameters,
+    );
   }
 
-  get currentConfig(): T | null {
-    if (this.changeSet.operation === ResourceOperation.CREATE) {
+  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParametersArray: Partial<T>[] | null,
+    stateParameters: Partial<T> | null,
+    settings: ResourceSettings<T>,
+    statefulMode: boolean,
+  }): Partial<T> | null {
+    const {
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      settings,
+      statefulMode
+    } = params;
+
+    if (!settings.allowMultiple) {
+      return currentParametersArray?.[0] ?? null;
+    }
+
+    if (!currentParametersArray) {
       return null;
     }
 
-    return {
-      ...this.resourceMetadata,
-      ...this.changeSet.currentParameters,
+    if (statefulMode) {
+      return stateParameters
+        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
+        : null
     }
+
+    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
+  }
+
+  /**
+   *  Only keep relevant params for the plan. We don't want to change settings that were not already
+   *  defined.
+   *
+   *  1. In stateless mode, filter current by desired. We only want to know about settings that the user has specified
+   *  2. In stateful mode, filter current by state and desired. We only know about the settings the user has previously set
+   *  or wants to set. If a parameter is not specified then it's not managed by Codify.
+   */
+
+  private static filterCurrentParams<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParameters: Partial<T> | null,
+    stateParameters: Partial<T> | null,
+    settings: ResourceSettings<T>,
+    statefulMode: boolean,
+  }): Partial<T> | null {
+    const {
+      desiredParameters: desired,
+      currentParameters: current,
+      stateParameters: state,
+      settings,
+      statefulMode
+    } = params;
+
+    if (!current) {
+      return null;
+    }
+
+    const filteredCurrent = filterCurrent()
+    if (!filteredCurrent) {
+      return null
+    }
+
+    // For stateful mode, we're done after filtering by the keys of desired + state. Stateless mode
+    // requires additional filtering for stateful arrays and objects.
+    if (statefulMode) {
+      return filteredCurrent;
+    }
+
+    const arrayStatefulParameters = Object.fromEntries(
+      Object.entries(filteredCurrent)
+        .filter(([k, v]) => isArrayStatefulParameter(k, v))
+        .map(([k, v]) => filterArrayStatefulParameter(k, v))
+    )
+
+    return { ...filteredCurrent, ...arrayStatefulParameters }
+
+    function filterCurrent(): Partial<T> | null {
+      if (!current) {
+        return null;
+      }
+
+      if (statefulMode) {
+        if (!state) {
+          return null;
+        }
+
+        const keys = new Set([...Object.keys(state), ...Object.keys(desired ?? {})]);
+        return Object.fromEntries(
+          Object.entries(current)
+            .filter(([k]) => keys.has(k))
+        ) as Partial<T>;
+      }
+
+      // Stateless mode
+      const keys = new Set(Object.keys(desired ?? {}));
+      return Object.fromEntries(
+        Object.entries(current)
+          .filter(([k]) => keys.has(k))
+      ) as Partial<T>;
+    }
+
+    function isArrayStatefulParameter(k: string, v: T[keyof T]): boolean {
+      return settings.parameterSettings?.[k]?.type === 'stateful'
+        && (settings.parameterSettings[k] as StatefulParameter<T>).definition.options.type === 'array'
+        && !(settings.parameterSettings[k] as StatefulParameter<T>).definition.options.disableStatelessModeArrayFiltering
+        && Array.isArray(v)
+    }
+
+    function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
+      const desiredArray = desired![k] as unknown[];
+      const matcher = (settings.parameterSettings![k] as StatefulParameter<T>)
+        .definition
+        .options
+        .isElementEqual;
+
+      return v.filter((cv) =>
+        desiredArray.find((dv) => matcher(cv, dv))
+      )
+    }
+
+  }
+
+  getResourceType(): string {
+    return this.coreParameters.type
   }
 
   toResponse(): PlanResponseData {
     return {
       planId: this.id,
       operation: this.changeSet.operation,
-      resourceName: this.resourceMetadata.name,
-      resourceType: this.resourceMetadata.type,
+      resourceName: this.coreParameters.name,
+      resourceType: this.coreParameters.type,
       parameters: this.changeSet.parameterChanges,
     }
   }

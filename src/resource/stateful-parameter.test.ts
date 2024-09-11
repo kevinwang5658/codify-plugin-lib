@@ -24,7 +24,7 @@ class TestArrayParameter extends ArrayStatefulParameter<TestConfig, string> {
 
 describe('Stateful parameter tests', () => {
   it('applyAddItem is called the correct number of times', async () => {
-    const plan = Plan.create<TestConfig>(
+    const plan = Plan.calculate<TestConfig>(
       { propA: ['a', 'b', 'c'] },
       null,
       { type: 'typeA' },
@@ -42,7 +42,7 @@ describe('Stateful parameter tests', () => {
   })
 
   it('applyRemoveItem is called the correct number of times', async () => {
-    const plan = Plan.create<TestConfig>(
+    const plan = Plan.calculate<TestConfig>(
       null,
       { propA: ['a', 'b', 'c'] },
       { type: 'typeA' },
@@ -60,7 +60,7 @@ describe('Stateful parameter tests', () => {
   })
 
   it('In stateless mode only applyAddItem is called only for modifies', async () => {
-    const plan = Plan.create<TestConfig>(
+    const plan = Plan.calculate<TestConfig>(
       { propA: ['a', 'c', 'd', 'e', 'f'] }, // b to remove, d, e, f to add
       { propA: ['a', 'b', 'c'] },
       { type: 'typeA' },
@@ -83,7 +83,7 @@ describe('Stateful parameter tests', () => {
   })
 
   it('isElementEqual is called for modifies', async () => {
-    const plan = Plan.create<TestConfig>(
+    const plan = Plan.calculate<TestConfig>(
       { propA: ['9.12', '9.13'] }, // b to remove, d, e, f to add
       { propA: ['9.12.9'] },
       { type: 'typeA' },

@@ -87,7 +87,7 @@ describe('Resource parameter tests', () => {
 
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(
-      Plan.create<TestConfig>(
+      Plan.calculate<TestConfig>(
         { propA: 'a', propB: 0, propC: 'b' },
         null,
         { type: 'resource' },

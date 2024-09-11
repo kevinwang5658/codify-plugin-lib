@@ -14,7 +14,7 @@ describe('Change set tests (stateful)', () => {
       propB: 'after'
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
+    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
     expect(cs.length).to.eq(2);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs[1].operation).to.eq(ParameterOperation.MODIFY);
@@ -30,7 +30,7 @@ describe('Change set tests (stateful)', () => {
       propA: 'after',
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
+    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
     expect(cs.length).to.eq(2);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs[1].operation).to.eq(ParameterOperation.ADD);
@@ -46,7 +46,7 @@ describe('Change set tests (stateful)', () => {
       propB: 'before'
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
+    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
     expect(cs.length).to.eq(2);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs[1].operation).to.eq(ParameterOperation.REMOVE);
@@ -61,7 +61,7 @@ describe('Change set tests (stateful)', () => {
       propA: 'prop',
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
+    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
     expect(cs.length).to.eq(1);
     expect(cs[0].operation).to.eq(ParameterOperation.NOOP);
   })
@@ -75,7 +75,7 @@ describe('Change set tests (stateful)', () => {
       propA: ['b', 'a', 'c'],
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
+    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
     expect(cs.length).to.eq(1);
     expect(cs[0].operation).to.eq(ParameterOperation.NOOP);
   })
@@ -89,7 +89,7 @@ describe('Change set tests (stateful)', () => {
       propA: ['b', 'a'],
     }
 
-    const cs = ChangeSet.calculateParameterChangeSet(after, before, { statefulMode: true });
+    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
     expect(cs.length).to.eq(1);
     expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
   })

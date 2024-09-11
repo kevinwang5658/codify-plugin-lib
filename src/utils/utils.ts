@@ -1,6 +1,6 @@
 import promiseSpawn from '@npmcli/promise-spawn';
-import { SpawnOptions } from 'child_process';
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
+import { SpawnOptions } from 'node:child_process';
 import os from 'node:os';
 
 export enum SpawnStatus {
@@ -82,18 +82,18 @@ export function isDebug(): boolean {
 }
 
 export function splitUserConfig<T extends StringIndexedObject>(
-  config: T & ResourceConfig
-): { parameters: T;  resourceMetadata: ResourceConfig} {
+  config: ResourceConfig & T
+): { parameters: T; coreParameters: ResourceConfig } {
   const resourceMetadata = {
     type: config.type,
     ...(config.name ? { name: config.name } : {}),
     ...(config.dependsOn ? { dependsOn: config.dependsOn } : {}),
   };
 
-  const { type, name, dependsOn, ...parameters } = config;
+  const { ...parameters } = config;
   return {
     parameters: parameters as T,
-    resourceMetadata,
+    coreParameters: resourceMetadata,
   };
 }
 

@@ -9,7 +9,7 @@ import {
 
 import { ParameterChange } from '../plan/change-set.js';
 import { Plan } from '../plan/plan.js';
-import { CreatePlan, DestroyPlan, ModifyPlan, PlanOptions } from '../plan/plan-types.js';
+import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
 import { Resource } from './resource.js';
@@ -97,51 +97,56 @@ export class ResourceController<T extends StringIndexedObject> {
 
   async plan(
     desiredConfig: Partial<T> & ResourceConfig | null,
-    currentConfig: Partial<T> & ResourceConfig | null = null,
+    stateConfig: Partial<T> & ResourceConfig | null = null,
     statefulMode = false,
   ): Promise<Plan<T>> {
-    this.validatePlanInputs(desiredConfig, currentConfig, statefulMode);
-
-    const planOptions: PlanOptions<T> = {
-      parameterSettings: this.parsedSettings.parameterSettings,
-      statefulMode,
-    }
+    this.validatePlanInputs(desiredConfig, stateConfig, statefulMode);
 
     this.addDefaultValues(desiredConfig);
     await this.applyTransformParameters(desiredConfig);
 
     // Parse data from the user supplied config
-    const parsedConfig = new ConfigParser(desiredConfig, currentConfig, this.parsedSettings.statefulParameters)
+    const parsedConfig = new ConfigParser(desiredConfig, stateConfig, this.parsedSettings.statefulParameters)
     const {
-      desiredParameters,
-      nonStatefulParameters,
       coreParameters,
-      statefulParameters,
+      desiredParameters,
+      stateParameters,
+      allNonStatefulParameters,
+      allStatefulParameters,
     } = parsedConfig;
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
-    const currentParameters = await this.refreshNonStatefulParameters(nonStatefulParameters);
+    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
-    if (currentParameters === null || currentParameters === undefined || this.settings.allowMultiple) {
-      return Plan.create(
+    if (currentParametersArray === null
+      || currentParametersArray === undefined
+      || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
+      || currentParametersArray.length === 0
+      || currentParametersArray.filter(Boolean).length === 0
+    ) {
+      return Plan.calculate({
         desiredParameters,
-        null,
+        currentParametersArray,
+        stateParameters,
         coreParameters,
-        planOptions,
-      );
+        settings: this.settings,
+        statefulMode,
+      });
     }
 
     // Refresh stateful parameters. These parameters have state external to the resource. allowMultiple
     // does not work together with stateful parameters
-    const statefulCurrentParameters = await this.refreshStatefulParameters(statefulParameters);
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters);
 
-    return Plan.create(
+    return Plan.calculate({
       desiredParameters,
-      [{ ...currentParameters[0], ...statefulCurrentParameters }] as Partial<T>[],
+      currentParametersArray: [{ ...currentParametersArray[0], ...statefulCurrentParameters }] as Partial<T>[],
+      stateParameters,
       coreParameters,
-      planOptions,
-    )
+      settings: this.settings,
+      statefulMode
+    })
   }
 
   async apply(plan: Plan<T>): Promise<void> {

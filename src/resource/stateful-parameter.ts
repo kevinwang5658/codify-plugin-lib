@@ -7,6 +7,10 @@ export interface StatefulParameterOptions {
 
   type: Omit<ParameterSettingType, 'stateful'>
 
+  default?: unknown;
+  inputTransformation?: (input: unknown) => unknown;
+  isEqual?: (desired: unknown, current: unknown) => boolean
+
   /**
    * In stateless mode, array refresh results (current) will be automatically filtered by the user config (desired).
    * This is done to ensure that for modify operations, stateless mode will not try to delete existing resources.
@@ -17,11 +21,9 @@ export interface StatefulParameterOptions {
    * Set this flag to true to disable this behaviour
    */
   disableStatelessModeArrayFiltering?: boolean;
-
-  default?: unknown;
-  inputTransformation?: (input: unknown) => unknown;
-  isEqual?: (desired: unknown, current: unknown) => boolean
+  isElementEqual: (desired: unknown, current: unknown) => boolean
 }
+
 
 export abstract class StatefulParameter<T extends StringIndexedObject, V extends T[keyof T]> {
   readonly options: StatefulParameterOptions<V>;
@@ -39,9 +41,9 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
 }
 
 export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
-  options: ArrayStatefulParameterOptions<V>;
+  options: StatefulParameterOptions;
 
-  constructor(options: ArrayStatefulParameterOptions<V> = {}) {
+  constructor(options: StatefulParameterOptions = {}) {
     super(options);
     this.options = options;
   }
@@ -53,7 +55,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
   }
 
   async applyModify(newValues: V[], previousValues: V[], allowDeletes: boolean, plan: Plan<T>): Promise<void> {
-    const options = this.options as ArrayStatefulParameterOptions<V>;
+    const options = this.options as StatefulParameterOptions;
 
     const valuesToAdd = newValues.filter((n) => !previousValues.some((p) => {
       if (options.isElementEqual) {

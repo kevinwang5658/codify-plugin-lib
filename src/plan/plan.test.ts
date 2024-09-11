@@ -125,7 +125,7 @@ describe('Plan entity tests', () => {
   it('Returns the original resource names', () => {
     const resource = createResource();
 
-    const plan = Plan.create(
+    const plan = Plan.calculate(
       {
         propA: 'propA',
       },

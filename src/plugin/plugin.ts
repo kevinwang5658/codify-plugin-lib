@@ -55,10 +55,10 @@ export class Plugin {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
-      const { parameters, resourceMetadata } = splitUserConfig(config);
+      const { parameters, coreParameters } = splitUserConfig(config);
       const validation = await this.resourceControllers
         .get(config.type)!
-        .validate(parameters, resourceMetadata);
+        .validate(parameters, coreParameters);
 
       validationResults.push(validation);
     }

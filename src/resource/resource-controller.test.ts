@@ -128,7 +128,7 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     const result = await controllerSpy.apply(
-      Plan.create<TestConfig>(
+      Plan.calculate<TestConfig>(
         { type: 'type', propA: 'a', propB: 0 },
         null,
         { type: 'type' },
@@ -148,7 +148,7 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     const result = await controllerSpy.apply(
-      Plan.create<TestConfig>(
+      Plan.calculate<TestConfig>(
         null,
         { propA: 'a', propB: 0 },
         { type: 'type' },
@@ -168,7 +168,7 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     const result = await controllerSpy.apply(
-      Plan.create<TestConfig>(
+      Plan.calculate<TestConfig>(
         { propA: 'a', propB: 0 },
         { propA: 'b', propB: -1 },
         { type: 'type' },
@@ -185,7 +185,7 @@ describe('Resource tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'resource',
-          parameterOptions: {
+          parameterSettings: {
             propA: { modifyOnChange: true },
             propB: { modifyOnChange: true },
           }
@@ -232,7 +232,7 @@ describe('Resource tests', () => {
         return {
           type: 'type',
           dependencies: ['homebrew', 'python'],
-          parameterOptions: {
+          parameterSettings: {
             propA: { modifyOnChange: true },
             propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
@@ -266,7 +266,7 @@ describe('Resource tests', () => {
         return {
           type: 'type',
           dependencies: ['homebrew', 'python'],
-          parameterOptions: {
+          parameterSettings: {
             propA: { modifyOnChange: true },
             propB: { statefulParameter },
             propC: { isEqual: (a, b) => true },
@@ -281,7 +281,7 @@ describe('Resource tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
-          parameterOptions: {
+          parameterSettings: {
             propA: { default: 'propADefault' }
           }
         }
@@ -309,7 +309,7 @@ describe('Resource tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
-          parameterOptions: {
+          parameterSettings: {
             propE: { default: 'propEDefault' }
           }
         }
@@ -336,7 +336,7 @@ describe('Resource tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
-          parameterOptions: {
+          parameterSettings: {
             propE: { default: 'propEDefault' }
           }
         }
@@ -359,7 +359,7 @@ describe('Resource tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
-          parameterOptions: {
+          parameterSettings: {
             propA: { default: 'propADefault' }
           }
         }
@@ -387,7 +387,7 @@ describe('Resource tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           type: 'type',
-          parameterOptions: {
+          parameterSettings: {
             propA: { default: 'propADefault' }
           }
         }

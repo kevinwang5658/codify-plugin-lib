@@ -26,9 +26,9 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
   get statefulParameters(): Map<keyof T, StatefulParameterImpl<T, T[keyof T]>> {
     return this.getFromCacheOrCreate('statefulParameters', () => {
 
-      const statefulParameters = Object.entries(this.settings.parameterOptions ?? {})
+      const statefulParameters = Object.entries(this.settings.parameterSettings ?? {})
         .filter(([, p]) => p?.type === 'stateful')
-        .map(([k, v]) => [k, (v as StatefulParameter<T, T[keyof T]>).definition] as const)
+        .map(([k, v]) => [k, (v as StatefulParameter<T>).definition] as const)
 
       return new Map(statefulParameters);
     })
@@ -37,7 +37,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
   get parameterSettings(): Record<keyof T, ParameterSetting> {
     return this.getFromCacheOrCreate('parameterSetting', () => {
 
-      const settings = Object.entries(this.settings.parameterOptions ?? {})
+      const settings = Object.entries(this.settings.parameterSettings ?? {})
         .map(([k, v]) => [k, v!] as const)
         .map(([k, v]) => {
           v.isEqual = this.resolveEqualsFn(v, k);
@@ -52,12 +52,12 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
   get defaultValues(): Partial<Record<keyof T, unknown>> {
     return this.getFromCacheOrCreate('defaultValues', () => {
 
-      if (!this.settings.parameterOptions) {
+      if (!this.settings.parameterSettings) {
         return {};
       }
 
       return Object.fromEntries(
-        Object.entries(this.settings.parameterOptions)
+        Object.entries(this.settings.parameterSettings)
           .filter(([, v]) => v!.default !== undefined)
           .map(([k, v]) => [k, v!.default])
       ) as Partial<Record<keyof T, unknown>>;
@@ -66,12 +66,12 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
 
   get inputTransformations(): Partial<Record<keyof T, (a: unknown) => unknown>> {
     return this.getFromCacheOrCreate('inputTransformations', () => {
-      if (!this.settings.parameterOptions) {
+      if (!this.settings.parameterSettings) {
         return {};
       }
 
       return Object.fromEntries(
-        Object.entries(this.settings.parameterOptions)
+        Object.entries(this.settings.parameterSettings)
           .filter(([, v]) => v!.inputTransformation !== undefined)
           .map(([k, v]) => [k, v!.inputTransformation!] as const)
       ) as Record<keyof T, (a: unknown) => unknown>;
@@ -81,9 +81,9 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
   get statefulParameterOrder(): Map<keyof T, number> {
     return this.getFromCacheOrCreate('stateParameterOrder', () => {
 
-      const entries = Object.entries(this.settings.parameterOptions ?? {})
+      const entries = Object.entries(this.settings.parameterSettings ?? {})
         .filter(([, v]) => v?.type === 'stateful')
-        .map(([k, v]) => [k, v as StatefulParameter<T, T[keyof T]>] as const)
+        .map(([k, v]) => [k, v as StatefulParameter<T>] as const)
 
       const orderedEntries = entries.filter(([, v]) => v.order !== undefined)
       const unorderedEntries = entries.filter(([, v]) => v.order === undefined)
@@ -101,8 +101,8 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
 
   private validateSettings(): void {
     // validate parameter settings
-    if (this.settings.parameterOptions) {
-      for (const [k, v] of Object.entries(this.settings.parameterOptions)) {
+    if (this.settings.parameterSettings) {
+      for (const [k, v] of Object.entries(this.settings.parameterSettings)) {
         if (!v) {
           throw new Error(`Resource: ${this.settings.type}. Parameter setting ${k} was left undefined`);
         }
@@ -124,7 +124,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     }
 
     if (parameter.type === 'stateful') {
-      const nestedSettings = (parameter as StatefulParameter<T, T[keyof T]>).definition.options;
+      const nestedSettings = (parameter as StatefulParameter<T>).definition.options;
 
       if (nestedSettings.type === 'stateful') {
         throw new Error(`Nested stateful parameters are not allowed for ${key}`);
@@ -142,7 +142,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     }
 
     if (parameter.type === 'stateful') {
-      return this.resolveEqualsFn((parameter as StatefulParameter<T, T[keyof T]>).definition.options, key)
+      return this.resolveEqualsFn((parameter as StatefulParameter<T>).definition.options, key)
     }
 
     return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type]!;
@@ -168,7 +168,7 @@ Desired: ${JSON.stringify(desired, null, 2)}
 
 Current: ${JSON.stringify(desired, null, 2)}
 
-Was provided to ${name} even though type array was specified.
+Was provided to ${key} even though type array was specified.
 `)
   }
 

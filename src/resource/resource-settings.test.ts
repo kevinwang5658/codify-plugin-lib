@@ -7,7 +7,7 @@ describe('Resource options parser tests', () => {
   it('Parses default values from options', () => {
     const option: ResourceSettings<TestConfig> = {
       type: 'typeId',
-      parameterOptions: {
+      parameterSettings: {
         propA: { default: 'propA' },
         propB: { default: 'propB' },
         propC: { isEqual: () => true },

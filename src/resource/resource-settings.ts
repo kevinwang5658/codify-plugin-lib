@@ -30,7 +30,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * @param desired The desired config to match.
      * @return The config from current which matches desired.
      */
-    matcher: (current: T[], desired: T) => T
+    matcher: (desired: Partial<T>, current: Partial<T>[],) => Partial<T>
   }
 
   /**
@@ -48,10 +48,10 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   /**
    * Additional options for configuring parameters.
    */
-  parameterOptions?: Partial<Record<keyof T,
+  parameterSettings?: Partial<Record<keyof T,
     ArrayParameter
     | ParameterSetting
-    | StatefulParameter<T, T[keyof T]>
+    | StatefulParameter<T>
   >>;
 
   inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
@@ -71,7 +71,8 @@ export interface ParameterSetting {
   type: ParameterSettingType;
   default?: unknown;
   inputTransformation?: (input: unknown) => Promise<unknown> | unknown;
-  isEqual?: (desired: unknown, current: unknown) => boolean
+  isEqual?: (desired: unknown, current: unknown) => boolean;
+  canModify?: boolean
 }
 
 export interface ArrayParameter extends ParameterSetting {
@@ -79,7 +80,7 @@ export interface ArrayParameter extends ParameterSetting {
   isElementEqual?: (desired: unknown, current: unknown) => boolean
 }
 
-export interface StatefulParameter<T extends StringIndexedObject, V> extends ParameterSetting {
+export interface StatefulParameter<T extends StringIndexedObject> extends ParameterSetting {
   type: 'stateful',
   definition: StatefulParameterObj<T, T[keyof T]>,
   order?: number,

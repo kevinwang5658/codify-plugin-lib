@@ -1,4 +1,6 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
+
+import { ParameterSetting } from '../resource/resource-settings.js';
 import { ParameterOptions } from './plan-types.js';
 
 export interface ParameterChange<T extends StringIndexedObject> {
@@ -20,6 +22,34 @@ export class ChangeSet<T extends StringIndexedObject> {
     this.parameterChanges = parameterChanges;
   }
 
+  static empty<T extends StringIndexedObject>(): ChangeSet<T> {
+    return new ChangeSet<T>(ResourceOperation.NOOP, []);
+  }
+
+  static create<T extends StringIndexedObject>(desired: Partial<T>): ChangeSet<T> {
+    const parameterChanges = Object.entries(desired)
+      .map(([k, v]) => ({
+        name: k,
+        operation: ParameterOperation.ADD,
+        previousValue: null,
+        newValue: v
+      }))
+
+    return new ChangeSet(ResourceOperation.CREATE, parameterChanges);
+  }
+
+  static destroy<T extends StringIndexedObject>(current: Partial<T>): ChangeSet<T> {
+    const parameterChanges = Object.entries(current)
+      .map(([k, v]) => ({
+        name: k,
+        operation: ParameterOperation.REMOVE,
+        previousValue: v,
+        newValue: null,
+      }))
+
+    return new ChangeSet(ResourceOperation.DESTROY, parameterChanges);
+  }
+
   get desiredParameters(): T {
     return this.parameterChanges
       .reduce((obj, pc) => ({
@@ -36,38 +66,35 @@ export class ChangeSet<T extends StringIndexedObject> {
       }), {}) as T;
   }
 
-  // static create<T extends Record<string, unknown>>(prev: T, next: T, options: {
-  //   statefulMode: boolean,
-  // }): ChangeSet {
-  //   const parameterChanges = ChangeSet.calculateParameterChangeSet(prev, prev, options);
-  //   const operation = ChangeSet.combineResourceOperations(prev, );
-  // }
+  static calculateModification<T extends StringIndexedObject>(
+    desired: Partial<T>,
+    current: Partial<T>,
+    parameterSettings: Partial<Record<keyof T, ParameterSetting>>,
+  ): ChangeSet<T> {
+    const pc = ChangeSet.calculateParameterChanges(desired, current, parameterSettings);
 
-  // static newCreate<T extends {}>(desiredConfig: T) {
-  //   const parameterChangeSet = Object.entries(desiredConfig)
-  //     .filter(([k,]) => k !== 'type' && k !== 'name')
-  //     .map(([k, v]) => {
-  //       return {
-  //         name: k,
-  //         operation: ParameterOperation.ADD,
-  //         previousValue: null,
-  //         newValue: v,
-  //       }
-  //     })
-  //
-  //   return new ChangeSet(ResourceOperation.CREATE, parameterChangeSet);
-  // }
+    const statefulParameterKeys = new Set(
+      Object.entries(parameterSettings)
+        .filter(([, v]) => v?.type === 'stateful')
+        .map(([k]) => k)
+    )
 
-  static calculateParameterChangeSet<T extends StringIndexedObject>(
-    desired: T | null,
-    current: T | null,
-    options: { statefulMode: boolean, parameterOptions?: Record<keyof T, ParameterOptions> },
-  ): ParameterChange<T>[] {
-    if (options.statefulMode) {
-      return ChangeSet.calculateStatefulModeChangeSet(desired, current, options.parameterOptions);
-    } else {
-      return ChangeSet.calculateStatelessModeChangeSet(desired, current, options.parameterOptions);
-    }
+    const resourceOperation = pc
+      .filter((change) => change.operation !== ParameterOperation.NOOP)
+      .reduce((operation: ResourceOperation, curr: ParameterChange<T>) => {
+        let newOperation: ResourceOperation;
+        if (statefulParameterKeys.has(curr.name)) {
+          newOperation = ResourceOperation.MODIFY // All stateful parameters are modify only
+        } else if (parameterSettings[curr.name]?.canModify) {
+          newOperation = ResourceOperation.MODIFY
+        } else {
+          newOperation = ResourceOperation.RECREATE; // Default to Re-create. Should handle the majority of use cases
+        }
+
+        return ChangeSet.combineResourceOperations(operation, newOperation);
+      }, ResourceOperation.NOOP);
+
+    return new ChangeSet<T>(resourceOperation, pc);
   }
 
   static combineResourceOperations(prev: ResourceOperation, next: ResourceOperation) {
@@ -114,22 +141,18 @@ export class ChangeSet<T extends StringIndexedObject> {
     return desired === current;
   }
 
-  // Explanation: Stateful mode means that codify maintains a stateful to keep track of resources it has added. 
-  // When a resource is removed from a stateful config, it will be deleted from the system.
-  private static calculateStatefulModeChangeSet<T extends StringIndexedObject>(
-    desired: T | null,
-    current: T | null,
-    parameterOptions?: Record<keyof T, ParameterOptions>,
+  private static calculateParameterChanges<T extends StringIndexedObject>(
+    desiredParameters: Partial<T> | null,
+    currentParameters: Partial<T> | null,
+    parameterOptions?: Partial<Record<keyof T, ParameterSetting>>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
-    
-    const _desired = Object.fromEntries(Object.entries(desired ?? {}).filter(([, v]) => v != null));
-    const _current = Object.fromEntries(Object.entries(current ?? {}).filter(([, v]) => v != null));
 
-    this.addDefaultValues(_desired, parameterOptions);
+    const desired = { ...desiredParameters }
+    const current = { ...currentParameters }
 
-    for (const [k, v] of Object.entries(_current)) {
-      if (_desired[k] == null) {
+    for (const [k, v] of Object.entries(current)) {
+      if (desired?.[k] === null || desired?.[k] === undefined) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
@@ -137,39 +160,39 @@ export class ChangeSet<T extends StringIndexedObject> {
           operation: ParameterOperation.REMOVE,
         })
 
-        delete _current[k];
+        delete current[k];
         continue;
       }
 
-      if (!ChangeSet.isSame(_desired[k], _current[k], parameterOptions?.[k])) {
+      if (!ChangeSet.isSame(desired[k], current[k], parameterOptions?.[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: v,
-          newValue: _desired[k],
+          newValue: desired[k],
           operation: ParameterOperation.MODIFY,
         })
 
-        delete _current[k];
-        delete _desired[k];
+        delete current[k];
+        delete desired[k];
         continue;
       }
 
       parameterChangeSet.push({
         name: k,
         previousValue: v,
-        newValue: _desired[k],
+        newValue: desired[k],
         operation: ParameterOperation.NOOP,
       })
 
-      delete _current[k];
-      delete _desired[k];
+      delete current[k];
+      delete desired[k];
     }
 
-    if (Object.keys(_current).length !== 0) {
-      throw Error('Diff algorithm error');
+    if (Object.keys(current).length > 0) {
+      throw new Error('Diff algorithm error');
     }
 
-    for (const [k, v] of Object.entries(_desired)) {
+    for (const [k, v] of Object.entries(desired)) {
       parameterChangeSet.push({
         name: k,
         previousValue: null,
@@ -180,65 +203,4 @@ export class ChangeSet<T extends StringIndexedObject> {
 
     return parameterChangeSet;
   }
-
-  // Explanation: Stateful mode means that codify does not keep track of state. Resources in stateless mode can only
-  // be added by Codify and not destroyed.
-  private static calculateStatelessModeChangeSet<T extends StringIndexedObject>(
-    desired: T | null,
-    current: T | null,
-    parameterOptions?: Record<keyof T, ParameterOptions>,
-  ): ParameterChange<T>[] {
-    const parameterChangeSet = new Array<ParameterChange<T>>();
-
-    const _desired = Object.fromEntries(Object.entries(desired ?? {}).filter(([, v]) => v != null));
-    const _current = Object.fromEntries(Object.entries(current ?? {}).filter(([, v]) => v != null));
-
-
-    this.addDefaultValues(_desired, parameterOptions);
-
-    for (const [k, v] of Object.entries(_desired)) {
-      if (_current[k] == null) {
-        parameterChangeSet.push({
-          name: k,
-          previousValue: null,
-          newValue: v,
-          operation: ParameterOperation.ADD,
-        });
-
-        continue;
-      }
-
-      if (!ChangeSet.isSame(_desired[k], _current[k], parameterOptions?.[k])) {
-        parameterChangeSet.push({
-          name: k,
-          previousValue: _current[k],
-          newValue: _desired[k],
-          operation: ParameterOperation.MODIFY,
-        });
-
-        continue;
-      }
-
-      parameterChangeSet.push({
-        name: k,
-        previousValue: v,
-        newValue: v,
-        operation: ParameterOperation.NOOP,
-      })
-    }
-
-    return parameterChangeSet;
-  }
-
-  private static addDefaultValues<T extends StringIndexedObject>(obj: Record<string, unknown>, options?: Record<keyof T, ParameterOptions>) {
-    Object.entries(options ?? {})
-      .filter(([, option]) => option.default !== undefined)
-      .map(([name, option]) => [name, option.default] as const)
-      .forEach(([key, defaultValue]) => {
-        if (obj[key] === undefined) {
-          obj[key] = defaultValue;
-        }
-      })
-  }
-    
 }

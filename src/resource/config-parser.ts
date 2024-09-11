@@ -5,29 +5,29 @@ import { StatefulParameter } from './stateful-parameter.js';
 
 export class ConfigParser<T extends StringIndexedObject> {
   private desiredConfig: Partial<T> & ResourceConfig | null;
-  private currentConfig: Partial<T> & ResourceConfig | null;
+  private stateConfig: Partial<T> & ResourceConfig | null;
   private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
 
   constructor(
     desiredConfig: Partial<T> & ResourceConfig | null,
-    currentConfig: Partial<T> & ResourceConfig | null,
+    stateConfig: Partial<T> & ResourceConfig | null,
     statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>,
   ) {
     this.desiredConfig = desiredConfig;
-    this.currentConfig = currentConfig
+    this.stateConfig = stateConfig
     this.statefulParametersMap = statefulParameters;
   }
 
   get coreParameters(): ResourceConfig {
-    const desiredCoreParameters = this.desiredConfig ? splitUserConfig(this.desiredConfig).resourceMetadata : undefined;
-    const currentCoreParameters = this.currentConfig ? splitUserConfig(this.currentConfig).resourceMetadata : undefined;
+    const desiredCoreParameters = this.desiredConfig ? splitUserConfig(this.desiredConfig).coreParameters : undefined;
+    const currentCoreParameters = this.stateConfig ? splitUserConfig(this.stateConfig).coreParameters : undefined;
 
     if (!desiredCoreParameters && !currentCoreParameters) {
       throw new Error(`Unable to parse resource core parameters from:
        
  Desired: ${JSON.stringify(this.desiredConfig, null, 2)}
   
- Current: ${JSON.stringify(this.currentConfig, null, 2)}`)
+ Current: ${JSON.stringify(this.stateConfig, null, 2)}`)
     }
 
     return desiredCoreParameters ?? currentCoreParameters!;
@@ -42,29 +42,36 @@ export class ConfigParser<T extends StringIndexedObject> {
     return parameters;
   }
 
-  get parameters(): Partial<T> {
-    const desiredParameters = this.desiredConfig ? splitUserConfig(this.desiredConfig).parameters : undefined;
-    const currentParameters = this.currentConfig ? splitUserConfig(this.currentConfig).parameters : undefined;
+  get stateParameters(): Partial<T> | null {
+    if (!this.stateConfig) {
+      return null;
+    }
 
-    return { ...desiredParameters, ...currentParameters } as Partial<T>;
+    const { parameters } = splitUserConfig(this.stateConfig);
+    return parameters;
   }
 
-  get nonStatefulParameters(): Partial<T> {
+
+  get allParameters(): Partial<T> {
+    return { ...this.desiredParameters, ...this.stateParameters } as Partial<T>;
+  }
+
+  get allNonStatefulParameters(): Partial<T> {
     const {
-      parameters,
+      allParameters,
       statefulParametersMap,
     } = this;
 
     return Object.fromEntries(
-      Object.entries(parameters).filter(([key]) => !statefulParametersMap.has(key))
+      Object.entries(allParameters).filter(([key]) => !statefulParametersMap.has(key))
     ) as Partial<T>;
   }
 
-  get statefulParameters(): Partial<T> {
-    const { parameters, statefulParametersMap } = this;
+  get allStatefulParameters(): Partial<T> {
+    const { allParameters, statefulParametersMap } = this;
 
     return Object.fromEntries(
-      Object.entries(parameters).filter(([key]) => statefulParametersMap.has(key))
+      Object.entries(allParameters).filter(([key]) => statefulParametersMap.has(key))
     ) as Partial<T>;
   }
 }

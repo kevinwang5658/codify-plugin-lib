@@ -117,7 +117,7 @@ export class Plugin {
     }
 
     const resource = this.resourceControllers.get(planRequest.resourceType)!;
-    return Plan.fromResponse(planRequest, resource.defaultValues);
+    return Plan.fromResponse(planRequest, resource.parsedSettings.defaultValues);
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}

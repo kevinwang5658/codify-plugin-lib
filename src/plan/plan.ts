@@ -293,8 +293,8 @@ export class Plan<T extends StringIndexedObject> {
 
     function isArrayStatefulParameter(k: string, v: T[keyof T]): boolean {
       return settings.parameterSettings?.[k]?.type === 'stateful'
-        && (settings.parameterSettings[k] as StatefulParameter<T>).definition.options.type === 'array'
-        && !(settings.parameterSettings[k] as StatefulParameter<T>).definition.options.disableStatelessModeArrayFiltering
+        && (settings.parameterSettings[k] as StatefulParameter<T>).definition.getSettings().type === 'array'
+        && !(settings.parameterSettings[k] as StatefulParameter<T>).definition.getSettings().disableStatelessModeArrayFiltering
         && Array.isArray(v)
     }
 
@@ -302,7 +302,7 @@ export class Plan<T extends StringIndexedObject> {
       const desiredArray = desired![k] as unknown[];
       const matcher = (settings.parameterSettings![k] as StatefulParameter<T>)
         .definition
-        .options
+        .getSettings()
         .isElementEqual;
 
       return v.filter((cv) =>

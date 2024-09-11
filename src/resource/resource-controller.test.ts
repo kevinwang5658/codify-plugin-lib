@@ -214,15 +214,15 @@ describe('Resource tests', () => {
         return null;
       }
 
-      applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
+      add(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
 
-      applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
+      modify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
 
-      applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
+      remove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
     }
@@ -248,15 +248,15 @@ describe('Resource tests', () => {
         return null;
       }
 
-      applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
+      add(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
 
-      applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
+      modify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
 
-      applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
+      remove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
         throw new Error('Method not implemented.');
       }
     }

@@ -4,10 +4,11 @@ import {
   ArrayParameter,
   ParameterEqualsDefaults,
   ParameterSetting,
+  ParameterSettingType,
   ResourceSettings,
   StatefulParameter
 } from './resource-settings.js';
-import { StatefulParameter as StatefulParameterImpl } from './stateful-parameter.js'
+import { StatefulParameter as StatefulParameterImpl, StatefulParameterSetting } from './stateful-parameter.js'
 
 export class ParsedResourceSettings<T extends StringIndexedObject> {
   private settings: ResourceSettings<T>;
@@ -117,14 +118,14 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     }
   }
 
-  private validateParameterEqualsFn(parameter: ParameterSetting, key: string): void {
+  private validateParameterEqualsFn(parameter: ParameterSetting | StatefulParameterSetting, key: string): void {
     // Type any has no defaults and so isEquals must be specified
     if (parameter.type === 'any' && !parameter.isEqual) {
       throw new Error(`Type any has no defaults and so isEquals must be specified for ${key}`);
     }
 
     if (parameter.type === 'stateful') {
-      const nestedSettings = (parameter as StatefulParameter<T>).definition.options;
+      const nestedSettings = (parameter as StatefulParameter<T>).definition.getSettings();
 
       if (nestedSettings.type === 'stateful') {
         throw new Error(`Nested stateful parameters are not allowed for ${key}`);
@@ -136,16 +137,16 @@ export class ParsedResourceSettings<T extends StringIndexedObject> {
     // The rest of the types have defaults set already
   }
 
-  private resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
+  private resolveEqualsFn(parameter: ParameterSetting | StatefulParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
     if (parameter.type === 'array') {
       return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameter, key)
     }
 
     if (parameter.type === 'stateful') {
-      return this.resolveEqualsFn((parameter as StatefulParameter<T>).definition.options, key)
+      return this.resolveEqualsFn((parameter as StatefulParameter<T>).definition.getSettings(), key)
     }
 
-    return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type]!;
+    return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType]!;
   }
 
   private getFromCacheOrCreate<T2>(key: string, create: () => T2): T2 {

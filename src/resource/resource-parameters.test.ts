@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ArrayStatefulParameter, StatefulParameter, StatefulParameterOptions } from './stateful-parameter.js';
+import { ArrayStatefulParameter, StatefulParameter, StatefulParameterSetting } from './stateful-parameter.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
@@ -7,17 +7,19 @@ import { TestConfig, TestResource } from './resource-controller.test.js';
 import { TransformParameter } from './transform-parameter.js';
 
 export class TestParameter extends StatefulParameter<TestConfig, string> {
-  constructor(options?: StatefulParameterOptions<string>) {
+  constructor(options?: StatefulParameterSetting<string>) {
     super(options ?? {})
   }
 
-  applyAdd(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
+  add(valueToAdd: string, plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve();
   }
-  applyModify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
+
+  modify(newValue: string, previousValue: string, allowDeletes: boolean, plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve();
   }
-  applyRemove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
+
+  remove(valueToRemove: string, plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve();
   }
   async refresh(): Promise<string | null> {
@@ -95,7 +97,7 @@ describe('Resource parameter tests', () => {
       )
     );
 
-    expect(statefulParameterSpy.applyAdd.calledOnce).to.be.true;
+    expect(statefulParameterSpy.add.calledOnce).to.be.true;
     expect(resourceSpy.create.calledOnce).to.be.true;
   })
 
@@ -130,7 +132,7 @@ describe('Resource parameter tests', () => {
     const resourceSpy = spy(resource);
     const result = await resourceSpy.apply(plan);
 
-    expect(statefulParameterSpy.applyModify.calledOnce).to.be.true;
+    expect(statefulParameterSpy.modify.calledOnce).to.be.true;
     expect(resourceSpy.modify.calledOnce).to.be.true;
   })
 
@@ -351,23 +353,41 @@ describe('Resource parameter tests', () => {
   it('Applies stateful parameters in the order specified', async () => {
     let timestampA;
     const statefulParameterA = spy(new class extends TestParameter {
-      applyAdd = async (): Promise<void> => { timestampA = performance.now(); }
-      applyModify = async (): Promise<void> => { timestampA = performance.now(); }
-      applyRemove = async (): Promise<void> => { timestampA = performance.now(); }
+      add = async (): Promise<void> => {
+        timestampA = performance.now();
+      }
+      modify = async (): Promise<void> => {
+        timestampA = performance.now();
+      }
+      remove = async (): Promise<void> => {
+        timestampA = performance.now();
+      }
     });
 
     let timestampB
     const statefulParameterB = spy(new class extends TestParameter {
-      applyAdd = async (): Promise<void> => { timestampB = performance.now(); }
-      applyModify = async (): Promise<void> => { timestampB = performance.now(); }
-      applyRemove = async (): Promise<void> => { timestampB = performance.now(); }
+      add = async (): Promise<void> => {
+        timestampB = performance.now();
+      }
+      modify = async (): Promise<void> => {
+        timestampB = performance.now();
+      }
+      remove = async (): Promise<void> => {
+        timestampB = performance.now();
+      }
     });
 
     let timestampC
     const statefulParameterC = spy(new class extends TestParameter {
-      applyAdd = async (): Promise<void> => { timestampC = performance.now(); }
-      applyModify = async (): Promise<void> => { timestampC = performance.now(); }
-      applyRemove = async (): Promise<void> => { timestampC = performance.now(); }
+      add = async (): Promise<void> => {
+        timestampC = performance.now();
+      }
+      modify = async (): Promise<void> => {
+        timestampC = performance.now();
+      }
+      remove = async (): Promise<void> => {
+        timestampC = performance.now();
+      }
     });
 
     const resource = spy(new class extends TestResource {

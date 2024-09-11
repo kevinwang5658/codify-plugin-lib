@@ -181,7 +181,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
     for (const parameterChange of statefulParameterChanges) {
       const statefulParameter = this.parsedSettings.statefulParameters.get(parameterChange.name)!;
-      await statefulParameter.applyAdd(parameterChange.newValue, plan);
+      await statefulParameter.add(parameterChange.newValue, plan);
     }
   }
 
@@ -205,17 +205,17 @@ export class ResourceController<T extends StringIndexedObject> {
 
       switch (parameterChange.operation) {
         case ParameterOperation.ADD: {
-          await statefulParameter.applyAdd(parameterChange.newValue, plan);
+          await statefulParameter.add(parameterChange.newValue, plan);
           break;
         }
 
         case ParameterOperation.MODIFY: {
-          await statefulParameter.applyModify(parameterChange.newValue, parameterChange.previousValue, false, plan);
+          await statefulParameter.modify(parameterChange.newValue, parameterChange.previousValue, plan);
           break;
         }
 
         case ParameterOperation.REMOVE: {
-          await statefulParameter.applyRemove(parameterChange.previousValue, plan);
+          await statefulParameter.remove(parameterChange.previousValue, plan);
           break;
         }
       }
@@ -230,7 +230,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
       for (const parameterChange of statefulParameterChanges) {
         const statefulParameter = this.parsedSettings.statefulParameters.get(parameterChange.name)!;
-        await statefulParameter.applyRemove(parameterChange.previousValue, plan);
+        await statefulParameter.remove(parameterChange.previousValue, plan);
       }
     }
 

@@ -35,7 +35,7 @@ describe('Stateful parameter tests', () => {
     expect(plan.changeSet.parameterChanges.length).to.eq(1);
 
     const testParameter = spy(new TestArrayParameter());
-    await testParameter.applyAdd(plan.desiredConfig!.propA, plan);
+    await testParameter.add(plan.desiredConfig!.propA, plan);
 
     expect(testParameter.applyAddItem.callCount).to.eq(3);
     expect(testParameter.applyRemoveItem.called).to.be.false;
@@ -53,7 +53,7 @@ describe('Stateful parameter tests', () => {
     expect(plan.changeSet.parameterChanges.length).to.eq(1);
 
     const testParameter = spy(new TestArrayParameter());
-    await testParameter.applyRemove(plan.currentConfig!.propA, plan);
+    await testParameter.remove(plan.currentConfig!.propA, plan);
 
     expect(testParameter.applyAddItem.called).to.be.false;
     expect(testParameter.applyRemoveItem.callCount).to.eq(3);
@@ -76,7 +76,7 @@ describe('Stateful parameter tests', () => {
     })
 
     const testParameter = spy(new TestArrayParameter());
-    await testParameter.applyModify(plan.desiredConfig!.propA, plan.currentConfig!.propA, false, plan);
+    await testParameter.modify(plan.desiredConfig!.propA, plan.currentConfig!.propA, false, plan);
 
     expect(testParameter.applyAddItem.calledThrice).to.be.true;
     expect(testParameter.applyRemoveItem.called).to.be.false;
@@ -106,7 +106,7 @@ describe('Stateful parameter tests', () => {
       }
     });
 
-    await testParameter.applyModify(plan.desiredConfig!.propA, plan.currentConfig!.propA, false, plan);
+    await testParameter.modify(plan.desiredConfig!.propA, plan.currentConfig!.propA, false, plan);
 
     expect(testParameter.applyAddItem.calledOnce).to.be.true;
     expect(testParameter.applyRemoveItem.called).to.be.false;

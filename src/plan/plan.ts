@@ -211,6 +211,9 @@ export class Plan<T extends StringIndexedObject> {
     return this.coreParameters.type
   }
 
+  // TODO: This needs to be revisited. I don't think this is valid anymore.
+  //   1. For all scenarios, there shouldn't be an apply without a plan beforehand
+  //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
   static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
     if (!data) {
       throw new Error('Data is empty');

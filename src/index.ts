@@ -1,5 +1,5 @@
-import { Plugin } from './plugin/plugin.js';
 import { MessageHandler } from './messages/handlers.js';
+import { Plugin } from './plugin/plugin.js';
 
 export * from './errors.js'
 export * from './plan/change-set.js'

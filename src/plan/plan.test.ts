@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { Plan } from './plan.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { Resource } from '../resource/resource.js';
-import { TestResource } from '../utils/test-utils.test.js';
+import { TestConfig, TestResource } from '../utils/test-utils.test.js';
+import { ResourceController } from '../resource/resource-controller.js';
+import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
+import { ResourceSettings } from '../resource/resource-settings.js';
 
 describe('Plan entity tests', () => {
   it('Adds default values properly when plan is parsed from request (Create)', () => {
-    const resource = createResource();
+    const resource = createTestResource()
+    const controller = new ResourceController(resource);
 
     const plan = Plan.fromResponse({
       operation: ResourceOperation.CREATE,
@@ -17,7 +20,7 @@ describe('Plan entity tests', () => {
         previousValue: null,
         newValue: 'propBValue'
       }]
-    }, resource.defaultValues);
+    }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null;
 
@@ -33,7 +36,8 @@ describe('Plan entity tests', () => {
   })
 
   it('Adds default values properly when plan is parsed from request (Destroy)', () => {
-    const resource = createResource();
+    const resource = createTestResource()
+    const controller = new ResourceController(resource);
 
     const plan = Plan.fromResponse({
       operation: ResourceOperation.DESTROY,
@@ -44,7 +48,7 @@ describe('Plan entity tests', () => {
         previousValue: 'propBValue',
         newValue: null,
       }]
-    }, resource.defaultValues);
+    }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
       type: 'type',
@@ -60,7 +64,8 @@ describe('Plan entity tests', () => {
   })
 
   it('Adds default values properly when plan is parsed from request (No-op)', () => {
-    const resource = createResource();
+    const resource = createTestResource()
+    const controller = new ResourceController(resource);
 
     const plan = Plan.fromResponse({
       operation: ResourceOperation.NOOP,
@@ -71,7 +76,7 @@ describe('Plan entity tests', () => {
         previousValue: 'propBValue',
         newValue: 'propBValue',
       }]
-    }, resource.defaultValues);
+    }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
       type: 'type',
@@ -91,7 +96,8 @@ describe('Plan entity tests', () => {
   })
 
   it('Does not add default value if a value has already been specified', () => {
-    const resource = createResource();
+    const resource = createTestResource()
+    const controller = new ResourceController(resource);
 
     const plan = Plan.fromResponse({
       operation: ResourceOperation.CREATE,
@@ -107,7 +113,7 @@ describe('Plan entity tests', () => {
         previousValue: null,
         newValue: 'propAValue',
       }]
-    }, resource.defaultValues);
+    }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null
 
@@ -123,19 +129,17 @@ describe('Plan entity tests', () => {
   })
 
   it('Returns the original resource names', () => {
-    const resource = createResource();
-
-    const plan = Plan.calculate(
-      {
-        propA: 'propA',
-      },
-      {
-        propA: 'propA2',
-      },
-      {
+    const plan = Plan.calculate<TestConfig>({
+      desiredParameters: { propA: 'propA' },
+      currentParametersArray: [{ propA: 'propA2' }],
+      stateParameters: null,
+      coreParameters: {
         type: 'type',
         name: 'name1'
-      }, { statefulMode: false });
+      },
+      settings: new ParsedResourceSettings<TestConfig>({ type: 'type' }),
+      statefulMode: false,
+    });
 
     expect(plan.toResponse()).toMatchObject({
       resourceType: 'type',
@@ -145,15 +149,17 @@ describe('Plan entity tests', () => {
   })
 })
 
-function createResource(): Resource<any> {
+function createTestResource() {
   return new class extends TestResource {
-    constructor() {
-      super({
+    getSettings(): ResourceSettings<TestConfig> {
+      return {
         type: 'type',
-        parameterOptions: {
-          propA: { default: 'defaultA' }
+        parameterSettings: {
+          propA: {
+            default: 'defaultA'
+          }
         }
-      });
+      }
     }
-  }
+  };
 }

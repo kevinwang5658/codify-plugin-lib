@@ -8,9 +8,9 @@ import {
 } from 'codify-schemas';
 import { v4 as uuidV4 } from 'uuid';
 
+import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 import { ResourceSettings, StatefulParameter } from '../resource/resource-settings.js';
 import { ChangeSet } from './change-set.js';
-import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 
 export class Plan<T extends StringIndexedObject> {
   id: string;
@@ -109,7 +109,7 @@ export class Plan<T extends StringIndexedObject> {
     const changeSet = ChangeSet.calculateModification(
       desiredParameters!,
       filteredCurrentParameters!,
-      settings.parameterSettings ?? {},
+      settings.parameterSettings,
     );
 
     return new Plan(
@@ -190,20 +190,20 @@ export class Plan<T extends StringIndexedObject> {
 
     function isArrayStatefulParameter(k: string, v: T[keyof T]): boolean {
       return settings.parameterSettings?.[k]?.type === 'stateful'
-        && (settings.parameterSettings[k] as StatefulParameter<T>).definition.getSettings().type === 'array'
-        && !(settings.parameterSettings[k] as StatefulParameter<T>).definition.getSettings().disableStatelessModeArrayFiltering
+        && (settings.parameterSettings[k] as StatefulParameter).definition.getSettings().type === 'array'
+        && !(settings.parameterSettings[k] as StatefulParameter).definition.getSettings().disableStatelessModeArrayFiltering
         && Array.isArray(v)
     }
 
     function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
       const desiredArray = desired![k] as unknown[];
-      const matcher = (settings.parameterSettings![k] as StatefulParameter<T>)
+      const matcher = (settings.parameterSettings![k] as StatefulParameter)
         .definition
         .getSettings()
         .isElementEqual;
 
       return v.filter((cv) =>
-        desiredArray.find((dv) => (matcher ?? ((a, b) => a === b))(dv, cv))
+        desiredArray.find((dv) => (matcher ?? ((a: any, b: any) => a === b))(dv, cv))
       )
     }
   }

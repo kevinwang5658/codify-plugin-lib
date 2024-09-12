@@ -23,6 +23,22 @@ export class ChangeSet<T extends StringIndexedObject> {
     this.parameterChanges = parameterChanges;
   }
 
+  get desiredParameters(): T {
+    return this.parameterChanges
+      .reduce((obj, pc) => ({
+        ...obj,
+        [pc.name]: pc.newValue,
+      }), {}) as T;
+  }
+
+  get currentParameters(): T {
+    return this.parameterChanges
+      .reduce((obj, pc) => ({
+        ...obj,
+        [pc.name]: pc.previousValue,
+      }), {}) as T;
+  }
+
   static empty<T extends StringIndexedObject>(): ChangeSet<T> {
     return new ChangeSet<T>(ResourceOperation.NOOP, []);
   }
@@ -51,26 +67,10 @@ export class ChangeSet<T extends StringIndexedObject> {
     return new ChangeSet(ResourceOperation.DESTROY, parameterChanges);
   }
 
-  get desiredParameters(): T {
-    return this.parameterChanges
-      .reduce((obj, pc) => ({
-        ...obj,
-        [pc.name]: pc.newValue,
-      }), {}) as T;
-  }
-
-  get currentParameters(): T {
-    return this.parameterChanges
-      .reduce((obj, pc) => ({
-        ...obj,
-        [pc.name]: pc.previousValue,
-      }), {}) as T;
-  }
-
   static calculateModification<T extends StringIndexedObject>(
     desired: Partial<T>,
     current: Partial<T>,
-    parameterSettings: Partial<Record<keyof T, ParameterSetting>>,
+    parameterSettings: Partial<Record<keyof T, ParameterSetting>> = {},
   ): ChangeSet<T> {
     const pc = ChangeSet.calculateParameterChanges(desired, current, parameterSettings);
 
@@ -96,44 +96,6 @@ export class ChangeSet<T extends StringIndexedObject> {
       }, ResourceOperation.NOOP);
 
     return new ChangeSet<T>(resourceOperation, pc);
-  }
-
-  static combineResourceOperations(prev: ResourceOperation, next: ResourceOperation) {
-    const orderOfOperations = [
-      ResourceOperation.NOOP,
-      ResourceOperation.MODIFY,
-      ResourceOperation.RECREATE,
-      ResourceOperation.CREATE,
-      ResourceOperation.DESTROY,
-    ]
-
-    const indexPrev = orderOfOperations.indexOf(prev);
-    const indexNext = orderOfOperations.indexOf(next);
-
-    return orderOfOperations[Math.max(indexPrev, indexNext)];
-  }
-
-  static isSame(
-    desired: unknown,
-    current: unknown,
-    setting?: ParameterSetting,
-  ): boolean {
-    switch (setting?.type) {
-      case 'stateful': {
-        const statefulSetting = (setting as StatefulParameter<any>).definition.getSettings()
-
-        return ChangeSet.isSame(desired, current, statefulSetting as ParameterSetting);
-      }
-
-      case 'array': {
-        const arrayParameter = setting as ArrayParameter;
-        return areArraysEqual(arrayParameter, desired, current)
-      }
-
-      default: {
-        return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
-      }
-    }
   }
 
   private static calculateParameterChanges<T extends StringIndexedObject>(
@@ -203,5 +165,43 @@ export class ChangeSet<T extends StringIndexedObject> {
     }
 
     return parameterChangeSet;
+  }
+
+  private static combineResourceOperations(prev: ResourceOperation, next: ResourceOperation) {
+    const orderOfOperations = [
+      ResourceOperation.NOOP,
+      ResourceOperation.MODIFY,
+      ResourceOperation.RECREATE,
+      ResourceOperation.CREATE,
+      ResourceOperation.DESTROY,
+    ]
+
+    const indexPrev = orderOfOperations.indexOf(prev);
+    const indexNext = orderOfOperations.indexOf(next);
+
+    return orderOfOperations[Math.max(indexPrev, indexNext)];
+  }
+
+  private static isSame(
+    desired: unknown,
+    current: unknown,
+    setting?: ParameterSetting,
+  ): boolean {
+    switch (setting?.type) {
+      case 'stateful': {
+        const statefulSetting = (setting as StatefulParameter).definition.getSettings()
+
+        return ChangeSet.isSame(desired, current, statefulSetting as ParameterSetting);
+      }
+
+      case 'array': {
+        const arrayParameter = setting as ArrayParameter;
+        return areArraysEqual(arrayParameter, desired, current)
+      }
+
+      default: {
+        return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
+      }
+    }
   }
 }

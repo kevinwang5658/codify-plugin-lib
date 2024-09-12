@@ -48,11 +48,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   /**
    * Additional options for configuring parameters.
    */
-  parameterSettings?: Partial<Record<keyof T,
-    ArrayParameter
-    | ParameterSetting
-    | StatefulParameter<T>
-  >>;
+  parameterSettings?: Partial<Record<keyof T, ParameterSetting>>;
 
   inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
 }
@@ -67,7 +63,12 @@ export type ParameterSettingType =
   | 'string'
   | 'version';
 
-export interface ParameterSetting {
+export type ParameterSetting =
+  ArrayParameter
+  | DefaultParameter
+  | StatefulParameter
+
+export interface DefaultParameter {
   type?: ParameterSettingType;
 
   /**
@@ -90,14 +91,14 @@ export interface ParameterSetting {
   canModify?: boolean
 }
 
-export interface ArrayParameter extends ParameterSetting {
+export interface ArrayParameter extends DefaultParameter {
   type: 'array'
   isElementEqual?: (desired: any, current: any) => boolean
 }
 
-export interface StatefulParameter<T extends StringIndexedObject> extends ParameterSetting {
+export interface StatefulParameter extends DefaultParameter {
   type: 'stateful',
-  definition: StatefulParameterObj<T, T[keyof T]>,
+  definition: StatefulParameterObj<any, unknown>,
   order?: number,
 }
 

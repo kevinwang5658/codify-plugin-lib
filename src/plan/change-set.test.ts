@@ -2,7 +2,7 @@ import { ChangeSet } from './change-set.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { describe, expect, it } from 'vitest';
 
-describe('Change set tests (stateful)', () => {
+describe('Change set tests', () => {
   it ('Correctly diffs two resource configs (modify)', () => {
     const after = {
       propA: 'before',
@@ -14,10 +14,11 @@ describe('Change set tests (stateful)', () => {
       propB: 'after'
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
-    expect(cs.length).to.eq(2);
-    expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
-    expect(cs[1].operation).to.eq(ParameterOperation.MODIFY);
+    const cs = ChangeSet.calculateModification(after, before);
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.operation).to.eq(ResourceOperation.RECREATE)
   })
 
   it ('Correctly diffs two resource configs (add)', () => {
@@ -30,10 +31,12 @@ describe('Change set tests (stateful)', () => {
       propA: 'after',
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
-    expect(cs.length).to.eq(2);
-    expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
-    expect(cs[1].operation).to.eq(ParameterOperation.ADD);
+    const cs = ChangeSet.calculateModification(after, before,);
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.ADD);
+    expect(cs.operation).to.eq(ResourceOperation.RECREATE)
+
   })
 
   it ('Correctly diffs two resource configs (remove)', () => {
@@ -46,10 +49,11 @@ describe('Change set tests (stateful)', () => {
       propB: 'before'
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
-    expect(cs.length).to.eq(2);
-    expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
-    expect(cs[1].operation).to.eq(ParameterOperation.REMOVE);
+    const cs = ChangeSet.calculateModification(after, before);
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.REMOVE);
+    expect(cs.operation).to.eq(ResourceOperation.RECREATE)
   })
 
   it ('Correctly diffs two resource configs (no-op)', () => {
@@ -61,9 +65,34 @@ describe('Change set tests (stateful)', () => {
       propA: 'prop',
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
-    expect(cs.length).to.eq(1);
-    expect(cs[0].operation).to.eq(ParameterOperation.NOOP);
+    const cs = ChangeSet.calculateModification(after, before);
+    expect(cs.parameterChanges.length).to.eq(1);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
+    expect(cs.operation).to.eq(ResourceOperation.NOOP)
+  })
+
+  it('Correctly diffs two resource configs (create)', () => {
+    const cs = ChangeSet.create({
+      propA: 'prop',
+      propB: 'propB'
+    });
+
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.ADD);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.ADD);
+    expect(cs.operation).to.eq(ResourceOperation.CREATE)
+  })
+
+  it('Correctly diffs two resource configs (destory)', () => {
+    const cs = ChangeSet.destroy({
+      propA: 'prop',
+      propB: 'propB'
+    });
+
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.REMOVE);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.REMOVE);
+    expect(cs.operation).to.eq(ResourceOperation.DESTROY)
   })
 
   it ('handles simple arrays', () => {
@@ -75,12 +104,13 @@ describe('Change set tests (stateful)', () => {
       propA: ['b', 'a', 'c'],
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
-    expect(cs.length).to.eq(1);
-    expect(cs[0].operation).to.eq(ParameterOperation.NOOP);
+    const cs = ChangeSet.calculateModification(after, before, { propA: { type: 'array' } });
+    expect(cs.parameterChanges.length).to.eq(1);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
+    expect(cs.operation).to.eq(ResourceOperation.NOOP)
   })
 
-  it ('handles simple arrays', () => {
+  it('handles simple arrays 2', () => {
     const after = {
       propA: ['a', 'b', 'c'],
     }
@@ -89,67 +119,102 @@ describe('Change set tests (stateful)', () => {
       propA: ['b', 'a'],
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { statefulMode: true });
-    expect(cs.length).to.eq(1);
-    expect(cs[0].operation).to.eq(ParameterOperation.MODIFY);
+    const cs = ChangeSet.calculateModification(after, before, { propA: { type: 'array' } });
+    expect(cs.parameterChanges.length).to.eq(1);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.operation).to.eq(ResourceOperation.RECREATE)
   })
 
-  it ('determines the order of operations 1', () => {
-    const op1 = ResourceOperation.MODIFY;
-    const op2 = ResourceOperation.CREATE
+  it('determines the order of operations with canModify 1', () => {
+    const after = {
+      propA: 'after',
+    }
 
-    const opResult = ChangeSet.combineResourceOperations(op1, op2);
-    expect(opResult).to.eq(ResourceOperation.CREATE);
+    const before = {
+      propA: 'before',
+      propB: 'before'
+    }
+
+    const cs = ChangeSet.calculateModification(after, before, { propA: { canModify: true } });
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.REMOVE);
+    expect(cs.operation).to.eq(ResourceOperation.RECREATE)
   })
 
-  it ('determines the order of operations 2', () => {
-    const op1 = ResourceOperation.NOOP;
-    const op2 = ResourceOperation.MODIFY
+  it('determines the order of operations with canModify 2', () => {
+    const after = {
+      propA: 'after',
+    }
 
-    const opResult = ChangeSet.combineResourceOperations(op1, op2);
-    expect(opResult).to.eq(ResourceOperation.MODIFY);
+    const before = {
+      propA: 'before',
+      propB: 'before'
+    }
+
+    const cs = ChangeSet.calculateModification<any>(after, before, {
+      propA: { canModify: true },
+      propB: { canModify: true }
+    });
+    expect(cs.parameterChanges.length).to.eq(2);
+    expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
+    expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.REMOVE);
+    expect(cs.operation).to.eq(ResourceOperation.MODIFY)
   })
 
-  it ('determines the order of operations 3', () => {
-    const op1 = ResourceOperation.MODIFY;
-    const op2 = ResourceOperation.MODIFY
-
-    const opResult = ChangeSet.combineResourceOperations(op1, op2);
-    expect(opResult).to.eq(ResourceOperation.MODIFY);
-  })
 
   it('correctly determines array equality', () => {
     const arrA = ['a', 'b', 'd'];
     const arrB = ['a', 'b', 'd'];
 
-    expect(ChangeSet.isSame(arrA, arrB)).to.be.true;
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, { propA: { type: 'array' } })
+
+    expect(result.operation).to.eq(ResourceOperation.NOOP);
   })
 
   it('correctly determines array equality 2', () => {
     const arrA = ['a', 'b'];
     const arrB = ['a', 'b', 'd'];
 
-    expect(ChangeSet.isSame(arrA, arrB)).to.be.false;
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, { propA: { type: 'array' } })
+
+    expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
   })
 
   it('correctly determines array equality 3', () => {
     const arrA = ['b', 'a', 'd'];
     const arrB = ['a', 'b', 'd'];
 
-    expect(ChangeSet.isSame(arrA, arrB)).to.be.true;
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, { propA: { type: 'array' } })
+
+    expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
   })
 
   it('correctly determines array equality 4', () => {
     const arrA = [{ key1: 'a' }, { key1: 'a' }, { key1: 'a' }];
     const arrB = [{ key1: 'a' }, { key1: 'a' }, { key1: 'b' }];
 
-    expect(ChangeSet.isSame(arrA, arrB)).to.be.false;
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, {
+      propA: {
+        type: 'array',
+        isElementEqual: (a, b) => a.key1 === b.key1
+      }
+    })
+
+    expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
   })
 
   it('correctly determines array equality 5', () => {
     const arrA = [{ key1: 'b' }, { key1: 'a' }, { key1: 'a' }];
     const arrB = [{ key1: 'a' }, { key1: 'a' }, { key1: 'b' }];
 
-    expect(ChangeSet.isSame(arrA, arrB)).to.be.false;
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, {
+      propA: {
+        type: 'array',
+        isElementEqual: (a, b) => a.key1 === b.key1
+      }
+    })
+
+    expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
   })
 })

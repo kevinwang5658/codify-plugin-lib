@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { StatefulParameterSetting } from './stateful-parameter.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
@@ -10,7 +9,7 @@ import {
   TestResource,
   TestStatefulParameter
 } from '../utils/test-utils.test.js';
-import { ResourceSettings } from './resource-settings.js';
+import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from './resource-settings.js';
 import { ResourceController } from './resource-controller.js';
 
 describe('Resource parameter tests', () => {
@@ -77,7 +76,7 @@ describe('Resource parameter tests', () => {
     const controller = new ResourceController(resource);
     const resourceSpy = spy(resource);
 
-    const result = await controller.apply(
+    await controller.apply(
       testPlan<TestConfig>({
         desired: { propA: 'a', propB: 0, propC: 'c' }
       })
@@ -118,7 +117,7 @@ describe('Resource parameter tests', () => {
     const plan = await controller.plan({ type: 'type', propA: 'a', propB: 0, propC: 'b' })
 
     const resourceSpy = spy(resource);
-    const result = await controller.apply(plan);
+    await controller.apply(plan);
 
     expect(statefulParameterSpy.modify.calledOnce).to.be.true;
     expect(resourceSpy.modify.calledOnce).to.be.true;
@@ -126,7 +125,7 @@ describe('Resource parameter tests', () => {
 
   it('Allows stateful parameters to have default values', async () => {
     const statefulParameter = spy(new class extends TestStatefulParameter {
-      getSettings(): StatefulParameterSetting {
+      getSettings(): ParameterSetting {
         return {
           default: 'abc'
         };
@@ -168,7 +167,7 @@ describe('Resource parameter tests', () => {
 
   it('Filters array results in stateless mode to prevent modify from being called', async () => {
     const statefulParameter = new class extends TestStatefulParameter {
-      getSettings(): StatefulParameterSetting {
+      getSettings(): ParameterSetting {
         return { type: 'array' }
       }
 
@@ -240,7 +239,7 @@ describe('Resource parameter tests', () => {
 
   it('Uses isElementEqual for stateless mode filtering if available', async () => {
     const statefulParameter = new class extends TestArrayStatefulParameter {
-      getSettings(): StatefulParameterSetting {
+      getSettings(): ArrayParameterSetting {
         return {
           type: 'array',
           isElementEqual: (desired, current) => {
@@ -414,6 +413,10 @@ describe('Resource parameter tests', () => {
       }, {}) as any
     );
 
+    if (!timestampB || !timestampC || !timestampA) {
+      throw new Error('Variable not initialized')
+    }
+
     expect(timestampB).to.be.lessThan(timestampC as any);
     expect(timestampC).to.be.lessThan(timestampA as any);
     timestampA = 0;
@@ -452,10 +455,6 @@ describe('Resource parameter tests', () => {
 
     expect(timestampB).to.be.lessThan(timestampC as any);
     expect(timestampC).to.be.lessThan(timestampA as any);
-    timestampA = 0;
-    timestampB = 0;
-    timestampC = 0;
-
   })
 
   it('Supports transform parameters', async () => {

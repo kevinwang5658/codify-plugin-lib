@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { TestArrayStatefulParameter, TestConfig, testPlan } from '../utils/test-utils.test.js';
-import { StatefulParameterSetting } from './stateful-parameter.js';
+import { ArrayParameterSetting } from './resource-settings.js';
 
 describe('Stateful parameter tests', () => {
   it('addItem is called the correct number of times', async () => {
@@ -63,8 +63,9 @@ describe('Stateful parameter tests', () => {
 
   it('isElementEqual is called for modifies', async () => {
     const testParameter = spy(new class extends TestArrayStatefulParameter {
-      getSettings(): StatefulParameterSetting {
+      getSettings(): ArrayParameterSetting {
         return {
+          type: 'array',
           isElementEqual: (desired, current) => current.includes(desired),
         }
       }

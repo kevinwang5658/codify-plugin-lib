@@ -2,7 +2,8 @@ import promiseSpawn from '@npmcli/promise-spawn';
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 import { SpawnOptions } from 'node:child_process';
 import os from 'node:os';
-import { ArrayParameter } from '../resource/resource-settings.js';
+
+import { ArrayParameterSetting } from '../resource/resource-settings.js';
 
 export enum SpawnStatus {
   SUCCESS = 'success',
@@ -110,7 +111,7 @@ export function untildify(pathWithTilde: string) {
   return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
 }
 
-export function areArraysEqual(parameter: ArrayParameter, desired: unknown, current: unknown) {
+export function areArraysEqual(parameter: ArrayParameterSetting, desired: unknown, current: unknown) {
   if (!Array.isArray(desired) || !Array.isArray(current)) {
     throw new Error(`A non-array value:
           

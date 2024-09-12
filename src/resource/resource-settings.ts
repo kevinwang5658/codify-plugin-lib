@@ -64,11 +64,11 @@ export type ParameterSettingType =
   | 'version';
 
 export type ParameterSetting =
-  ArrayParameter
-  | DefaultParameter
-  | StatefulParameter
+  ArrayParameterSetting
+  | DefaultParameterSetting
+  | StatefulParameterSetting
 
-export interface DefaultParameter {
+export interface DefaultParameterSetting {
   type?: ParameterSettingType;
 
   /**
@@ -91,12 +91,12 @@ export interface DefaultParameter {
   canModify?: boolean
 }
 
-export interface ArrayParameter extends DefaultParameter {
+export interface ArrayParameterSetting extends DefaultParameterSetting {
   type: 'array'
   isElementEqual?: (desired: any, current: any) => boolean
 }
 
-export interface StatefulParameter extends DefaultParameter {
+export interface StatefulParameterSetting extends DefaultParameterSetting {
   type: 'stateful',
   definition: StatefulParameterObj<any, unknown>,
   order?: number,

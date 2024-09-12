@@ -2,14 +2,14 @@ import { StringIndexedObject } from 'codify-schemas';
 
 import { areArraysEqual } from '../utils/utils.js';
 import {
-  ArrayParameter,
+  ArrayParameterSetting,
   ParameterEqualsDefaults,
   ParameterSetting,
   ParameterSettingType,
   ResourceSettings,
-  StatefulParameter
+  StatefulParameterSetting
 } from './resource-settings.js';
-import { StatefulParameter as StatefulParameterImpl, StatefulParameterSetting } from './stateful-parameter.js'
+import { StatefulParameter as StatefulParameterImpl } from './stateful-parameter.js'
 
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
@@ -42,7 +42,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
       const statefulParameters = Object.entries(this.settings.parameterSettings ?? {})
         .filter(([, p]) => p?.type === 'stateful')
-        .map(([k, v]) => [k, (v as StatefulParameter).definition] as const)
+        .map(([k, v]) => [k, (v as StatefulParameterSetting).definition] as const)
 
       return new Map(statefulParameters) as Map<keyof T, StatefulParameterImpl<T, T[keyof T]>>;
     })
@@ -79,8 +79,8 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       const statefulParameterDefaultValues = Object.fromEntries(
         Object.entries(this.settings.parameterSettings)
           .filter(([, v]) => v?.type === 'stateful')
-          .filter(([, v]) => (v as StatefulParameter).definition.getSettings().default !== undefined)
-          .map(([k, v]) => [k, (v as StatefulParameter).definition.getSettings().default] as const)
+          .filter(([, v]) => (v as StatefulParameterSetting).definition.getSettings().default !== undefined)
+          .map(([k, v]) => [k, (v as StatefulParameterSetting).definition.getSettings().default] as const)
       )
 
       return { ...defaultValues, ...statefulParameterDefaultValues } as Partial<Record<keyof T, unknown>>;
@@ -106,7 +106,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
       const entries = Object.entries(this.settings.parameterSettings ?? {})
         .filter(([, v]) => v?.type === 'stateful')
-        .map(([k, v]) => [k, v as StatefulParameter] as const)
+        .map(([k, v]) => [k, v as StatefulParameterSetting] as const)
 
       const orderedEntries = entries.filter(([, v]) => v.order !== undefined)
       const unorderedEntries = entries.filter(([, v]) => v.order === undefined)
@@ -140,9 +140,9 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     }
   }
 
-  private validateParameterEqualsFn(parameter: ParameterSetting | StatefulParameterSetting, key: string): void {
+  private validateParameterEqualsFn(parameter: ParameterSetting, key: string): void {
     if (parameter.type === 'stateful') {
-      const nestedSettings = (parameter as StatefulParameter).definition.getSettings();
+      const nestedSettings = (parameter as StatefulParameterSetting).definition.getSettings();
 
       if (nestedSettings.type === 'stateful') {
         throw new Error(`Nested stateful parameters are not allowed for ${key}`);
@@ -154,13 +154,13 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     // The rest of the types have defaults set already
   }
 
-  private resolveEqualsFn(parameter: ParameterSetting | StatefulParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
+  private resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
     if (parameter.type === 'array') {
-      return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameter)
+      return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameterSetting)
     }
 
     if (parameter.type === 'stateful') {
-      return this.resolveEqualsFn((parameter as StatefulParameter).definition.getSettings(), key)
+      return this.resolveEqualsFn((parameter as StatefulParameterSetting).definition.getSettings(), key)
     }
 
     return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));

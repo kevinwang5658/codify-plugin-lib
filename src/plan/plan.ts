@@ -9,7 +9,7 @@ import {
 import { v4 as uuidV4 } from 'uuid';
 
 import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
-import { ResourceSettings, StatefulParameter } from '../resource/resource-settings.js';
+import { ArrayParameterSetting, ResourceSettings, StatefulParameterSetting } from '../resource/resource-settings.js';
 import { ChangeSet } from './change-set.js';
 
 export class Plan<T extends StringIndexedObject> {
@@ -190,16 +190,15 @@ export class Plan<T extends StringIndexedObject> {
 
     function isArrayStatefulParameter(k: string, v: T[keyof T]): boolean {
       return settings.parameterSettings?.[k]?.type === 'stateful'
-        && (settings.parameterSettings[k] as StatefulParameter).definition.getSettings().type === 'array'
-        && !(settings.parameterSettings[k] as StatefulParameter).definition.getSettings().disableStatelessModeArrayFiltering
+        && (settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings().type === 'array'
         && Array.isArray(v)
     }
 
     function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
       const desiredArray = desired![k] as unknown[];
-      const matcher = (settings.parameterSettings![k] as StatefulParameter)
+      const matcher = ((settings.parameterSettings![k] as StatefulParameterSetting)
         .definition
-        .getSettings()
+        .getSettings() as ArrayParameterSetting)
         .isElementEqual;
 
       return v.filter((cv) =>

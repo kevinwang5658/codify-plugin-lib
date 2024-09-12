@@ -3,7 +3,7 @@ import { ResourceSettings } from '../resource/resource-settings.js';
 import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
 import { CreatePlan, DestroyPlan } from '../plan/plan-types.js';
-import { ArrayStatefulParameter, StatefulParameter, StatefulParameterSetting } from '../resource/stateful-parameter.js';
+import { ArrayStatefulParameter, StatefulParameter } from '../resource/stateful-parameter.js';
 import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 
 export function testPlan<T extends StringIndexedObject>(params: {
@@ -55,10 +55,6 @@ export class TestResource extends Resource<TestConfig> {
 }
 
 export class TestStatefulParameter extends StatefulParameter<TestConfig, string> {
-  getSettings(): StatefulParameterSetting {
-    return {}
-  }
-
   async refresh(desired: string | null): Promise<string | null> {
     return 'd';
   }
@@ -77,12 +73,6 @@ export class TestStatefulParameter extends StatefulParameter<TestConfig, string>
 }
 
 export class TestArrayStatefulParameter extends ArrayStatefulParameter<TestConfig, string> {
-  getSettings(): StatefulParameterSetting {
-    return {
-      type: 'array'
-    }
-  }
-
   async refresh(): Promise<any | null> {
     return ['3.11.9']
   }

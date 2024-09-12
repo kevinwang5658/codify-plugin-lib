@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { TestParameter } from './resource-settings.test.js';
-import { StatefulParameter } from './stateful-parameter.js';
-import { TestConfig, TestResource } from '../utils/test-utils.test.js';
+import { TestConfig, TestResource, TestStatefulParameter } from '../utils/test-utils.test.js';
+import { ResourceSettings } from './resource-settings.js';
+import { ResourceController } from './resource-controller.js';
 
 
 describe('Resource tests for stateful plans', () => {
   it('Supports delete operations ', async () => {
     const resource = new class extends TestResource {
-      constructor() {
-        super({ type: 'resource' });
-      }
-
       async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
         return {
           propA: 'propADifferent',
@@ -21,10 +17,11 @@ describe('Resource tests for stateful plans', () => {
       }
     }
 
-    const plan = await resource.plan(
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan(
       null,
       {
-        type: 'resource',
+        type: 'type',
         propA: 'propA',
         propB: 10,
         propC: 'propC',
@@ -42,6 +39,12 @@ describe('Resource tests for stateful plans', () => {
             operation: ParameterOperation.REMOVE
           },
           {
+            name: 'propB',
+            previousValue: null,
+            newValue: null,
+            operation: ParameterOperation.REMOVE
+          },
+          {
             name: "propC",
             previousValue: "propCDifferent",
             newValue: null,
@@ -49,24 +52,21 @@ describe('Resource tests for stateful plans', () => {
           },
         ]
       },
-      resourceMetadata: {
-        type: 'resource'
+      coreParameters: {
+        type: 'type'
       }
     })
   })
 
   it('Supports create operations', async () => {
     const resource = new class extends TestResource {
-      constructor() {
-        super({ type: 'resource' });
-      }
-
       async refresh(): Promise<Partial<TestConfig> | null> {
         return null;
       }
     }
 
-    const plan = await resource.plan(
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan(
       {
         type: 'resource',
         propA: 'propA',
@@ -101,7 +101,7 @@ describe('Resource tests for stateful plans', () => {
           },
         ]
       },
-      resourceMetadata: {
+      coreParameters: {
         type: 'resource'
       }
     })
@@ -109,28 +109,24 @@ describe('Resource tests for stateful plans', () => {
 
   it('Supports re-create operations', async () => {
     const resource = new class extends TestResource {
-      constructor() {
-        super({ type: 'resource' });
-      }
-
       async refresh(): Promise<Partial<TestConfig> | null> {
         return {
           propA: 'propA',
           propC: 'propC',
-          propB: undefined
         };
       }
     }
 
-    const plan = await resource.plan(
+    const controller = new ResourceController(resource)
+    const plan = await controller.plan(
       {
-        type: 'resource',
+        type: 'type',
         propA: 'propA',
         propB: 10,
         propC: 'propC',
       },
       {
-        type: 'resource',
+        type: 'type',
         propA: 'propA',
         propC: 'propC'
       },
@@ -161,27 +157,27 @@ describe('Resource tests for stateful plans', () => {
           },
         ])
       },
-      resourceMetadata: {
-        type: 'resource'
+      coreParameters: {
+        type: 'type'
       }
     })
   })
 
   it('Supports stateful parameters', async () => {
-    const statefulParameter = new class extends TestParameter {
+    const statefulParameter = new class extends TestStatefulParameter {
       async refresh(): Promise<string | null> {
         return null;
       }
     }
 
     const resource = new class extends TestResource {
-      constructor() {
-        super({
-          type: 'resource',
-          parameterOptions: {
-            propD: { statefulParameter: statefulParameter as StatefulParameter<TestConfig, string> },
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          type: 'type',
+          parameterSettings: {
+            propD: { type: 'stateful', definition: statefulParameter },
           }
-        });
+        };
       }
 
       async refresh(): Promise<Partial<TestConfig> | null> {
@@ -193,16 +189,17 @@ describe('Resource tests for stateful plans', () => {
       }
     }
 
-    const plan = await resource.plan(
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan(
       {
-        type: 'resource',
+        type: 'type',
         propA: 'propA',
         propB: 10,
         propC: 'propC',
         propD: 'propD'
       },
       {
-        type: 'resource',
+        type: 'type',
         propA: 'propA',
         propC: 'propC'
       },
@@ -239,8 +236,8 @@ describe('Resource tests for stateful plans', () => {
           },
         ])
       },
-      resourceMetadata: {
-        type: 'resource'
+      coreParameters: {
+        type: 'type'
       }
     })
   })

@@ -4,6 +4,7 @@ import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
 import { CreatePlan, DestroyPlan } from '../plan/plan-types.js';
 import { ArrayStatefulParameter, StatefulParameter, StatefulParameterSetting } from '../resource/stateful-parameter.js';
+import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 
 export function testPlan<T extends StringIndexedObject>(params: {
   desired?: Partial<T> | null;
@@ -18,7 +19,9 @@ export function testPlan<T extends StringIndexedObject>(params: {
     currentParametersArray: params.current ?? null,
     stateParameters: params.state ?? null,
     coreParameters: params.core ?? { type: 'type' },
-    settings: params.settings ?? { type: 'type' },
+    settings: params.settings ?
+      new ParsedResourceSettings<T>(params.settings)
+      : new ParsedResourceSettings<T>({ type: 'type' }),
     statefulMode: params.statefulMode ?? false,
   })
 }

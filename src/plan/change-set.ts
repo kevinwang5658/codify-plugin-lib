@@ -10,6 +10,7 @@ export interface ParameterChange<T extends StringIndexedObject> {
   newValue: any | null;
 }
 
+// Change set will coerce undefined values to null because undefined is not valid JSON
 export class ChangeSet<T extends StringIndexedObject> {
   operation: ResourceOperation
   parameterChanges: Array<ParameterChange<T>>
@@ -32,7 +33,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         name: k,
         operation: ParameterOperation.ADD,
         previousValue: null,
-        newValue: v
+        newValue: v ?? null,
       }))
 
     return new ChangeSet(ResourceOperation.CREATE, parameterChanges);
@@ -43,7 +44,7 @@ export class ChangeSet<T extends StringIndexedObject> {
       .map(([k, v]) => ({
         name: k,
         operation: ParameterOperation.REMOVE,
-        previousValue: v,
+        previousValue: v ?? null,
         newValue: null,
       }))
 
@@ -136,20 +137,26 @@ export class ChangeSet<T extends StringIndexedObject> {
   }
 
   private static calculateParameterChanges<T extends StringIndexedObject>(
-    desiredParameters: Partial<T> | null,
-    currentParameters: Partial<T> | null,
+    desiredParameters: Partial<T>,
+    currentParameters: Partial<T>,
     parameterOptions?: Partial<Record<keyof T, ParameterSetting>>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
 
-    const desired = { ...desiredParameters }
-    const current = { ...currentParameters }
+    // Filter out null and undefined values or else the diff below will not work
+    const desired = Object.fromEntries(
+      Object.entries(desiredParameters).filter(([, v]) => v !== null && v !== undefined)
+    ) as Partial<T>
+
+    const current = Object.fromEntries(
+      Object.entries(currentParameters).filter(([, v]) => v !== null && v !== undefined)
+    ) as Partial<T>
 
     for (const [k, v] of Object.entries(current)) {
       if (desired?.[k] === null || desired?.[k] === undefined) {
         parameterChangeSet.push({
           name: k,
-          previousValue: v,
+          previousValue: v ?? null,
           newValue: null,
           operation: ParameterOperation.REMOVE,
         })
@@ -161,8 +168,8 @@ export class ChangeSet<T extends StringIndexedObject> {
       if (!ChangeSet.isSame(desired[k], current[k], parameterOptions?.[k])) {
         parameterChangeSet.push({
           name: k,
-          previousValue: v,
-          newValue: desired[k],
+          previousValue: v ?? null,
+          newValue: desired[k] ?? null,
           operation: ParameterOperation.MODIFY,
         })
 
@@ -173,8 +180,8 @@ export class ChangeSet<T extends StringIndexedObject> {
 
       parameterChangeSet.push({
         name: k,
-        previousValue: v,
-        newValue: desired[k],
+        previousValue: v ?? null,
+        newValue: desired[k] ?? null,
         operation: ParameterOperation.NOOP,
       })
 
@@ -190,7 +197,7 @@ export class ChangeSet<T extends StringIndexedObject> {
       parameterChangeSet.push({
         name: k,
         previousValue: null,
-        newValue: v,
+        newValue: v ?? null,
         operation: ParameterOperation.ADD,
       })
     }

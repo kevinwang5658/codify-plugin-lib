@@ -4,8 +4,8 @@ import { splitUserConfig } from '../utils/utils.js';
 import { StatefulParameter } from './stateful-parameter.js';
 
 export class ConfigParser<T extends StringIndexedObject> {
-  private desiredConfig: Partial<T> & ResourceConfig | null;
-  private stateConfig: Partial<T> & ResourceConfig | null;
+  private readonly desiredConfig: Partial<T> & ResourceConfig | null;
+  private readonly stateConfig: Partial<T> & ResourceConfig | null;
   private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
 
   constructor(

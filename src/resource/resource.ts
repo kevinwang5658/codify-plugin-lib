@@ -13,7 +13,7 @@ import { ResourceSettings } from './resource-settings.js';
 export abstract class Resource<T extends StringIndexedObject> {
 
   /**
-   * Return the settings for the resource. Consult the typing for ResourceSetting for
+   * Return the settings for the resource. Consult the typing for {@link ResourceSettings} for
    * a description of the options.
    *
    * **Parameters**:

@@ -39,7 +39,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   }
 
   /**
-   * If true, statefulParameter.remove() will be called before resource destruction. This is useful
+   * If true, {@link StatefulParameter} remove() will be called before resource destruction. This is useful
    * if the stateful parameter needs to be first uninstalled (cleanup) before the overall resource can be
    * uninstalled. Defaults to false.
    */
@@ -84,7 +84,8 @@ export type ParameterSettingType =
 /**
  * Typing information for the parameter setting. This represents a setting on a specific parameter within a
  * resource. Options for configuring parameters operations including overriding the equals function, adding default values
- * and applying any input transformations. Use parameter settings to define stateful parameters as well.
+ * and applying any input transformations. See {@link DefaultParameterSetting } for more information.
+ * Use parameter settings to define stateful parameters as well.
  */
 
 export type ParameterSetting =
@@ -92,6 +93,10 @@ export type ParameterSetting =
   | DefaultParameterSetting
   | StatefulParameterSetting
 
+/**
+ * The parent class for parameter settings. The options are applicable to array parameter settings
+ * as well.
+ */
 export interface DefaultParameterSetting {
   /**
    * The type of the value of this parameter. See {@link ParameterSettingType} for the available options. This value
@@ -136,7 +141,7 @@ export interface DefaultParameterSetting {
 }
 
 /**
- * Array type specific settings
+ * Array type specific settings. See {@link DefaultParameterSetting } for a full list of options.
  */
 export interface ArrayParameterSetting extends DefaultParameterSetting {
   type: 'array'
@@ -159,6 +164,7 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
  * state but is still tied to the overall state of the resource. For example 'homebrew' is represented
  * as a resource and taps, formulas and casks are represented as a stateful parameter. A formula can be installed,
  * modified and removed (has state) but it is still tied to the overall lifecycle of homebrew.
+ *
  */
 export interface StatefulParameterSetting extends DefaultParameterSetting {
   type: 'stateful',

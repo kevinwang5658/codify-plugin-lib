@@ -21,7 +21,7 @@ export function testPlan<T extends StringIndexedObject>(params: {
     coreParameters: params.core ?? { type: 'type' },
     settings: params.settings ?
       new ParsedResourceSettings<T>(params.settings)
-      : new ParsedResourceSettings<T>({ type: 'type' }),
+      : new ParsedResourceSettings<T>({ id: 'type' }),
     statefulMode: params.statefulMode ?? false,
   })
 }
@@ -34,7 +34,7 @@ export interface TestConfig extends StringIndexedObject {
 
 export class TestResource extends Resource<TestConfig> {
   getSettings(): ResourceSettings<TestConfig> {
-    return { type: 'type' }
+    return { id: 'type' }
   }
 
   create(plan: CreatePlan<TestConfig>): Promise<void> {

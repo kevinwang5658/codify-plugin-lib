@@ -32,7 +32,7 @@ export class ResourceController<T extends StringIndexedObject> {
     this.resource = resource;
     this.settings = resource.getSettings();
 
-    this.typeId = this.settings.type;
+    this.typeId = this.settings.id;
     this.dependencies = this.settings.dependencies ?? [];
 
     if (this.settings.schema) {
@@ -243,7 +243,7 @@ export class ResourceController<T extends StringIndexedObject> {
     }
 
     if (!this.settings.allowMultiple && refresh.length > 1) {
-      throw new Error(`Resource: ${this.settings.type}. Allow multiple was set to false but multiple refresh results were returned.
+      throw new Error(`Resource: ${this.settings.id}. Allow multiple was set to false but multiple refresh results were returned.
 
 ${JSON.stringify(refresh, null, 2)}     
 `)

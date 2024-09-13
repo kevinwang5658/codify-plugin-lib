@@ -15,7 +15,7 @@ interface TestConfig extends StringIndexedObject {
 class TestResource extends Resource<TestConfig> {
   getSettings(): ResourceSettings<TestConfig> {
     return {
-      type: 'testResource'
+      id: 'testResource'
     };
   }
 

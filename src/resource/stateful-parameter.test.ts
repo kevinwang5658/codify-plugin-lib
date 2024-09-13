@@ -43,7 +43,7 @@ describe('Stateful parameter tests', () => {
     const plan = testPlan<TestConfig>({
       desired: { propZ: ['a', 'c', 'd', 'e', 'f'] }, // b to remove, d, e, f to add
       current: [{ propZ: ['a', 'b', 'c'] }],
-      settings: { type: 'type', parameterSettings: { propZ: { type: 'stateful', definition: parameter } } },
+      settings: { id: 'type', parameterSettings: { propZ: { type: 'stateful', definition: parameter } } },
     });
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);
@@ -74,7 +74,7 @@ describe('Stateful parameter tests', () => {
     const plan = testPlan<TestConfig>({
       desired: { propZ: ['9.12', '9.13'] }, // b to remove, d, e, f to add
       current: [{ propZ: ['9.12.9'] }],
-      settings: { type: 'type', parameterSettings: { propZ: { type: 'stateful', definition: testParameter } } }
+      settings: { id: 'type', parameterSettings: { propZ: { type: 'stateful', definition: testParameter } } }
     });
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);

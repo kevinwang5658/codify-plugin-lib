@@ -21,8 +21,6 @@ describe('Resource tests', () => {
       }
     }
 
-    const resourceB = new TestResource()
-
     const controller = new ResourceController(resource)
 
     const resourceSpy = spy(controller);
@@ -100,7 +98,7 @@ describe('Resource tests', () => {
     const controllerSpy = spy(controller);
     const resourceSpy = spy(resource);
 
-    const result = await controllerSpy.apply(
+    await controllerSpy.apply(
       testPlan({
         desired: { propA: 'a', propB: 0 },
       })
@@ -152,7 +150,7 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'resource',
+          id: 'resource',
           parameterSettings: {
             propA: { canModify: true },
             propB: { canModify: true },
@@ -169,7 +167,7 @@ describe('Resource tests', () => {
     const plan = await controller.plan({ type: 'resource', propA: 'a', propB: 0 })
 
     const resourceSpy = spy(resource);
-    const result = await controller.apply(
+    await controller.apply(
       plan
     );
 
@@ -182,7 +180,7 @@ describe('Resource tests', () => {
     expect(() => new ResourceController(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           dependencies: ['homebrew', 'python'],
           parameterSettings: {
             propA: { canModify: true },
@@ -204,7 +202,7 @@ describe('Resource tests', () => {
     expect(() => new ResourceController(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           dependencies: ['homebrew', 'python'],
           parameterSettings: {
             propA: { canModify: true },
@@ -220,7 +218,7 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { default: 'propADefault' }
           }
@@ -248,7 +246,7 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propE: { default: 'propEDefault' }
           }
@@ -275,7 +273,7 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propE: { default: 'propEDefault' }
           }
@@ -298,7 +296,7 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { default: 'propADefault' }
           }
@@ -326,7 +324,7 @@ describe('Resource tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { default: 'propADefault' }
           }
@@ -343,7 +341,7 @@ describe('Resource tests', () => {
   it('Has the correct typing for applys', () => {
     const resource = new class extends Resource<TestConfig> {
       getSettings(): ResourceSettings<TestConfig> {
-        return { type: 'type' }
+        return { id: 'type' }
       }
 
       async refresh(): Promise<Partial<TestConfig> | null> {

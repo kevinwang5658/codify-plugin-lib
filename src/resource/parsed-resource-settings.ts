@@ -13,7 +13,7 @@ import { StatefulParameter as StatefulParameterImpl } from './stateful-parameter
 
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
-  type!: string;
+  id!: string;
   schema?: unknown;
   allowMultiple?: { matcher: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>; } | undefined;
   removeStatefulParametersBeforeDestroy?: boolean | undefined;
@@ -23,7 +23,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
   constructor(settings: ResourceSettings<T>) {
     this.settings = settings;
-    this.type = settings.type;
+    this.id = settings.id;
     this.schema = settings.schema;
     this.allowMultiple = settings.allowMultiple;
     this.removeStatefulParametersBeforeDestroy = settings.removeStatefulParametersBeforeDestroy;
@@ -34,7 +34,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
   }
 
   get typeId(): string {
-    return this.type;
+    return this.id;
   }
 
   get statefulParameters(): Map<keyof T, StatefulParameterImpl<T, T[keyof T]>> {
@@ -127,7 +127,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     if (this.settings.parameterSettings) {
       for (const [k, v] of Object.entries(this.settings.parameterSettings)) {
         if (!v) {
-          throw new Error(`Resource: ${this.type}. Parameter setting ${k} was left undefined`);
+          throw new Error(`Resource: ${this.id}. Parameter setting ${k} was left undefined`);
         }
 
         this.validateParameterEqualsFn(v, k);
@@ -136,7 +136,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
     if (this.allowMultiple
       && Object.values(this.parameterSettings).some((v) => v.type === 'stateful')) {
-      throw new Error(`Resource: ${this.type}. Stateful parameters are not allowed if multiples of a resource exist`)
+      throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed if multiples of a resource exist`)
     }
   }
 

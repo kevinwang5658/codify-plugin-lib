@@ -137,7 +137,7 @@ describe('Plan entity tests', () => {
         type: 'type',
         name: 'name1'
       },
-      settings: new ParsedResourceSettings<TestConfig>({ type: 'type' }),
+      settings: new ParsedResourceSettings<TestConfig>({ id: 'type' }),
       statefulMode: false,
     });
 
@@ -153,7 +153,7 @@ function createTestResource() {
   return new class extends TestResource {
     getSettings(): ResourceSettings<TestConfig> {
       return {
-        type: 'type',
+        id: 'type',
         parameterSettings: {
           propA: {
             default: 'defaultA'

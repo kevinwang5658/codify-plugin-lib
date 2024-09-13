@@ -23,7 +23,7 @@ describe('Resource parameter tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameter }
           },
@@ -65,7 +65,7 @@ describe('Resource parameter tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterSpy }
           },
@@ -99,7 +99,7 @@ describe('Resource parameter tests', () => {
 
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterSpy },
             propB: { canModify: true },
@@ -139,7 +139,7 @@ describe('Resource parameter tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameter }
           },
@@ -181,7 +181,7 @@ describe('Resource parameter tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterSpy },
           },
@@ -215,7 +215,7 @@ describe('Resource parameter tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterSpy }
           },
@@ -258,7 +258,7 @@ describe('Resource parameter tests', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterSpy }
           },
@@ -314,7 +314,7 @@ describe('Resource parameter tests', () => {
     const resource = spy(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'resourceType',
+          id: 'resourceType',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterA, order: 3 },
             propB: { type: 'stateful', definition: statefulParameterB, order: 1 },
@@ -389,7 +389,7 @@ describe('Resource parameter tests', () => {
     const resource = spy(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'resourceType',
+          id: 'resourceType',
           parameterSettings: {
             propA: { type: 'stateful', definition: statefulParameterA, order: 3 },
             propB: { type: 'stateful', definition: statefulParameterB, order: 1 },
@@ -461,7 +461,7 @@ describe('Resource parameter tests', () => {
     const resource = spy(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'resourceType',
+          id: 'resourceType',
           inputTransformation: (desired) => ({
             propA: 'propA',
             propB: 10,

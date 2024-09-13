@@ -173,7 +173,7 @@ describe('Resource tests for stateful plans', () => {
     const resource = new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
-          type: 'type',
+          id: 'type',
           parameterSettings: {
             propD: { type: 'stateful', definition: statefulParameter },
           }

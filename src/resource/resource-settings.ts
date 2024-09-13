@@ -7,9 +7,9 @@ import { StatefulParameter as StatefulParameterObj } from './stateful-parameter.
 export interface ResourceSettings<T extends StringIndexedObject> {
 
   /**
-   * The id of the resource.
+   * The typeId of the resource.
    */
-  type: string;
+  id: string;
 
   /**
    * Schema to validate user configs with. Must be in the format JSON Schema draft07

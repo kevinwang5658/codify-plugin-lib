@@ -12,6 +12,11 @@ import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js'
 import { ArrayParameterSetting, ResourceSettings, StatefulParameterSetting } from '../resource/resource-settings.js';
 import { ChangeSet } from './change-set.js';
 
+/**
+ * A plan represents a set of actions that after taken will turn the current resource into the desired one.
+ * A plan consists of list of parameter level changes (ADD, REMOVE, MODIFY or NO-OP) as well as a resource level
+ * operation (CREATE, DESTROY, MODIFY, RE-CREATE, NO-OP).
+ */
 export class Plan<T extends StringIndexedObject> {
   id: string;
   changeSet: ChangeSet<T>;
@@ -23,6 +28,9 @@ export class Plan<T extends StringIndexedObject> {
     this.coreParameters = resourceMetadata;
   }
 
+  /**
+   * The desired config that a plan will achieve after executing all the actions.
+   */
   get desiredConfig(): T | null {
     if (this.changeSet.operation === ResourceOperation.DESTROY) {
       return null;
@@ -34,6 +42,9 @@ export class Plan<T extends StringIndexedObject> {
     }
   }
 
+  /**
+   * The current config that the plan is changing.
+   */
   get currentConfig(): T | null {
     if (this.changeSet.operation === ResourceOperation.CREATE) {
       return null;
@@ -43,6 +54,55 @@ export class Plan<T extends StringIndexedObject> {
       ...this.coreParameters,
       ...this.changeSet.currentParameters,
     }
+  }
+
+  /**
+   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
+   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
+   * the application name and location to match it to our desired configs name and location.
+   *
+   * @param params
+   * @private
+   */
+  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParametersArray: Partial<T>[] | null,
+    stateParameters: Partial<T> | null,
+    settings: ResourceSettings<T>,
+    statefulMode: boolean,
+  }): Partial<T> | null {
+    const {
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      settings,
+      statefulMode
+    } = params;
+
+    if (!settings.allowMultiple) {
+      return currentParametersArray?.[0] ?? null;
+    }
+
+    if (!currentParametersArray) {
+      return null;
+    }
+
+    if (statefulMode) {
+      return stateParameters
+        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
+        : null
+    }
+
+    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
+  }
+
+  /**
+   * The type (id) of the resource
+   *
+   * @return string
+   */
+  getResourceType(): string {
+    return this.coreParameters.type
   }
 
   static calculate<T extends StringIndexedObject>(params: {
@@ -127,7 +187,6 @@ export class Plan<T extends StringIndexedObject> {
    *  2. In stateful mode, filter current by state and desired. We only know about the settings the user has previously set
    *  or wants to set. If a parameter is not specified then it's not managed by Codify.
    */
-
   private static filterCurrentParams<T extends StringIndexedObject>(params: {
     desiredParameters: Partial<T> | null,
     currentParameters: Partial<T> | null,
@@ -207,10 +266,6 @@ export class Plan<T extends StringIndexedObject> {
     }
   }
 
-  getResourceType(): string {
-    return this.coreParameters.type
-  }
-
   // TODO: This needs to be revisited. I don't think this is valid anymore.
   //   1. For all scenarios, there shouldn't be an apply without a plan beforehand
   //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
@@ -283,38 +338,9 @@ export class Plan<T extends StringIndexedObject> {
 
   }
 
-  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    settings: ResourceSettings<T>,
-    statefulMode: boolean,
-  }): Partial<T> | null {
-    const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      settings,
-      statefulMode
-    } = params;
-
-    if (!settings.allowMultiple) {
-      return currentParametersArray?.[0] ?? null;
-    }
-
-    if (!currentParametersArray) {
-      return null;
-    }
-
-    if (statefulMode) {
-      return stateParameters
-        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
-        : null
-    }
-
-    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
-  }
-
+  /**
+   * Convert the plan to a JSON response object
+   */
   toResponse(): PlanResponseData {
     return {
       planId: this.id,
@@ -324,6 +350,4 @@ export class Plan<T extends StringIndexedObject> {
       parameters: this.changeSet.parameterChanges,
     }
   }
-
-
 }

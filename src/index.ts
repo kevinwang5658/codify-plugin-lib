@@ -8,14 +8,7 @@ export * from './plan/plan-types.js'
 export * from './plugin/plugin.js'
 export * from './resource/parsed-resource-settings.js';
 export * from './resource/resource.js'
-export {
-  ArrayParameterSetting,
-  DefaultParameterSetting,
-  ParameterSetting,
-  ParameterSettingType,
-  ResourceSettings,
-  StatefulParameterSetting
-} from './resource/resource-settings.js'
+export * from './resource/resource-settings.js'
 export * from './resource/stateful-parameter.js'
 export * from './utils/utils.js'
 

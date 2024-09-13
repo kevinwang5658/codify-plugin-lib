@@ -3,10 +3,28 @@ import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codi
 import { ArrayParameterSetting, ParameterSetting, StatefulParameterSetting } from '../resource/resource-settings.js';
 import { areArraysEqual } from '../utils/utils.js';
 
+/**
+ * A parameter change describes a parameter level change to a resource.
+ */
 export interface ParameterChange<T extends StringIndexedObject> {
+  /**
+   * The name of the parameter
+   */
   name: keyof T & string;
+
+  /**
+   * The operation to be performed on the parameter.
+   */
   operation: ParameterOperation;
+
+  /**
+   * The previous value of the resource (the current value on the system)
+   */
   previousValue: any | null;
+
+  /**
+   * The new value of the resource (the desired value)
+   */
   newValue: any | null;
 }
 

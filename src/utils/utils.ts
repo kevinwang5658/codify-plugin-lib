@@ -1,6 +1,9 @@
 import promiseSpawn from '@npmcli/promise-spawn';
-import { SpawnOptions } from 'child_process';
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
+import { SpawnOptions } from 'node:child_process';
+import os from 'node:os';
+
+import { ArrayParameterSetting } from '../resource/resource-settings.js';
 
 export enum SpawnStatus {
   SUCCESS = 'success',
@@ -81,21 +84,64 @@ export function isDebug(): boolean {
 }
 
 export function splitUserConfig<T extends StringIndexedObject>(
-  config: T & ResourceConfig
-): { parameters: T;  resourceMetadata: ResourceConfig} {
-  const resourceMetadata = {
+  config: ResourceConfig & T
+): { parameters: T; coreParameters: ResourceConfig } {
+  const coreParameters = {
     type: config.type,
     ...(config.name ? { name: config.name } : {}),
     ...(config.dependsOn ? { dependsOn: config.dependsOn } : {}),
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { type, name, dependsOn, ...parameters } = config;
+
   return {
     parameters: parameters as T,
-    resourceMetadata,
+    coreParameters,
   };
 }
 
 export function setsEqual(set1: Set<unknown>, set2: Set<unknown>): boolean {
   return set1.size === set2.size && [...set1].every((v) => set2.has(v));
+}
+
+const homeDirectory = os.homedir();
+
+export function untildify(pathWithTilde: string) {
+  return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
+}
+
+export function areArraysEqual(parameter: ArrayParameterSetting, desired: unknown, current: unknown) {
+  if (!Array.isArray(desired) || !Array.isArray(current)) {
+    throw new Error(`A non-array value:
+          
+Desired: ${JSON.stringify(desired, null, 2)}
+
+Current: ${JSON.stringify(desired, null, 2)}
+
+Was provided even though type array was specified.
+`)
+  }
+
+  if (desired.length !== current.length) {
+    return false;
+  }
+
+  const desiredCopy = [...desired];
+  const currentCopy = [...current];
+
+  // Algorithm for to check equality between two un-ordered; un-hashable arrays using
+  // an isElementEqual method. Time: O(n^2)
+  for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
+    const idx = currentCopy.findIndex((e2) => (parameter.isElementEqual ?? ((a, b) => a === b))(desiredCopy[counter], e2))
+
+    if (idx === -1) {
+      return false;
+    }
+
+    desiredCopy.splice(counter, 1)
+    currentCopy.splice(idx, 1)
+  }
+
+  return currentCopy.length === 0;
 }

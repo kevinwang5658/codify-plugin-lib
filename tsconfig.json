@@ -7,7 +7,6 @@
     "noImplicitAny": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "removeComments": true,
     "strictNullChecks": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,

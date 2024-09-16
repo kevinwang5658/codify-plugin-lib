@@ -3,7 +3,7 @@ import { splitUserConfig } from './utils.js';
 
 describe('Utils tests', () => {
   it('Can split a config correctly', () => {
-    const { parameters, resourceMetadata } = splitUserConfig({
+    const { parameters, coreParameters } = splitUserConfig({
       type: 'type',
       name: 'name',
       dependsOn: ['a', 'b', 'c'],
@@ -13,7 +13,7 @@ describe('Utils tests', () => {
       propD: 'propD',
     })
 
-    expect(resourceMetadata).toMatchObject({
+    expect(coreParameters).toMatchObject({
       type: 'type',
       name: 'name',
       dependsOn: ['a', 'b', 'c'],

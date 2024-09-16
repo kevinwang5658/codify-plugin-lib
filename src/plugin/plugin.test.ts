@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { Plugin } from './plugin.js';
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
-import { Resource } from './resource.js';
-import { Plan } from './plan.js';
+import { Resource } from '../resource/resource.js';
+import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
+import { ResourceSettings } from '../resource/resource-settings.js';
 
 interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -12,17 +13,17 @@ interface TestConfig extends StringIndexedObject {
 }
 
 class TestResource extends Resource<TestConfig> {
-  constructor() {
-    super({
-      type: 'testResource'
-    });
+  getSettings(): ResourceSettings<TestConfig> {
+    return {
+      id: 'testResource'
+    };
   }
 
-  applyCreate(plan: Plan<TestConfig>): Promise<void> {
+  create(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
-  applyDestroy(plan: Plan<TestConfig>): Promise<void> {
+  destroy(plan: Plan<TestConfig>): Promise<void> {
     return Promise.resolve(undefined);
   }
 
@@ -49,7 +50,7 @@ describe('Plugin tests', () => {
     };
 
     await plugin.apply({ plan });
-    expect(resource.applyCreate.calledOnce).to.be.true;
+    expect(resource.create.calledOnce).to.be.true;
   });
 
   it('Can destroy resource', async () => {
@@ -65,7 +66,7 @@ describe('Plugin tests', () => {
     };
 
     await testPlugin.apply({ plan })
-    expect(resource.applyDestroy.calledOnce).to.be.true;
+    expect(resource.destroy.calledOnce).to.be.true;
   });
 
   it('Can re-create resource', async () => {
@@ -81,8 +82,8 @@ describe('Plugin tests', () => {
     };
 
     await testPlugin.apply({ plan })
-    expect(resource.applyDestroy.calledOnce).to.be.true;
-    expect(resource.applyCreate.calledOnce).to.be.true;
+    expect(resource.destroy.calledOnce).to.be.true;
+    expect(resource.create.calledOnce).to.be.true;
   });
 
   it('Can modify resource', async () => {
@@ -98,6 +99,6 @@ describe('Plugin tests', () => {
     };
 
     await testPlugin.apply({ plan })
-    expect(resource.applyModify.calledOnce).to.be.true;
+    expect(resource.modify.calledOnce).to.be.true;
   });
 });

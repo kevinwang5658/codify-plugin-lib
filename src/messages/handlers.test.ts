@@ -1,10 +1,10 @@
 import { MessageHandler } from './handlers.js';
-import { Plugin } from '../entities/plugin.js';
+import { Plugin } from '../plugin/plugin.js';
 import { describe, expect, it } from 'vitest';
 import { mock } from 'vitest-mock-extended'
-import { Resource } from '../entities/resource.js';
-import { Plan } from '../entities/plan.js';
+import { Resource } from '../resource/resource.js';
 import { MessageStatus, ResourceOperation } from 'codify-schemas';
+import { TestResource } from '../utils/test-utils.test.js';
 
 describe('Message handler tests', () => {
   it('handles plan requests', async () => {
@@ -151,7 +151,7 @@ describe('Message handler tests', () => {
   })
 
   it('handles errors for plan', async () => {
-    const resource= testResource();
+    const resource = new TestResource()
     const plugin = testPlugin(resource);
 
     const handler = new MessageHandler(plugin);
@@ -179,7 +179,7 @@ describe('Message handler tests', () => {
   })
 
   it('handles errors for apply (create)', async () => {
-    const resource= testResource();
+    const resource = new TestResource()
     const plugin = testPlugin(resource);
 
     const handler = new MessageHandler(plugin);
@@ -188,7 +188,6 @@ describe('Message handler tests', () => {
       expect(message).toMatchObject({
         cmd: 'apply_Response',
         status: MessageStatus.ERROR,
-        data: 'Create error',
       })
       return true;
     }
@@ -206,7 +205,7 @@ describe('Message handler tests', () => {
   })
 
   it('handles errors for apply (destroy)', async () => {
-    const resource= testResource();
+    const resource = new TestResource()
     const plugin = testPlugin(resource);
 
     const handler = new MessageHandler(plugin);
@@ -215,7 +214,6 @@ describe('Message handler tests', () => {
       expect(message).toMatchObject({
         cmd: 'apply_Response',
         status: MessageStatus.ERROR,
-        data: 'Destroy error',
       })
       return true;
     }
@@ -231,33 +229,8 @@ describe('Message handler tests', () => {
       }
     })).rejects.to.not.throw;
   })
-
-
-  const testResource = () => new class extends Resource<any> {
-    constructor() {
-      super({ type: 'resourceA' });
-    }
-
-    async refresh(keys: Map<keyof any, any>): Promise<Partial<any> | null> {
-      throw new Error('Refresh error');
-    }
-
-    applyCreate(plan: Plan<any>): Promise<void> {
-      throw new Error('Create error');
-    }
-
-    applyDestroy(plan: Plan<any>): Promise<void> {
-      throw new Error('Destroy error');
-    }
-  }
-
-  const testPlugin = (resource: Resource<any>) => new class extends Plugin {
-    constructor() {
-      const map = new Map();
-      map.set('resourceA', resource);
-
-      super('name', map);
-    }
-  }
-
 });
+
+function testPlugin(resource: Resource<any>) {
+  return Plugin.create('plugin', [resource])
+}

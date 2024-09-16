@@ -1,16 +1,15 @@
-import { Plugin } from './entities/plugin.js';
 import { MessageHandler } from './messages/handlers.js';
+import { Plugin } from './plugin/plugin.js';
 
-export * from './entities/resource.js'
-export * from './entities/resource-types.js'
-export * from './entities/resource-options.js'
-export * from './entities/plugin.js'
-export * from './entities/change-set.js'
-export * from './entities/plan.js'
-export * from './entities/plan-types.js'
-export * from './entities/stateful-parameter.js'
-export * from './entities/errors.js'
-
+export * from './errors.js'
+export * from './plan/change-set.js'
+export * from './plan/plan.js'
+export * from './plan/plan-types.js'
+export * from './plugin/plugin.js'
+export * from './resource/parsed-resource-settings.js';
+export * from './resource/resource.js'
+export * from './resource/resource-settings.js'
+export * from './resource/stateful-parameter.js'
 export * from './utils/utils.js'
 
 export async function runPlugin(plugin: Plugin) {

@@ -10,6 +10,7 @@ import { v4 as uuidV4 } from 'uuid';
 
 import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 import { ArrayParameterSetting, ResourceSettings, StatefulParameterSetting } from '../resource/resource-settings.js';
+import { asyncFilter, asyncIncludes, asyncMap } from '../utils/utils.js';
 import { ChangeSet } from './change-set.js';
 
 /**
@@ -105,14 +106,14 @@ export class Plan<T extends StringIndexedObject> {
     return this.coreParameters.type
   }
 
-  static calculate<T extends StringIndexedObject>(params: {
+  static async calculate<T extends StringIndexedObject>(params: {
     desiredParameters: Partial<T> | null,
     currentParametersArray: Partial<T>[] | null,
     stateParameters: Partial<T> | null,
     coreParameters: ResourceConfig,
     settings: ParsedResourceSettings<T>,
     statefulMode: boolean,
-  }): Plan<T> {
+  }): Promise<Plan<T>> {
     const {
       desiredParameters,
       currentParametersArray,
@@ -130,7 +131,7 @@ export class Plan<T extends StringIndexedObject> {
       statefulMode
     });
 
-    const filteredCurrentParameters = Plan.filterCurrentParams<T>({
+    const filteredCurrentParameters = await Plan.filterCurrentParams<T>({
       desiredParameters,
       currentParameters,
       stateParameters,
@@ -166,7 +167,7 @@ export class Plan<T extends StringIndexedObject> {
     }
 
     // NO-OP, MODIFY or RE-CREATE
-    const changeSet = ChangeSet.calculateModification(
+    const changeSet = await ChangeSet.calculateModification(
       desiredParameters!,
       filteredCurrentParameters!,
       settings.parameterSettings,
@@ -187,13 +188,13 @@ export class Plan<T extends StringIndexedObject> {
    *  2. In stateful mode, filter current by state and desired. We only know about the settings the user has previously set
    *  or wants to set. If a parameter is not specified then it's not managed by Codify.
    */
-  private static filterCurrentParams<T extends StringIndexedObject>(params: {
+  private static async filterCurrentParams<T extends StringIndexedObject>(params: {
     desiredParameters: Partial<T> | null,
     currentParameters: Partial<T> | null,
     stateParameters: Partial<T> | null,
     settings: ResourceSettings<T>,
     statefulMode: boolean,
-  }): Partial<T> | null {
+  }): Promise<Partial<T> | null> {
     const {
       desiredParameters: desired,
       currentParameters: current,
@@ -219,10 +220,12 @@ export class Plan<T extends StringIndexedObject> {
 
     // TODO: Add object handling here in addition to arrays in the future
     const arrayStatefulParameters = Object.fromEntries(
-      Object.entries(filteredCurrent)
-        .filter(([k, v]) => isArrayStatefulParameter(k, v))
-        .map(([k, v]) => [k, filterArrayStatefulParameter(k, v)])
-    )
+      await asyncMap(
+        Object.entries(filteredCurrent)
+          .filter(([k, v]) => isArrayStatefulParameter(k, v)),
+        async ([k, v]) => [k, await filterArrayStatefulParameter(k, v)],
+      )
+    );
 
     return { ...filteredCurrent, ...arrayStatefulParameters }
 
@@ -253,16 +256,23 @@ export class Plan<T extends StringIndexedObject> {
         && Array.isArray(v)
     }
 
-    function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
+    async function filterArrayStatefulParameter(k: string, v: unknown[]): Promise<unknown[]> {
       const desiredArray = desired![k] as unknown[];
       const matcher = ((settings.parameterSettings![k] as StatefulParameterSetting)
         .definition
         .getSettings() as ArrayParameterSetting)
         .isElementEqual;
 
-      return v.filter((cv) =>
-        desiredArray.find((dv) => (matcher ?? ((a: any, b: any) => a === b))(dv, cv))
+      const eq = matcher ?? ((a: unknown, b: unknown) => a === b)
+
+      const result = await asyncFilter(v, async (cv) =>
+        asyncIncludes(desiredArray, async (dv) => eq(dv, cv))
       )
+
+      console.log(await eq('20', 'system'));
+      console.log(await matcher('20', 'system'))
+
+      return result;
     }
   }
 

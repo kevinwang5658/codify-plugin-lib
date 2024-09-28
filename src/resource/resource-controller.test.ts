@@ -99,7 +99,7 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     await controllerSpy.apply(
-      testPlan({
+      await testPlan({
         desired: { propA: 'a', propB: 0 },
       })
     )
@@ -116,7 +116,7 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     await controllerSpy.apply(
-      testPlan({
+      await testPlan({
         current: [{ propA: 'a', propB: 0 }],
         state: { propA: 'a', propB: 0 },
         statefulMode: true,
@@ -135,7 +135,7 @@ describe('Resource tests', () => {
     const resourceSpy = spy(resource);
 
     await controllerSpy.apply(
-      testPlan({
+      await testPlan({
         desired: { propA: 'a', propB: 0 },
         current: [{ propA: 'b', propB: -1 }],
         statefulMode: true

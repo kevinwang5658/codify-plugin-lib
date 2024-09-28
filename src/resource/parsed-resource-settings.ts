@@ -154,7 +154,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     // The rest of the types have defaults set already
   }
 
-  private resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
+  private resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => Promise<boolean> | boolean {
     if (parameter.type === 'array') {
       return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameterSetting)
     }

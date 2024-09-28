@@ -127,7 +127,7 @@ export interface DefaultParameterSetting {
    *
    * @return Return true if equal
    */
-  isEqual?: (desired: any, current: any) => boolean;
+  isEqual?: (desired: any, current: any) => Promise<boolean> | boolean;
 
   /**
    * Chose if the resource can be modified instead of re-created when there is a change to this parameter.
@@ -156,7 +156,7 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
    *
    * @return Return true if desired is equivalent to current.
    */
-  isElementEqual?: (desired: any, current: any) => boolean
+  isElementEqual?: (desired: any, current: any) => Promise<boolean> | boolean;
 }
 
 /**

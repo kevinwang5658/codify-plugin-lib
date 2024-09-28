@@ -85,12 +85,12 @@ export class ChangeSet<T extends StringIndexedObject> {
     return new ChangeSet(ResourceOperation.DESTROY, parameterChanges);
   }
 
-  static calculateModification<T extends StringIndexedObject>(
+  static async calculateModification<T extends StringIndexedObject>(
     desired: Partial<T>,
     current: Partial<T>,
     parameterSettings: Partial<Record<keyof T, ParameterSetting>> = {},
-  ): ChangeSet<T> {
-    const pc = ChangeSet.calculateParameterChanges(desired, current, parameterSettings);
+  ): Promise<ChangeSet<T>> {
+    const pc = await ChangeSet.calculateParameterChanges(desired, current, parameterSettings);
 
     const statefulParameterKeys = new Set(
       Object.entries(parameterSettings)
@@ -126,11 +126,11 @@ export class ChangeSet<T extends StringIndexedObject> {
    * @param {Partial<Record<keyof T, ParameterSetting>>} [parameterOptions] - Optional settings used when comparing parameters.
    * @return {ParameterChange<T>[]} A list of changes required to transition from the current state to the desired state.
    */
-  private static calculateParameterChanges<T extends StringIndexedObject>(
+  private static async calculateParameterChanges<T extends StringIndexedObject>(
     desiredParameters: Partial<T>,
     currentParameters: Partial<T>,
     parameterOptions?: Partial<Record<keyof T, ParameterSetting>>,
-  ): ParameterChange<T>[] {
+  ): Promise<ParameterChange<T>[]> {
     const parameterChangeSet = new Array<ParameterChange<T>>();
 
     // Filter out null and undefined values or else the diff below will not work
@@ -155,7 +155,7 @@ export class ChangeSet<T extends StringIndexedObject> {
         continue;
       }
 
-      if (!ChangeSet.isSame(desired[k], current[k], parameterOptions?.[k])) {
+      if (!await ChangeSet.isSame(desired[k], current[k], parameterOptions?.[k])) {
         parameterChangeSet.push({
           name: k,
           previousValue: v ?? null,
@@ -210,11 +210,11 @@ export class ChangeSet<T extends StringIndexedObject> {
     return orderOfOperations[Math.max(indexPrev, indexNext)];
   }
 
-  private static isSame(
+  private static async isSame(
     desired: unknown,
     current: unknown,
     setting?: ParameterSetting,
-  ): boolean {
+  ): Promise<boolean> {
     switch (setting?.type) {
       case 'stateful': {
         const statefulSetting = (setting as StatefulParameterSetting).definition.getSettings()

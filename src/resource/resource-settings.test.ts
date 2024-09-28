@@ -77,7 +77,7 @@ describe('Resource parameter tests', () => {
     const resourceSpy = spy(resource);
 
     await controller.apply(
-      testPlan<TestConfig>({
+      await testPlan<TestConfig>({
         desired: { propA: 'a', propB: 0, propC: 'c' }
       })
     );
@@ -491,4 +491,35 @@ describe('Resource parameter tests', () => {
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
+
+  it('Works with async equals methods', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          parameterSettings: {
+            propA: {
+              isEqual: async (desired, current) => {
+                console.log(desired, current)
+                await sleep(500);
+                return true;
+              }
+            }
+          }
+        }
+      }
+    };
+    const controller = new ResourceController(resource);
+
+    const plan = await controller.plan({ type: 'type', propA: 'abc' } as any);
+
+    console.log(JSON.stringify(plan, null, 2));
+
+    expect(plan.toResponse().operation).to.equal(ResourceOperation.NOOP);
+  })
 })
+
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+

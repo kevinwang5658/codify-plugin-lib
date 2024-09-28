@@ -128,8 +128,8 @@ describe('Plan entity tests', () => {
     ).to.be.true;
   })
 
-  it('Returns the original resource names', () => {
-    const plan = Plan.calculate<TestConfig>({
+  it('Returns the original resource names', async () => {
+    const plan = await Plan.calculate<TestConfig>({
       desiredParameters: { propA: 'propA' },
       currentParametersArray: [{ propA: 'propA2' }],
       stateParameters: null,
@@ -147,7 +147,8 @@ describe('Plan entity tests', () => {
       operation: ResourceOperation.RECREATE
     })
   })
-})
+});
+
 
 function createTestResource() {
   return new class extends TestResource {

@@ -115,7 +115,7 @@ export interface DefaultParameterSetting {
    *
    * @param input The original parameter value from the desired config.
    */
-  inputTransformation?: (input: any) => Promise<any> | unknown;
+  inputTransformation?: (input: any) => Promise<any> | any;
 
   /**
    * Customize the equality comparison for a parameter. This is used in the diffing algorithm for generating the plan.

@@ -10,6 +10,7 @@ import {
 import { ParameterChange } from '../plan/change-set.js';
 import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
+import { splitUserConfig } from '../utils/utils.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
 import { Resource } from './resource.js';
@@ -250,7 +251,7 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(desired: Partial<T> | null): Promise<void> {
+  private async applyTransformParameters(desired: Partial<T> & ResourceConfig | null): Promise<void> {
     if (!desired) {
       return;
     }
@@ -264,9 +265,11 @@ ${JSON.stringify(refresh, null, 2)}
     }
 
     if (this.settings.inputTransformation) {
-      const transformed = await this.settings.inputTransformation(desired)
+      const { parameters, coreParameters } = splitUserConfig(desired);
+
+      const transformed = await this.settings.inputTransformation(parameters)
       Object.keys(desired).forEach((k) => delete desired[k])
-      Object.assign(desired, transformed);
+      Object.assign(desired, transformed, coreParameters);
     }
   }
 

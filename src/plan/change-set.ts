@@ -116,6 +116,16 @@ export class ChangeSet<T extends StringIndexedObject> {
     return new ChangeSet<T>(resourceOperation, pc);
   }
 
+  /**
+   * Calculates the differences between the desired and current parameters,
+   * and returns a list of parameter changes that describe what needs to be added,
+   * removed, or modified to match the desired state.
+   *
+   * @param {Partial<T>} desiredParameters - The desired target state of the parameters.
+   * @param {Partial<T>} currentParameters - The current state of the parameters.
+   * @param {Partial<Record<keyof T, ParameterSetting>>} [parameterOptions] - Optional settings used when comparing parameters.
+   * @return {ParameterChange<T>[]} A list of changes required to transition from the current state to the desired state.
+   */
   private static calculateParameterChanges<T extends StringIndexedObject>(
     desiredParameters: Partial<T>,
     currentParameters: Partial<T>,

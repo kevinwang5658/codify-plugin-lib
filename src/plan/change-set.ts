@@ -1,6 +1,6 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-import { ArrayParameterSetting, ParameterSetting, StatefulParameterSetting } from '../resource/resource-settings.js';
+import { ArrayParameterSetting, ParameterSetting } from '../resource/resource-settings.js';
 import { areArraysEqual } from '../utils/utils.js';
 
 /**
@@ -216,12 +216,6 @@ export class ChangeSet<T extends StringIndexedObject> {
     setting?: ParameterSetting,
   ): boolean {
     switch (setting?.type) {
-      case 'stateful': {
-        const statefulSetting = (setting as StatefulParameterSetting).definition.getSettings()
-
-        return ChangeSet.isSame(desired, current, statefulSetting as ParameterSetting);
-      }
-
       case 'array': {
         const arrayParameter = setting as ArrayParameterSetting;
         return areArraysEqual(arrayParameter, desired, current)

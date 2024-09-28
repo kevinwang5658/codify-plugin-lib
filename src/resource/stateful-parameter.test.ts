@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { TestArrayStatefulParameter, TestConfig, testPlan } from '../utils/test-utils.test.js';
-import { ArrayParameterSetting } from './resource-settings.js';
+import { TestArrayStatefulParameter, TestConfig, testPlan, TestStatefulParameter } from '../utils/test-utils.test.js';
+import { ArrayParameterSetting, ParameterSetting } from './resource-settings.js';
 
 describe('Stateful parameter tests', () => {
   it('addItem is called the correct number of times', async () => {
@@ -89,5 +89,23 @@ describe('Stateful parameter tests', () => {
 
     expect(testParameter.addItem.calledOnce).to.be.true;
     expect(testParameter.removeItem.called).to.be.false;
+  })
+
+  it('isEqual works with type defaults', () => {
+    const testParameter = spy(new class extends TestStatefulParameter {
+      getSettings(): ParameterSetting {
+        return {
+          type: 'version',
+        }
+      }
+    });
+
+    const plan = testPlan<TestConfig>({
+      desired: { propZ: '20' },
+      current: [{ propZ: '20.17.0' }],
+      settings: { id: 'type', parameterSettings: { propZ: { type: 'stateful', definition: testParameter } } }
+    });
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 })

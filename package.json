@@ -22,7 +22,7 @@
     "@oclif/prettier-config": "^0.2.1",
     "@oclif/test": "^3",
     "@types/npmcli__promise-spawn": "^6.0.3",
-    "@types/node": "^18",
+    "@types/node": "^20",
     "@types/semver": "^7.5.4",
     "@types/sinon": "^17.0.3",
     "@types/uuid": "^10.0.0",

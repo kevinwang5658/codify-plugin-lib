@@ -1,6 +1,7 @@
 import { ChangeSet } from './change-set.js';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
 import { describe, expect, it } from 'vitest';
+import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 
 describe('Change set tests', () => {
   it ('Correctly diffs two resource configs (modify)', () => {
@@ -31,7 +32,7 @@ describe('Change set tests', () => {
       propA: 'after',
     }
 
-    const cs = ChangeSet.calculateModification(after, before,);
+    const cs = ChangeSet.calculateModification(after, before);
     expect(cs.parameterChanges.length).to.eq(2);
     expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.ADD);
@@ -104,7 +105,14 @@ describe('Change set tests', () => {
       propA: ['b', 'a', 'c'],
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { propA: { type: 'array' } });
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { type: 'array' }
+      }
+    }).parameterSettings
+
+    const cs = ChangeSet.calculateModification(after, before, parameterSettings);
     expect(cs.parameterChanges.length).to.eq(1);
     expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
     expect(cs.operation).to.eq(ResourceOperation.NOOP)
@@ -119,7 +127,14 @@ describe('Change set tests', () => {
       propA: ['b', 'a'],
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { propA: { type: 'array' } });
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { type: 'array' }
+      }
+    }).parameterSettings
+
+    const cs = ChangeSet.calculateModification(after, before, parameterSettings);
     expect(cs.parameterChanges.length).to.eq(1);
     expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs.operation).to.eq(ResourceOperation.RECREATE)
@@ -135,7 +150,14 @@ describe('Change set tests', () => {
       propB: 'before'
     }
 
-    const cs = ChangeSet.calculateModification(after, before, { propA: { canModify: true } });
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { canModify: true }
+      }
+    }).parameterSettings
+
+    const cs = ChangeSet.calculateModification(after, before, parameterSettings);
     expect(cs.parameterChanges.length).to.eq(2);
     expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.REMOVE);
@@ -152,10 +174,15 @@ describe('Change set tests', () => {
       propB: 'before'
     }
 
-    const cs = ChangeSet.calculateModification<any>(after, before, {
-      propA: { canModify: true },
-      propB: { canModify: true }
-    });
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { canModify: true },
+        propB: { canModify: true }
+      },
+    }).parameterSettings
+
+    const cs = ChangeSet.calculateModification<any>(after, before, parameterSettings);
     expect(cs.parameterChanges.length).to.eq(2);
     expect(cs.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
     expect(cs.parameterChanges[1].operation).to.eq(ParameterOperation.REMOVE);
@@ -167,7 +194,15 @@ describe('Change set tests', () => {
     const arrA = ['a', 'b', 'd'];
     const arrB = ['a', 'b', 'd'];
 
-    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, { propA: { type: 'array' } })
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { type: 'array' }
+      },
+    }).parameterSettings
+
+
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, parameterSettings)
 
     expect(result.operation).to.eq(ResourceOperation.NOOP);
   })
@@ -176,7 +211,14 @@ describe('Change set tests', () => {
     const arrA = ['a', 'b'];
     const arrB = ['a', 'b', 'd'];
 
-    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, { propA: { type: 'array' } })
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { type: 'array' }
+      },
+    }).parameterSettings
+
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, parameterSettings)
 
     expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
   })
@@ -185,7 +227,14 @@ describe('Change set tests', () => {
     const arrA = ['b', 'a', 'd'];
     const arrB = ['a', 'b', 'd'];
 
-    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, { propA: { type: 'array' } })
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: { type: 'array' }
+      },
+    }).parameterSettings
+
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, parameterSettings)
 
     expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
   })
@@ -194,12 +243,18 @@ describe('Change set tests', () => {
     const arrA = [{ key1: 'a' }, { key1: 'a' }, { key1: 'a' }];
     const arrB = [{ key1: 'a' }, { key1: 'a' }, { key1: 'b' }];
 
-    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, {
-      propA: {
-        type: 'array',
-        isElementEqual: (a, b) => a.key1 === b.key1
-      }
-    })
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: {
+          type: 'array',
+          isElementEqual: (a, b) => a.key1 === b.key1
+        }
+      },
+    }).parameterSettings
+
+
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, parameterSettings)
 
     expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.MODIFY);
   })
@@ -208,12 +263,17 @@ describe('Change set tests', () => {
     const arrA = [{ key1: 'b' }, { key1: 'a' }, { key1: 'a' }];
     const arrB = [{ key1: 'a' }, { key1: 'a' }, { key1: 'b' }];
 
-    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, {
-      propA: {
-        type: 'array',
-        isElementEqual: (a, b) => a.key1 === b.key1
-      }
-    })
+    const parameterSettings = new ParsedResourceSettings({
+      id: 'type',
+      parameterSettings: {
+        propA: {
+          type: 'array',
+          isElementEqual: (a, b) => a.key1 === b.key1
+        }
+      },
+    }).parameterSettings
+
+    const result = ChangeSet.calculateModification({ propA: arrA }, { propA: arrB }, parameterSettings)
 
     expect(result.parameterChanges[0].operation).to.eq(ParameterOperation.NOOP);
   })

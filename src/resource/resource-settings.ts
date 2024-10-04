@@ -1,7 +1,7 @@
 import { StringIndexedObject } from 'codify-schemas';
 import path from 'node:path';
 
-import { untildify } from '../utils/utils.js';
+import { areArraysEqual, untildify } from '../utils/utils.js';
 import { StatefulParameter } from './stateful-parameter.js';
 
 /**
@@ -183,10 +183,23 @@ export interface StatefulParameterSetting extends DefaultParameterSetting {
   order?: number,
 }
 
-export const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown, b: unknown) => boolean>> = {
+const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown, b: unknown) => boolean>> = {
   'boolean': (a: unknown, b: unknown) => Boolean(a) === Boolean(b),
   'directory': (a: unknown, b: unknown) => path.resolve(untildify(String(a))) === path.resolve(untildify(String(b))),
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
   'version': (desired: unknown, current: unknown) => String(current).includes(String(desired))
+}
+
+
+export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
+  if (parameter.type === 'array') {
+    return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameterSetting)
+  }
+
+  if (parameter.type === 'stateful') {
+    return resolveEqualsFn((parameter as StatefulParameterSetting).definition.getSettings(), key)
+  }
+
+  return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
 }

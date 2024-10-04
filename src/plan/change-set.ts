@@ -1,7 +1,6 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-import { ArrayParameterSetting, ParameterSetting } from '../resource/resource-settings.js';
-import { areArraysEqual } from '../utils/utils.js';
+import { ParameterSetting } from '../resource/resource-settings.js';
 
 /**
  * A parameter change describes a parameter level change to a resource.
@@ -215,15 +214,6 @@ export class ChangeSet<T extends StringIndexedObject> {
     current: unknown,
     setting?: ParameterSetting,
   ): boolean {
-    switch (setting?.type) {
-      case 'array': {
-        const arrayParameter = setting as ArrayParameterSetting;
-        return areArraysEqual(arrayParameter, desired, current)
-      }
-
-      default: {
-        return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
-      }
-    }
+    return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
   }
 }

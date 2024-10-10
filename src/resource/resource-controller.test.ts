@@ -7,8 +7,37 @@ import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ParameterChange } from '../plan/change-set.js';
 import { ResourceController } from './resource-controller.js';
 import { TestConfig, testPlan, TestResource, TestStatefulParameter } from '../utils/test-utils.test.js';
+import { untildify } from '../utils/utils.js';
 
 describe('Resource tests', () => {
+
+  it('Validate applies transformations before validating', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          dependencies: ['homebrew', 'python'],
+          parameterSettings: {
+            propA: { canModify: true, inputTransformation: (input) => untildify(input) },
+          },
+          inputTransformation: (config) => ({ propA: config.propA, propC: config.propB }),
+        }
+      }
+
+      async validate(parameters: Partial<TestConfig>): Promise<void> {
+        expect(parameters.propA).to.not.include('~');
+        expect(parameters.propB).to.not.exist;
+        expect(parameters.propC).to.equal(10);
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    await controller.validate({
+      type: 'type',
+      propA: '~/.tool_versions',
+      propB: 10,
+    })
+  })
 
   it('Plans successfully', async () => {
     const resource = new class extends TestResource {

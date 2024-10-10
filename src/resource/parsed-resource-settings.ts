@@ -1,14 +1,6 @@
 import { StringIndexedObject } from 'codify-schemas';
 
-import { areArraysEqual } from '../utils/utils.js';
-import {
-  ArrayParameterSetting,
-  ParameterEqualsDefaults,
-  ParameterSetting,
-  ParameterSettingType,
-  ResourceSettings,
-  StatefulParameterSetting
-} from './resource-settings.js';
+import { ParameterSetting, resolveEqualsFn, ResourceSettings, StatefulParameterSetting } from './resource-settings.js';
 import { StatefulParameter as StatefulParameterImpl } from './stateful-parameter.js'
 
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
@@ -54,7 +46,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       const settings = Object.entries(this.settings.parameterSettings ?? {})
         .map(([k, v]) => [k, v!] as const)
         .map(([k, v]) => {
-          v.isEqual = this.resolveEqualsFn(v, k);
+          v.isEqual = resolveEqualsFn(v, k);
 
           return [k, v];
         })
@@ -152,18 +144,6 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     }
 
     // The rest of the types have defaults set already
-  }
-
-  private resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
-    if (parameter.type === 'array') {
-      return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameterSetting)
-    }
-
-    if (parameter.type === 'stateful') {
-      return this.resolveEqualsFn((parameter as StatefulParameterSetting).definition.getSettings(), key)
-    }
-
-    return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
   }
 
   private getFromCacheOrCreate<T2>(key: string, create: () => T2): T2 {

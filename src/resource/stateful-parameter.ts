@@ -31,10 +31,11 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
    * Return the value of the stateful parameter or null if not found.
    *
    * @param desired The desired value of the user.
+   * @param config The desired config
    *
    * @return The value of the stateful parameter currently on the system or null if not found
    */
-  abstract refresh(desired: V | null): Promise<V | null>;
+  abstract refresh(desired: V | null, config: Partial<T>): Promise<V | null>;
 
   /**
    * Create the stateful parameter on the system. This method is similar {@link Resource.create} except that its only
@@ -179,7 +180,7 @@ export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> e
    * @param desired The desired value to refresh
    * @return The current value on the system or null if not found.
    */
-  abstract refresh(desired: V[] | null): Promise<V[] | null>;
+  abstract refresh(desired: V[] | null, config: Partial<T>): Promise<V[] | null>;
 
   /**
    * Helper method that gets called when individual elements of the array need to be added. See {@link StatefulParameter.add}

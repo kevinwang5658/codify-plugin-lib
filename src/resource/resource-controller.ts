@@ -41,6 +41,7 @@ export class ResourceController<T extends StringIndexedObject> {
         allErrors: true,
         strict: true,
         strictRequired: false,
+        allowUnionTypes: true
       })
       this.schemaValidator = this.ajv.compile(this.settings.schema);
     }
@@ -112,6 +113,7 @@ export class ResourceController<T extends StringIndexedObject> {
       coreParameters,
       desiredParameters,
       stateParameters,
+      allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
@@ -138,7 +140,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
     // Refresh stateful parameters. These parameters have state external to the resource. allowMultiple
     // does not work together with stateful parameters
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters);
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, allParameters);
 
     return Plan.calculate({
       desiredParameters,
@@ -298,7 +300,7 @@ ${JSON.stringify(refresh, null, 2)}
 
   // Refresh stateful parameters
   // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>): Promise<Partial<T>> {
+  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, allParameters: Partial<T>): Promise<Partial<T>> {
     const result: Partial<T> = {}
     const sortedEntries = Object.entries(statefulParametersConfig)
       .sort(
@@ -311,7 +313,7 @@ ${JSON.stringify(refresh, null, 2)}
         throw new Error(`Stateful parameter ${key} was not found`);
       }
 
-      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null)
+      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null, allParameters)
     }
 
     return result;

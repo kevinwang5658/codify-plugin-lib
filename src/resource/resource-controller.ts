@@ -54,17 +54,22 @@ export class ResourceController<T extends StringIndexedObject> {
   }
 
   async validate(
-    parameters: Partial<T>,
-    resourceMetaData: ResourceConfig
+    desiredConfig: Partial<T> & ResourceConfig,
   ): Promise<ValidateResponseData['resourceValidations'][0]> {
+    const configToValidate = { ...desiredConfig };
+    const { parameters, coreParameters } = splitUserConfig(configToValidate);
+
+    this.addDefaultValues(parameters);
+    await this.applyTransformParameters(configToValidate);
+
     if (this.schemaValidator) {
       const isValid = this.schemaValidator(parameters);
 
       if (!isValid) {
         return {
           isValid: false,
-          resourceName: resourceMetaData.name,
-          resourceType: resourceMetaData.type,
+          resourceName: coreParameters.name,
+          resourceType: coreParameters.type,
           schemaValidationErrors: this.schemaValidator?.errors ?? [],
         }
       }
@@ -83,16 +88,16 @@ export class ResourceController<T extends StringIndexedObject> {
       return {
         customValidationErrorMessage,
         isValid: false,
-        resourceName: resourceMetaData.name,
-        resourceType: resourceMetaData.type,
+        resourceName: coreParameters.name,
+        resourceType: coreParameters.type,
         schemaValidationErrors: this.schemaValidator?.errors ?? [],
       }
     }
 
     return {
       isValid: true,
-      resourceName: resourceMetaData.name,
-      resourceType: resourceMetaData.type,
+      resourceName: coreParameters.name,
+      resourceType: coreParameters.type,
       schemaValidationErrors: [],
     }
   }

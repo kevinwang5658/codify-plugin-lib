@@ -57,10 +57,10 @@ export class ResourceController<T extends StringIndexedObject> {
     desiredConfig: Partial<T> & ResourceConfig,
   ): Promise<ValidateResponseData['resourceValidations'][0]> {
     const configToValidate = { ...desiredConfig };
-    const { parameters, coreParameters } = splitUserConfig(configToValidate);
-
-    this.addDefaultValues(parameters);
     await this.applyTransformParameters(configToValidate);
+
+    const { parameters, coreParameters } = splitUserConfig(configToValidate);
+    this.addDefaultValues(parameters);
 
     if (this.schemaValidator) {
       const isValid = this.schemaValidator(parameters);
@@ -111,6 +111,9 @@ export class ResourceController<T extends StringIndexedObject> {
 
     this.addDefaultValues(desiredConfig);
     await this.applyTransformParameters(desiredConfig);
+
+    this.addDefaultValues(stateConfig);
+    await this.applyTransformParameters(stateConfig);
 
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(desiredConfig, stateConfig, this.parsedSettings.statefulParameters)
@@ -258,36 +261,36 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(desired: Partial<T> & ResourceConfig | null): Promise<void> {
-    if (!desired) {
+  private async applyTransformParameters(config: Partial<T> & ResourceConfig | null): Promise<void> {
+    if (!config) {
       return;
     }
 
     for (const [key, inputTransformation] of Object.entries(this.parsedSettings.inputTransformations)) {
-      if (desired[key] === undefined || !inputTransformation) {
+      if (config[key] === undefined || !inputTransformation) {
         continue;
       }
 
-      (desired as Record<string, unknown>)[key] = await inputTransformation(desired[key]);
+      (config as Record<string, unknown>)[key] = await inputTransformation(config[key]);
     }
 
     if (this.settings.inputTransformation) {
-      const { parameters, coreParameters } = splitUserConfig(desired);
+      const { parameters, coreParameters } = splitUserConfig(config);
 
       const transformed = await this.settings.inputTransformation(parameters)
-      Object.keys(desired).forEach((k) => delete desired[k])
-      Object.assign(desired, transformed, coreParameters);
+      Object.keys(config).forEach((k) => delete config[k])
+      Object.assign(config, transformed, coreParameters);
     }
   }
 
-  private addDefaultValues(desired: Partial<T> | null): void {
-    if (!desired) {
+  private addDefaultValues(config: Partial<T> | null): void {
+    if (!config) {
       return;
     }
 
     for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
-      if (defaultValue !== undefined && (desired[key] === undefined || desired[key] === null)) {
-        (desired as Record<string, unknown>)[key] = defaultValue;
+      if (defaultValue !== undefined && (config[key] === undefined || config[key] === null)) {
+        (config as Record<string, unknown>)[key] = defaultValue;
       }
     }
   }

@@ -1,5 +1,7 @@
 import {
   ApplyRequestData,
+  GetResourceInfoRequestData,
+  GetResourceInfoResponseData,
   InitializeResponseData,
   PlanRequestData,
   PlanResponseData,
@@ -44,6 +46,21 @@ export class Plugin {
           dependencies: r.dependencies,
           type: r.typeId,
         }))
+    }
+  }
+
+  async getResourceInfo(data: GetResourceInfoRequestData): Promise<GetResourceInfoResponseData> {
+    if (!this.resourceControllers.has(data.type)) {
+      throw new Error(`Cannot get info for resource ${data.type}, resource doesn't exist`);
+    }
+
+    const resource = this.resourceControllers.get(data.type)!;
+
+    return {
+      plugin: this.name,
+      type: data.type,
+      dependencies: resource.dependencies,
+      schema: resource.settings.schema as Record<string, unknown> | undefined
     }
   }
 

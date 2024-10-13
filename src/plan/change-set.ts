@@ -1,7 +1,6 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-import { ArrayParameterSetting, ParameterSetting, StatefulParameterSetting } from '../resource/resource-settings.js';
-import { areArraysEqual } from '../utils/utils.js';
+import { ParameterSetting } from '../resource/resource-settings.js';
 
 /**
  * A parameter change describes a parameter level change to a resource.
@@ -116,6 +115,16 @@ export class ChangeSet<T extends StringIndexedObject> {
     return new ChangeSet<T>(resourceOperation, pc);
   }
 
+  /**
+   * Calculates the differences between the desired and current parameters,
+   * and returns a list of parameter changes that describe what needs to be added,
+   * removed, or modified to match the desired state.
+   *
+   * @param {Partial<T>} desiredParameters - The desired target state of the parameters.
+   * @param {Partial<T>} currentParameters - The current state of the parameters.
+   * @param {Partial<Record<keyof T, ParameterSetting>>} [parameterOptions] - Optional settings used when comparing parameters.
+   * @return {ParameterChange<T>[]} A list of changes required to transition from the current state to the desired state.
+   */
   private static calculateParameterChanges<T extends StringIndexedObject>(
     desiredParameters: Partial<T>,
     currentParameters: Partial<T>,
@@ -205,21 +214,6 @@ export class ChangeSet<T extends StringIndexedObject> {
     current: unknown,
     setting?: ParameterSetting,
   ): boolean {
-    switch (setting?.type) {
-      case 'stateful': {
-        const statefulSetting = (setting as StatefulParameterSetting).definition.getSettings()
-
-        return ChangeSet.isSame(desired, current, statefulSetting as ParameterSetting);
-      }
-
-      case 'array': {
-        const arrayParameter = setting as ArrayParameterSetting;
-        return areArraysEqual(arrayParameter, desired, current)
-      }
-
-      default: {
-        return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
-      }
-    }
+    return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
   }
 }

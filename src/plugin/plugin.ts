@@ -11,7 +11,6 @@ import {
 import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
 import { ResourceController } from '../resource/resource-controller.js';
-import { splitUserConfig } from '../utils/utils.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;
@@ -55,10 +54,9 @@ export class Plugin {
         throw new Error(`Resource type not found: ${config.type}`);
       }
 
-      const { parameters, coreParameters } = splitUserConfig(config);
       const validation = await this.resourceControllers
         .get(config.type)!
-        .validate(parameters, coreParameters);
+        .validate(config);
 
       validationResults.push(validation);
     }

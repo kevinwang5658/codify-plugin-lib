@@ -491,4 +491,37 @@ describe('Resource parameter tests', () => {
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
+
+  it('Supports transform parameters for state parameters', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          inputTransformation: (desired) => ({
+            propA: 'propA',
+            propB: 10,
+          })
+        }
+      }
+
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'propA',
+          propB: 10,
+        }
+      }
+    });
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan(null, { type: 'resourceType', propC: 'abc' } as any, true);
+
+    expect(resource.refresh.called).to.be.true;
+    expect(resource.refresh.getCall(0).firstArg['propA']).to.exist;
+    expect(resource.refresh.getCall(0).firstArg['propB']).to.exist;
+    expect(resource.refresh.getCall(0).firstArg['propC']).to.not.exist;
+
+    expect(plan.currentConfig?.propA).to.eq('propA');
+    expect(plan.currentConfig?.propB).to.eq(10);
+    expect(plan.currentConfig?.propC).to.be.undefined;
+  })
 })

@@ -253,16 +253,31 @@ export class Plan<T extends StringIndexedObject> {
         && Array.isArray(v)
     }
 
+    // For stateless mode, we must filter the current array so that the diff algorithm will not detect any deletes
     function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
       const desiredArray = desired![k] as unknown[];
       const matcher = ((settings.parameterSettings![k] as StatefulParameterSetting)
         .definition
         .getSettings() as ArrayParameterSetting)
-        .isElementEqual;
+        .isElementEqual ?? ((a, b) => a === b);
 
-      return v.filter((cv) =>
-        desiredArray.find((dv) => (matcher ?? ((a: any, b: any) => a === b))(dv, cv))
-      )
+      const desiredCopy = [...desiredArray];
+      const currentCopy = [...v];
+      const result = [];
+
+      for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
+        const idx = currentCopy.findIndex((e2) => matcher(desiredCopy[counter], e2))
+
+        if (idx === -1) {
+          continue;
+        }
+
+        desiredCopy.splice(counter, 1)
+        const [element] = currentCopy.splice(idx, 1)
+        result.push(element)
+      }
+
+      return result;
     }
   }
 

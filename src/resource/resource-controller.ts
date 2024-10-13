@@ -10,6 +10,7 @@ import {
 import { ParameterChange } from '../plan/change-set.js';
 import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
+import { splitUserConfig } from '../utils/utils.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
 import { Resource } from './resource.js';
@@ -40,6 +41,7 @@ export class ResourceController<T extends StringIndexedObject> {
         allErrors: true,
         strict: true,
         strictRequired: false,
+        allowUnionTypes: true
       })
       this.schemaValidator = this.ajv.compile(this.settings.schema);
     }
@@ -52,17 +54,22 @@ export class ResourceController<T extends StringIndexedObject> {
   }
 
   async validate(
-    parameters: Partial<T>,
-    resourceMetaData: ResourceConfig
+    desiredConfig: Partial<T> & ResourceConfig,
   ): Promise<ValidateResponseData['resourceValidations'][0]> {
+    const configToValidate = { ...desiredConfig };
+    await this.applyTransformParameters(configToValidate);
+
+    const { parameters, coreParameters } = splitUserConfig(configToValidate);
+    this.addDefaultValues(parameters);
+
     if (this.schemaValidator) {
       const isValid = this.schemaValidator(parameters);
 
       if (!isValid) {
         return {
           isValid: false,
-          resourceName: resourceMetaData.name,
-          resourceType: resourceMetaData.type,
+          resourceName: coreParameters.name,
+          resourceType: coreParameters.type,
           schemaValidationErrors: this.schemaValidator?.errors ?? [],
         }
       }
@@ -81,16 +88,16 @@ export class ResourceController<T extends StringIndexedObject> {
       return {
         customValidationErrorMessage,
         isValid: false,
-        resourceName: resourceMetaData.name,
-        resourceType: resourceMetaData.type,
+        resourceName: coreParameters.name,
+        resourceType: coreParameters.type,
         schemaValidationErrors: this.schemaValidator?.errors ?? [],
       }
     }
 
     return {
       isValid: true,
-      resourceName: resourceMetaData.name,
-      resourceType: resourceMetaData.type,
+      resourceName: coreParameters.name,
+      resourceType: coreParameters.type,
       schemaValidationErrors: [],
     }
   }
@@ -105,12 +112,16 @@ export class ResourceController<T extends StringIndexedObject> {
     this.addDefaultValues(desiredConfig);
     await this.applyTransformParameters(desiredConfig);
 
+    this.addDefaultValues(stateConfig);
+    await this.applyTransformParameters(stateConfig);
+
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(desiredConfig, stateConfig, this.parsedSettings.statefulParameters)
     const {
       coreParameters,
       desiredParameters,
       stateParameters,
+      allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
@@ -137,7 +148,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
     // Refresh stateful parameters. These parameters have state external to the resource. allowMultiple
     // does not work together with stateful parameters
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters);
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, allParameters);
 
     return Plan.calculate({
       desiredParameters,
@@ -250,34 +261,36 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(desired: Partial<T> | null): Promise<void> {
-    if (!desired) {
+  private async applyTransformParameters(config: Partial<T> & ResourceConfig | null): Promise<void> {
+    if (!config) {
       return;
     }
 
     for (const [key, inputTransformation] of Object.entries(this.parsedSettings.inputTransformations)) {
-      if (desired[key] === undefined || !inputTransformation) {
+      if (config[key] === undefined || !inputTransformation) {
         continue;
       }
 
-      (desired as Record<string, unknown>)[key] = await inputTransformation(desired[key]);
+      (config as Record<string, unknown>)[key] = await inputTransformation(config[key]);
     }
 
     if (this.settings.inputTransformation) {
-      const transformed = await this.settings.inputTransformation(desired)
-      Object.keys(desired).forEach((k) => delete desired[k])
-      Object.assign(desired, transformed);
+      const { parameters, coreParameters } = splitUserConfig(config);
+
+      const transformed = await this.settings.inputTransformation(parameters)
+      Object.keys(config).forEach((k) => delete config[k])
+      Object.assign(config, transformed, coreParameters);
     }
   }
 
-  private addDefaultValues(desired: Partial<T> | null): void {
-    if (!desired) {
+  private addDefaultValues(config: Partial<T> | null): void {
+    if (!config) {
       return;
     }
 
     for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
-      if (defaultValue !== undefined && (desired[key] === undefined || desired[key] === null)) {
-        (desired as Record<string, unknown>)[key] = defaultValue;
+      if (defaultValue !== undefined && (config[key] === undefined || config[key] === null)) {
+        (config as Record<string, unknown>)[key] = defaultValue;
       }
     }
   }
@@ -295,7 +308,7 @@ ${JSON.stringify(refresh, null, 2)}
 
   // Refresh stateful parameters
   // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>): Promise<Partial<T>> {
+  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, allParameters: Partial<T>): Promise<Partial<T>> {
     const result: Partial<T> = {}
     const sortedEntries = Object.entries(statefulParametersConfig)
       .sort(
@@ -308,7 +321,7 @@ ${JSON.stringify(refresh, null, 2)}
         throw new Error(`Stateful parameter ${key} was not found`);
       }
 
-      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null)
+      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null, allParameters)
     }
 
     return result;

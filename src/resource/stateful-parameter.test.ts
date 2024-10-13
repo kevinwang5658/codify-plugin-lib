@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { spy } from 'sinon';
 import { ParameterOperation, ResourceOperation } from 'codify-schemas';
-import { TestArrayStatefulParameter, TestConfig, testPlan } from '../utils/test-utils.test.js';
-import { ArrayParameterSetting } from './resource-settings.js';
+import {
+  TestArrayStatefulParameter,
+  TestConfig,
+  testPlan,
+  TestResource,
+  TestStatefulParameter
+} from '../utils/test-utils.test.js';
+import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from './resource-settings.js';
+import { ResourceController } from './resource-controller.js';
 
 describe('Stateful parameter tests', () => {
   it('addItem is called the correct number of times', async () => {
@@ -49,7 +56,7 @@ describe('Stateful parameter tests', () => {
     expect(plan.changeSet.operation).to.eq(ResourceOperation.MODIFY);
     expect(plan.changeSet.parameterChanges[0]).toMatchObject({
       name: 'propZ',
-      previousValue: ['a', 'c'], // In stateless mode the previous value gets filtered to prevent deletes
+      previousValue: ['c', 'a'], // In stateless mode the previous value gets filtered to prevent deletes
       newValue: ['a', 'c', 'd', 'e', 'f'],
       operation: ParameterOperation.MODIFY,
     })
@@ -89,5 +96,63 @@ describe('Stateful parameter tests', () => {
 
     expect(testParameter.addItem.calledOnce).to.be.true;
     expect(testParameter.removeItem.called).to.be.false;
+  })
+
+  it('isEqual works with type defaults', () => {
+    const testParameter = spy(new class extends TestStatefulParameter {
+      getSettings(): ParameterSetting {
+        return {
+          type: 'version',
+        }
+      }
+    });
+
+    const plan = testPlan<TestConfig>({
+      desired: { propZ: '20' },
+      current: [{ propZ: '20.17.0' }],
+      settings: { id: 'type', parameterSettings: { propZ: { type: 'stateful', definition: testParameter } } }
+    });
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('isElementEquals test', async () => {
+    const testParameter = spy(new class extends TestArrayStatefulParameter {
+      getSettings(): ArrayParameterSetting {
+        return {
+          type: 'array',
+          isElementEqual: (desired, current) => current.includes(desired),
+        }
+      }
+
+      async refresh(): Promise<any> {
+        return [
+          '20.15.0',
+          '20.15.1'
+        ]
+      }
+    });
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'type',
+          parameterSettings: { nodeVersions: { type: 'stateful', definition: testParameter } }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return {};
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({
+      nodeVersions: ['20.15'],
+    } as any)
+
+    console.log(JSON.stringify(plan, null, 2))
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 })

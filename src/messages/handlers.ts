@@ -5,6 +5,8 @@ import {
   ApplyResponseDataSchema,
   GetResourceInfoRequestDataSchema,
   GetResourceInfoResponseDataSchema,
+  ImportRequestDataSchema,
+  ImportResponseDataSchema,
   InitializeRequestDataSchema,
   InitializeResponseDataSchema,
   IpcMessage,
@@ -35,6 +37,11 @@ const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) =
     handler: async (plugin: Plugin, data: any) => plugin.getResourceInfo(data),
     requestValidator: GetResourceInfoRequestDataSchema,
     responseValidator: GetResourceInfoResponseDataSchema
+  },
+  'import': {
+    handler: async (plugin: Plugin, data: any) => plugin.import(data),
+    requestValidator: ImportRequestDataSchema,
+    responseValidator: ImportResponseDataSchema
   },
   'plan': {
     handler: async (plugin: Plugin, data: any) => plugin.plan(data),

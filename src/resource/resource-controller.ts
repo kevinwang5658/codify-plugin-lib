@@ -185,6 +185,43 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
+  async import(config: Partial<T> & ResourceConfig): Promise<(Partial<T> & ResourceConfig)[] | null> {
+    this.addDefaultValues(config);
+    await this.applyTransformParameters(config);
+
+    // Try to refresh as many parameters as possible here
+    const parametersToRefresh = {
+      ...Object.fromEntries(
+        this.getAllParameterKeys().map((k) => [k, null])
+      ),
+      ...config,
+    };
+
+    // Parse data from the user supplied config
+    const parsedConfig = new ConfigParser(parametersToRefresh, null, this.parsedSettings.statefulParameters)
+    const {
+      allNonStatefulParameters,
+      allStatefulParameters,
+      coreParameters,
+    } = parsedConfig;
+
+    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
+
+    if (currentParametersArray === null
+      || currentParametersArray === undefined
+      || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
+      || currentParametersArray.length === 0
+      || currentParametersArray.filter(Boolean).length === 0
+    ) {
+      return currentParametersArray
+          ?.map((r) => ({ ...coreParameters, ...r }))
+        ?? null;
+    }
+
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, parametersToRefresh);
+    return [{ ...coreParameters, ...currentParametersArray[0], ...statefulCurrentParameters }];
+  }
+
   private async applyCreate(plan: Plan<T>): Promise<void> {
     await this.resource.create(plan as CreatePlan<T>);
 
@@ -349,5 +386,10 @@ ${JSON.stringify(refresh, null, 2)}
       )
   }
 
+  private getAllParameterKeys(): string[] {
+    return this.settings.schema
+      ? Object.keys((this.settings.schema as any)?.properties)
+      : Object.keys(this.parsedSettings.parameterSettings);
+  }
 }
 

@@ -2,6 +2,8 @@ import {
   ApplyRequestData,
   GetResourceInfoRequestData,
   GetResourceInfoResponseData,
+  ImportRequestData,
+  ImportResponseData,
   InitializeResponseData,
   PlanRequestData,
   PlanResponseData,
@@ -61,6 +63,21 @@ export class Plugin {
       type: data.type,
       dependencies: resource.dependencies,
       schema: resource.settings.schema as Record<string, unknown> | undefined
+    }
+  }
+
+  async import(data: ImportRequestData): Promise<ImportResponseData> {
+    if (!this.resourceControllers.has(data.config.type)) {
+      throw new Error(`Cannot get info for resource ${data.config.type}, resource doesn't exist`);
+    }
+
+    const result = await this.resourceControllers
+      .get(data.config.type!)
+      ?.import(data.config);
+
+    return {
+      request: data.config,
+      result: result ?? [],
     }
   }
 

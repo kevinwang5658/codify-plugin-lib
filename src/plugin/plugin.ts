@@ -62,7 +62,8 @@ export class Plugin {
       plugin: this.name,
       type: data.type,
       dependencies: resource.dependencies,
-      schema: resource.settings.schema as Record<string, unknown> | undefined
+      schema: resource.settings.schema as Record<string, unknown> | undefined,
+      import: resource.settings.import
     }
   }
 

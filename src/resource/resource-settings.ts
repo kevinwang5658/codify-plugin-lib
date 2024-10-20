@@ -64,6 +64,10 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * @param desired
    */
   inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
+
+  import?: {
+    requiredParameters: Array<Partial<keyof T>>;
+  }
 }
 
 /**

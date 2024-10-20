@@ -14,7 +14,7 @@
   "dependencies": {
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
-    "codify-schemas": "1.0.51",
+    "codify-schemas": "git@github.com:codifyCLI/codify-schemas.git#b193a30",
     "@npmcli/promise-spawn": "^7.0.1",
     "uuid": "^10.0.0"
   },

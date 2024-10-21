@@ -138,7 +138,6 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed if multiples of a resource exist`)
     }
 
-
     const schema = this.settings.schema as JSONSchemaType<any>;
     if (!this.settings.import && (schema?.oneOf
         && Array.isArray(schema.oneOf)
@@ -166,6 +165,13 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
         'determine the prompt to ask users during imports. It can\'t parse which parameters are needed when ' +
         'required is declared conditionally.'
       )
+    }
+
+    const importRequiredParameterNotInSchema =
+      this.settings.import?.requiredParameters?.filter((p) => !(schema?.properties[p]))
+    if (schema && importRequiredParameterNotInSchema && importRequiredParameterNotInSchema.length > 0) {
+      throw new Error(`The following properties were declared in settings.import.requiredParameters but were not found in the schema:
+${JSON.stringify(importRequiredParameterNotInSchema, null, 2)}`)
     }
   }
 

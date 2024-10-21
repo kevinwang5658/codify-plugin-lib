@@ -65,4 +65,30 @@ describe('Resource options parser tests', () => {
 
     expect(() => new ParsedResourceSettings(option)).throws;
   })
+
+  it('Throws an error when an import.requiredParameters is declared improperly', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      '$id': 'https://www.codifycli.com/git-clone.json',
+      'title': 'Git-clone resource',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+          'description': 'Remote tracking url to clone repo from. Equivalent to repository and only one should be specified'
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        requiredParameters: ['import-error']
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).throws;
+  })
 })

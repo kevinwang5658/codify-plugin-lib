@@ -3,6 +3,10 @@ import addFormats from 'ajv-formats';
 import {
   ApplyRequestDataSchema,
   ApplyResponseDataSchema,
+  GetResourceInfoRequestDataSchema,
+  GetResourceInfoResponseDataSchema,
+  ImportRequestDataSchema,
+  ImportResponseDataSchema,
   InitializeRequestDataSchema,
   InitializeResponseDataSchema,
   IpcMessage,
@@ -19,6 +23,31 @@ import { SudoError } from '../errors.js';
 import { Plugin } from '../plugin/plugin.js';
 
 const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) => Promise<unknown>; requestValidator: SchemaObject; responseValidator: SchemaObject }> = {
+  'initialize': {
+    handler: async (plugin: Plugin) => plugin.initialize(),
+    requestValidator: InitializeRequestDataSchema,
+    responseValidator: InitializeResponseDataSchema
+  },
+  'validate': {
+    handler: async (plugin: Plugin, data: any) => plugin.validate(data),
+    requestValidator: ValidateRequestDataSchema,
+    responseValidator: ValidateResponseDataSchema
+  },
+  'getResourceInfo': {
+    handler: async (plugin: Plugin, data: any) => plugin.getResourceInfo(data),
+    requestValidator: GetResourceInfoRequestDataSchema,
+    responseValidator: GetResourceInfoResponseDataSchema
+  },
+  'import': {
+    handler: async (plugin: Plugin, data: any) => plugin.import(data),
+    requestValidator: ImportRequestDataSchema,
+    responseValidator: ImportResponseDataSchema
+  },
+  'plan': {
+    handler: async (plugin: Plugin, data: any) => plugin.plan(data),
+    requestValidator: PlanRequestDataSchema,
+    responseValidator: PlanResponseDataSchema
+  },
   'apply': {
     async handler(plugin: Plugin, data: any) {
       await plugin.apply(data);
@@ -27,21 +56,6 @@ const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) =
     requestValidator: ApplyRequestDataSchema,
     responseValidator: ApplyResponseDataSchema
   },
-  'initialize': {
-    handler: async (plugin: Plugin) => plugin.initialize(),
-    requestValidator: InitializeRequestDataSchema,
-    responseValidator: InitializeResponseDataSchema
-  },
-  'plan': {
-    handler: async (plugin: Plugin, data: any) => plugin.plan(data),
-    requestValidator: PlanRequestDataSchema,
-    responseValidator: PlanResponseDataSchema
-  },
-  'validate': {
-    handler: async (plugin: Plugin, data: any) => plugin.validate(data),
-    requestValidator: ValidateRequestDataSchema,
-    responseValidator: ValidateResponseDataSchema
-  }
 }
 
 export class MessageHandler {

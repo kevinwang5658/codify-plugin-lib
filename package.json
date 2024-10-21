@@ -1,6 +1,6 @@
 {
   "name": "codify-plugin-lib",
-  "version": "1.0.92",
+  "version": "1.0.95",
   "description": "Library plugin library",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -14,7 +14,7 @@
   "dependencies": {
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
-    "codify-schemas": "git@github.com:codifyCLI/codify-schemas.git#b193a30",
+    "codify-schemas": "1.0.52",
     "@npmcli/promise-spawn": "^7.0.1",
     "uuid": "^10.0.0"
   },

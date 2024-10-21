@@ -101,4 +101,81 @@ describe('Plugin tests', () => {
     await testPlugin.apply({ plan })
     expect(resource.modify.calledOnce).to.be.true;
   });
+
+  it('Can get resource info', async () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      '$id': 'https://www.codifycli.com/asdf-schema.json',
+      'title': 'Asdf resource',
+      'type': 'object',
+      'properties': {
+        'plugins': {
+          'type': 'array',
+          'description': 'Asdf plugins to install. See: https://github.com/asdf-community for a full list',
+          'items': {
+            'type': 'string'
+          }
+        }
+      },
+      'required': ['plugins'],
+      'additionalProperties': false
+    }
+
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'typeId',
+          schema,
+        }
+      }
+    }
+    const testPlugin = Plugin.create('testPlugin', [resource as any])
+
+    const resourceInfo = await testPlugin.getResourceInfo({ type: 'typeId' })
+    expect(resourceInfo.import).toMatchObject({
+      requiredParameters: [
+        'plugins'
+      ]
+    })
+  })
+
+  it('Get resource info to default import to the one specified in the resource settings', async () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      '$id': 'https://www.codifycli.com/asdf-schema.json',
+      'title': 'Asdf resource',
+      'type': 'object',
+      'properties': {
+        'plugins': {
+          'type': 'array',
+          'description': 'Asdf plugins to install. See: https://github.com/asdf-community for a full list',
+          'items': {
+            'type': 'string'
+          }
+        }
+      },
+      'required': ['plugins'],
+      'additionalProperties': false
+    }
+
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'typeId',
+          schema,
+          import: {
+            requiredParameters: []
+          }
+        }
+      }
+    }
+    const testPlugin = Plugin.create('testPlugin', [resource as any])
+
+    const resourceInfo = await testPlugin.getResourceInfo({ type: 'typeId' })
+    expect(resourceInfo.import).toMatchObject({
+      requiredParameters: []
+    })
+  })
 });

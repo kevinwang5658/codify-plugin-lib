@@ -524,4 +524,20 @@ describe('Resource parameter tests', () => {
     expect(plan.currentConfig?.propB).to.eq(10);
     expect(plan.currentConfig?.propC).to.be.undefined;
   })
+
+  it('Allows import required parameters customization', () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          import: {
+            requiredParameters: [
+              'propA',
+              'propB',
+            ]
+          }
+        }
+      }
+    };
+  })
 })

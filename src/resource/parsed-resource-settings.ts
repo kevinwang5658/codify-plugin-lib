@@ -1,3 +1,4 @@
+import { JSONSchemaType } from 'ajv';
 import { StringIndexedObject } from 'codify-schemas';
 
 import { ParameterSetting, resolveEqualsFn, ResourceSettings, StatefulParameterSetting } from './resource-settings.js';
@@ -129,6 +130,36 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     if (this.allowMultiple
       && Object.values(this.parameterSettings).some((v) => v.type === 'stateful')) {
       throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed if multiples of a resource exist`)
+    }
+
+
+    const schema = this.settings.schema as JSONSchemaType<any>;
+    if (!this.settings.import && (schema?.oneOf
+        && Array.isArray(schema.oneOf)
+        && schema.oneOf.some((s) => s.required)
+      )
+      || (schema?.anyOf
+        && Array.isArray(schema.anyOf)
+        && schema.anyOf.some((s) => s.required)
+      )
+      || (schema?.allOf
+        && Array.isArray(schema.allOf)
+        && schema.allOf.some((s) => s.required)
+      )
+      || (schema?.then
+        && Array.isArray(schema.then)
+        && schema.then.some((s) => s.required)
+      )
+      || (schema?.else
+        && Array.isArray(schema.else)
+        && schema.else.some((s) => s.required)
+      )
+    ) {
+      throw new Error(`In the schema of ${this.settings.id}, a conditional required was declared (within anyOf, allOf, oneOf, else, or then) but an` +
+        'import.requiredParameters was not found in the resource settings. This is required because Codify uses the required parameter to' +
+        'determine the prompt to ask users during imports. It can\'t parse which parameters are needed when ' +
+        'required is declared conditionally.'
+      )
     }
   }
 

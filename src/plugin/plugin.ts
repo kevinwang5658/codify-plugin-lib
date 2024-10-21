@@ -1,3 +1,4 @@
+import { JSONSchemaType } from 'ajv';
 import {
   ApplyRequestData,
   GetResourceInfoRequestData,
@@ -58,12 +59,21 @@ export class Plugin {
 
     const resource = this.resourceControllers.get(data.type)!;
 
+    const schema = resource.settings.schema as JSONSchemaType<any> | undefined;
+    const requiredPropertyNames = (
+      resource.settings.import?.requiredParameters
+      ?? schema?.required
+      ?? null
+    ) as null | string[];
+
     return {
       plugin: this.name,
       type: data.type,
       dependencies: resource.dependencies,
-      schema: resource.settings.schema as Record<string, unknown> | undefined,
-      import: resource.settings.import
+      schema: schema as Record<string, unknown> | undefined,
+      import: {
+        requiredParameters: requiredPropertyNames,
+      },
     }
   }
 

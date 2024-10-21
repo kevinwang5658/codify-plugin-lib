@@ -1,7 +1,13 @@
 import { JSONSchemaType } from 'ajv';
 import { StringIndexedObject } from 'codify-schemas';
 
-import { ParameterSetting, resolveEqualsFn, ResourceSettings, StatefulParameterSetting } from './resource-settings.js';
+import {
+  ParameterSetting,
+  resolveEqualsFn,
+  resolveParameterTransformFn,
+  ResourceSettings,
+  StatefulParameterSetting
+} from './resource-settings.js';
 import { StatefulParameter as StatefulParameterImpl } from './stateful-parameter.js'
 
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
@@ -88,8 +94,8 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
       return Object.fromEntries(
         Object.entries(this.settings.parameterSettings)
-          .filter(([, v]) => v!.inputTransformation !== undefined)
-          .map(([k, v]) => [k, v!.inputTransformation!] as const)
+          .filter(([, v]) => resolveParameterTransformFn(v!) !== undefined)
+          .map(([k, v]) => [k, resolveParameterTransformFn(v!)] as const)
       ) as Record<keyof T, (a: unknown) => unknown>;
     });
   }

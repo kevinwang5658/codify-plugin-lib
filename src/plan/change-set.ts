@@ -141,53 +141,45 @@ export class ChangeSet<T extends StringIndexedObject> {
       Object.entries(currentParameters).filter(([, v]) => v !== null && v !== undefined)
     ) as Partial<T>
 
-    for (const [k, v] of Object.entries(current)) {
-      if (desired?.[k] === null || desired?.[k] === undefined) {
+    for (const k of new Set([...Object.keys(current), ...Object.keys(desired)])) {
+      if (ChangeSet.isSame(desired[k], current[k], parameterOptions?.[k])) {
         parameterChangeSet.push({
           name: k,
-          previousValue: v ?? null,
+          previousValue: current[k] ?? null,
+          newValue: desired[k] ?? null,
+          operation: ParameterOperation.NOOP,
+        })
+
+        continue;
+      }
+
+      if ((desired?.[k] === null || desired?.[k] === undefined) && (current?.[k] !== null && current?.[k] !== undefined)) {
+        parameterChangeSet.push({
+          name: k,
+          previousValue: current[k] ?? null,
           newValue: null,
           operation: ParameterOperation.REMOVE,
         })
 
-        delete current[k];
         continue;
       }
 
-      if (!ChangeSet.isSame(desired[k], current[k], parameterOptions?.[k])) {
+      if ((current?.[k] === null || current?.[k] === undefined) && (desired?.[k] !== null && desired?.[k] !== undefined)) {
         parameterChangeSet.push({
           name: k,
-          previousValue: v ?? null,
+          previousValue: null,
           newValue: desired[k] ?? null,
-          operation: ParameterOperation.MODIFY,
+          operation: ParameterOperation.ADD,
         })
 
-        delete current[k];
-        delete desired[k];
         continue;
       }
 
       parameterChangeSet.push({
         name: k,
-        previousValue: v ?? null,
+        previousValue: current[k] ?? null,
         newValue: desired[k] ?? null,
-        operation: ParameterOperation.NOOP,
-      })
-
-      delete current[k];
-      delete desired[k];
-    }
-
-    if (Object.keys(current).length > 0) {
-      throw new Error('Diff algorithm error');
-    }
-
-    for (const [k, v] of Object.entries(desired)) {
-      parameterChangeSet.push({
-        name: k,
-        previousValue: null,
-        newValue: v ?? null,
-        operation: ParameterOperation.ADD,
+        operation: ParameterOperation.MODIFY,
       })
     }
 

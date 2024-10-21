@@ -81,6 +81,7 @@ export type ParameterSettingType =
   | 'boolean'
   | 'directory'
   | 'number'
+  | 'setting'
   | 'stateful'
   | 'string'
   | 'version';
@@ -192,9 +193,9 @@ const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown,
   'directory': (a: unknown, b: unknown) => path.resolve(untildify(String(a))) === path.resolve(untildify(String(b))),
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
-  'version': (desired: unknown, current: unknown) => String(current).includes(String(desired))
+  'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
+  'setting': (a: unknown, b: unknown) => true,
 }
-
 
 export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
   if (parameter.type === 'array') {
@@ -206,4 +207,15 @@ export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desi
   }
 
   return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+}
+
+const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any) => Promise<any> | any>> = {
+  'directory': (a: unknown) => path.resolve(untildify(String(a))),
+  'string': String,
+}
+
+export function resolveParameterTransformFn(
+  parameter: ParameterSetting
+): ((input: any) => Promise<any> | any) | undefined {
+  return parameter.inputTransformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
 }

@@ -612,4 +612,21 @@ describe('Resource parameter tests', () => {
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
+
+  it('Accepts an input parameters for imports', () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          import: {
+            requiredParameters: ['propA'],
+            refreshKeys: ['propB', 'propA'],
+            defaultRefreshValues: {
+              propB: 6,
+            }
+          }
+        }
+      }
+    };
+  })
 })

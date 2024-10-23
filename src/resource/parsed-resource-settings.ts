@@ -167,11 +167,37 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       )
     }
 
-    const importRequiredParameterNotInSchema =
-      this.settings.import?.requiredParameters?.filter((p) => !(schema?.properties[p]))
-    if (schema && importRequiredParameterNotInSchema && importRequiredParameterNotInSchema.length > 0) {
-      throw new Error(`The following properties were declared in settings.import.requiredParameters but were not found in the schema:
-${JSON.stringify(importRequiredParameterNotInSchema, null, 2)}`)
+    if (this.settings.import) {
+      const { requiredParameters, refreshKeys, defaultRefreshValues } = this.settings.import;
+
+      const requiredParametersNotInSchema = requiredParameters
+        ?.filter(
+          (p) => schema && !(schema.properties[p])
+        )
+      if (schema && requiredParametersNotInSchema && requiredParametersNotInSchema.length > 0) {
+        throw new Error(`The following properties were declared in settings.import.requiredParameters but were not found in the schema:
+${JSON.stringify(requiredParametersNotInSchema, null, 2)}`)
+      }
+
+      const refreshKeyNotInSchema = refreshKeys
+        ?.filter(
+          (k) => schema && !(schema.properties[k])
+        )
+      if (schema && refreshKeyNotInSchema && refreshKeyNotInSchema.length > 0) {
+        throw new Error(`The following properties were declared in settings.import.refreshKeys but were not found in the schema:
+${JSON.stringify(requiredParametersNotInSchema, null, 2)}`)
+      }
+
+      const refreshValueNotInRefreshKey =
+        Object.entries(defaultRefreshValues ?? {})
+          .filter(
+            ([k]) => schema && !(schema.properties[k])
+          ).map(([k]) => k)
+
+      if (schema && refreshValueNotInRefreshKey.length > 0) {
+        throw new Error(`Properties declared in defaultRefreshValues must already be declared in refreshKeys:
+${JSON.stringify(refreshValueNotInRefreshKey, null, 2)}`)
+      }
     }
   }
 

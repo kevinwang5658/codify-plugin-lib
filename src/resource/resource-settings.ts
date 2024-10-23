@@ -68,7 +68,9 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   import?: {
     requiredParameters?: Array<Partial<keyof T>>;
 
-    refreshParameters?: Array<Partial<keyof T>>;
+    refreshKeys?: Array<Partial<keyof T>>;
+
+    defaultRefreshValues?: Partial<T>
   }
 }
 

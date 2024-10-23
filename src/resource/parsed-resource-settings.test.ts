@@ -63,19 +63,16 @@ describe('Resource options parser tests', () => {
       schema,
     }
 
-    expect(() => new ParsedResourceSettings(option)).throws;
+    expect(() => new ParsedResourceSettings(option)).toThrowError();
   })
 
   it('Throws an error when an import.requiredParameters is declared improperly', () => {
     const schema = {
       '$schema': 'http://json-schema.org/draft-07/schema',
-      '$id': 'https://www.codifycli.com/git-clone.json',
-      'title': 'Git-clone resource',
       'type': 'object',
       'properties': {
         'remote': {
           'type': 'string',
-          'description': 'Remote tracking url to clone repo from. Equivalent to repository and only one should be specified'
         },
       },
       'additionalProperties': false,
@@ -89,6 +86,77 @@ describe('Resource options parser tests', () => {
       }
     }
 
-    expect(() => new ParsedResourceSettings(option)).throws;
+    expect(() => new ParsedResourceSettings(option)).toThrowError();
+  })
+
+  it('Throws an error when an import.refreshKeys is declared improperly', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        refreshKeys: ['import-error']
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).toThrowError();
+  })
+
+  it('Doesn\'t throw an error when an import.refreshValues is declared properly', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        refreshKeys: ['remote'],
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).not.toThrowError()
+  })
+
+  it('Throws an error if defaultRefreshValue is not found in refreshKeys', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        defaultRefreshValues: {
+          repository: 'abc'
+        }
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).toThrowError()
   })
 })

@@ -190,19 +190,21 @@ export class ResourceController<T extends StringIndexedObject> {
     await this.applyTransformParameters(config);
 
     // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
-    const parametersToRefresh = this.settings.import?.refreshParameters
+    const parametersToRefresh = this.settings.import?.refreshKeys
       ? {
         ...Object.fromEntries(
-          this.settings.import?.refreshParameters.map((k) => [k, null])
+          this.settings.import?.refreshKeys.map((k) => [k, null])
         ),
+        ...this.settings.import?.defaultRefreshValues,
         ...config,
       }
       : {
-      ...Object.fromEntries(
-        this.getAllParameterKeys().map((k) => [k, null])
-      ),
-      ...config,
-    };
+        ...Object.fromEntries(
+          this.getAllParameterKeys().map((k) => [k, null])
+        ),
+        ...this.settings.import?.defaultRefreshValues,
+        ...config,
+      };
 
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(parametersToRefresh, null, this.parsedSettings.statefulParameters)

@@ -151,8 +151,6 @@ describe('Stateful parameter tests', () => {
       nodeVersions: ['20.15'],
     } as any)
 
-    console.log(JSON.stringify(plan, null, 2))
-
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
 })

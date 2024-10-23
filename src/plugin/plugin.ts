@@ -1,5 +1,10 @@
+import { JSONSchemaType } from 'ajv';
 import {
   ApplyRequestData,
+  GetResourceInfoRequestData,
+  GetResourceInfoResponseData,
+  ImportRequestData,
+  ImportResponseData,
   InitializeResponseData,
   PlanRequestData,
   PlanResponseData,
@@ -44,6 +49,46 @@ export class Plugin {
           dependencies: r.dependencies,
           type: r.typeId,
         }))
+    }
+  }
+
+  async getResourceInfo(data: GetResourceInfoRequestData): Promise<GetResourceInfoResponseData> {
+    if (!this.resourceControllers.has(data.type)) {
+      throw new Error(`Cannot get info for resource ${data.type}, resource doesn't exist`);
+    }
+
+    const resource = this.resourceControllers.get(data.type)!;
+
+    const schema = resource.settings.schema as JSONSchemaType<any> | undefined;
+    const requiredPropertyNames = (
+      resource.settings.import?.requiredParameters
+      ?? schema?.required
+      ?? null
+    ) as null | string[];
+
+    return {
+      plugin: this.name,
+      type: data.type,
+      dependencies: resource.dependencies,
+      schema: schema as Record<string, unknown> | undefined,
+      import: {
+        requiredParameters: requiredPropertyNames,
+      },
+    }
+  }
+
+  async import(data: ImportRequestData): Promise<ImportResponseData> {
+    if (!this.resourceControllers.has(data.config.type)) {
+      throw new Error(`Cannot get info for resource ${data.config.type}, resource doesn't exist`);
+    }
+
+    const result = await this.resourceControllers
+      .get(data.config.type!)
+      ?.import(data.config);
+
+    return {
+      request: data.config,
+      result: result ?? [],
     }
   }
 

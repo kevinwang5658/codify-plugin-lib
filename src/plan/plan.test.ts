@@ -147,6 +147,84 @@ describe('Plan entity tests', () => {
       operation: ResourceOperation.RECREATE
     })
   })
+
+  it('Filters array parameters in stateless mode (by default)', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'type',
+          parameterSettings: {
+            propZ: { type: 'array', isElementEqual: (a, b) => b.includes(a) }
+          }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return {
+          propZ: [
+            '20.15.0',
+            '20.15.1'
+          ]
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({
+      propZ: ['20.15'],
+    } as any)
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Doesn\'t filters array parameters if filtering is disabled', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'type',
+          parameterSettings: {
+            propZ: {
+              type: 'array',
+              canModify: true,
+              isElementEqual: (a, b) => b.includes(a),
+              filterInStatelessMode: false
+            }
+          }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return {
+          propZ: [
+            '20.15.0',
+            '20.15.1'
+          ]
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({
+      propZ: ['20.15'],
+    } as any)
+
+    expect(plan.changeSet).toMatchObject({
+      operation: ResourceOperation.MODIFY,
+      parameterChanges: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'propZ',
+          previousValue: expect.arrayContaining([
+            '20.15.0',
+            '20.15.1'
+          ]),
+          newValue: expect.arrayContaining([
+            '20.15'
+          ]),
+          operation: 'modify'
+        })
+      ])
+    })
+  })
 })
 
 function createTestResource() {

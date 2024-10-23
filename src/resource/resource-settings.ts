@@ -64,6 +64,59 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * @param desired
    */
   inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
+
+  /**
+   * Customize the import behavior of the resource. By default, <code>codify import</code> will call `refresh()` with
+   * every parameter set to null and return the result of the refresh as the imported config. It looks for required parameters
+   * in the schema and will prompt the user for these values before performing the import.
+   *
+   * <b>Example:</b><br>
+   * Resource `alias` with parameters
+   *
+   * ```
+   * { alias <b>(*required)</b>: string; value: string;  }
+   * ```
+   *
+   * When the user calls `codify import alias`, they will first be prompted to enter the value for `alias`. Refresh
+   * is then called with `refresh({ alias: 'user-input', value: null })`. The result returned to the user will then be:
+   *
+   * ```
+   * { type: 'alias', alias: 'user-input', value: 'git push' }
+   * ```
+   */
+  import?: {
+
+    /**
+     * Customize the required parameters needed to import this resource. By default, the `requiredParameters` are taken
+     * from the JSON schema. The `requiredParameters` parameter must be declared if a complex required is declared in
+     * the schema (contains `oneOf`, `anyOf`, `allOf`, `if`, `then`, `else`).
+     * <br>
+     * The user will be prompted for the required parameters before the import starts. This is done because for most resources
+     * the required parameters change the behaviour of the refresh (for example for the `alias` resource, the `alias` parmaeter
+     * chooses which alias the resource is managing).
+     *
+     * See {@link import} for more information on how importing works.
+     */
+    requiredParameters?: Array<Partial<keyof T>>;
+
+    /**
+     * Customize which keys will be refreshed in the import. Typically, `refresh()` statements only refresh
+     * the parameters provided as the input. Use `refreshKeys` to control which parameter keys are passed in.
+     * <br>
+     * By default all parameters (except for {@link requiredParameters }) are passed in with the value `null`. The passed
+     * in value can be customized using {@link defaultRefreshValues}
+     *
+     * See {@link import} for more information on how importing works.
+     */
+    refreshKeys?: Array<Partial<keyof T>>;
+
+    /**
+     * Customize the value that is passed into refresh when importing. This must only contain keys found in {@link refreshKeys}.
+     *
+     * See {@link import} for more information on how importing works.
+     */
+    defaultRefreshValues?: Partial<T>
+  }
 }
 
 /**
@@ -77,6 +130,7 @@ export type ParameterSettingType =
   | 'boolean'
   | 'directory'
   | 'number'
+  | 'setting'
   | 'stateful'
   | 'string'
   | 'version';
@@ -157,6 +211,26 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
    * @return Return true if desired is equivalent to current.
    */
   isElementEqual?: (desired: any, current: any) => boolean
+
+  /**
+   * Filter the contents of the refreshed array by the desired. This way items currently on the system but not
+   * in desired don't show up in the plan.
+   *
+   * <b>For example, for the nvm resource:</b>
+   * <ul>
+   *   <li>Desired (20.18.0, 18.9.0, 16.3.1)</li>
+   *   <li>Current (20.18.0, 22.1.3, 12.1.0)</li>
+   * </ul>
+   *
+   * Without filtering the plan will be:
+   * (~20.18.0, +18.9.0, +16.3.1, -22.1.3, -12.1.0)<br>
+   * With filtering the plan is: (~20.18.0, +18.9.0, +16.3.1)
+   *
+   * As you can see, filtering prevents items currently installed on the system from being removed.
+   *
+   * Defaults to true.
+   */
+  filterInStatelessMode?: boolean,
 }
 
 /**
@@ -188,9 +262,9 @@ const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown,
   'directory': (a: unknown, b: unknown) => path.resolve(untildify(String(a))) === path.resolve(untildify(String(b))),
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
-  'version': (desired: unknown, current: unknown) => String(current).includes(String(desired))
+  'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
+  'setting': (a: unknown, b: unknown) => true,
 }
-
 
 export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
   if (parameter.type === 'array') {
@@ -202,4 +276,15 @@ export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desi
   }
 
   return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+}
+
+const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any) => Promise<any> | any>> = {
+  'directory': (a: unknown) => path.resolve(untildify(String(a))),
+  'string': String,
+}
+
+export function resolveParameterTransformFn(
+  parameter: ParameterSetting
+): ((input: any) => Promise<any> | any) | undefined {
+  return parameter.inputTransformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
 }

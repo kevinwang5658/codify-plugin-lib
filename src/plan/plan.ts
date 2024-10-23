@@ -220,7 +220,7 @@ export class Plan<T extends StringIndexedObject> {
     // TODO: Add object handling here in addition to arrays in the future
     const arrayStatefulParameters = Object.fromEntries(
       Object.entries(filteredCurrent)
-        .filter(([k, v]) => isArrayStatefulParameter(k, v))
+        .filter(([k, v]) => isArrayParameterWithFiltering(k, v))
         .map(([k, v]) => [k, filterArrayStatefulParameter(k, v)])
     )
 
@@ -247,19 +247,27 @@ export class Plan<T extends StringIndexedObject> {
       ) as Partial<T>;
     }
 
-    function isArrayStatefulParameter(k: string, v: T[keyof T]): boolean {
-      return settings.parameterSettings?.[k]?.type === 'stateful'
-        && (settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings().type === 'array'
+    function isArrayParameterWithFiltering(k: string, v: T[keyof T]): boolean {
+      return (((settings.parameterSettings?.[k]?.type === 'stateful'
+            && (settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings().type === 'array')
+          && (((settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings() as ArrayParameterSetting).filterInStatelessMode ?? true)
+        ) || (
+          settings.parameterSettings?.[k]?.type === 'array'
+          && ((settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode ?? true)
+        ))
         && Array.isArray(v)
     }
 
     // For stateless mode, we must filter the current array so that the diff algorithm will not detect any deletes
     function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
       const desiredArray = desired![k] as unknown[];
-      const matcher = ((settings.parameterSettings![k] as StatefulParameterSetting)
+      const matcher = settings.parameterSettings![k]!.type === 'stateful'
+        ? ((settings.parameterSettings![k] as StatefulParameterSetting)
         .definition
         .getSettings() as ArrayParameterSetting)
-        .isElementEqual ?? ((a, b) => a === b);
+        .isElementEqual ?? ((a, b) => a === b)
+        : (settings.parameterSettings![k] as ArrayParameterSetting)
+        .isElementEqual ?? ((a, b) => a === b)
 
       const desiredCopy = [...desiredArray];
       const currentCopy = [...v];

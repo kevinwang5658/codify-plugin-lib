@@ -11,6 +11,8 @@ import {
 } from '../utils/test-utils.test.js';
 import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from './resource-settings.js';
 import { ResourceController } from './resource-controller.js';
+import os from 'node:os';
+import path from 'node:path';
 
 describe('Resource parameter tests', () => {
   it('Generates a resource plan that includes stateful parameters (create)', async () => {
@@ -523,5 +525,108 @@ describe('Resource parameter tests', () => {
     expect(plan.currentConfig?.propA).to.eq('propA');
     expect(plan.currentConfig?.propB).to.eq(10);
     expect(plan.currentConfig?.propC).to.be.undefined;
+  })
+
+  it('Allows import required parameters customization', () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          import: {
+            requiredParameters: [
+              'propA',
+              'propB',
+            ]
+          }
+        }
+      }
+    };
+  })
+
+  it('Applies default input transformations', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'directory' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return { propA: testPath }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({ type: 'resourceType', propA: '~/test/folder' } as any);
+
+    expect(plan.changeSet.parameterChanges[0]).toMatchObject({
+      operation: ParameterOperation.NOOP,
+      newValue: testPath,
+      previousValue: testPath,
+    })
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Ignores setting parameters when planning', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'setting' },
+            propB: { type: 'number' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return { propB: 64 }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({ type: 'resourceType', propA: 'setting', propB: 64 } as any);
+
+    expect(plan.changeSet.parameterChanges).toMatchObject(
+      expect.arrayContaining([
+        {
+          name: 'propA',
+          operation: ParameterOperation.NOOP,
+          previousValue: null,
+          newValue: 'setting',
+        },
+        {
+          name: 'propB',
+          operation: ParameterOperation.NOOP,
+          previousValue: 64,
+          newValue: 64,
+        }
+      ])
+    )
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Accepts an input parameters for imports', () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          import: {
+            requiredParameters: ['propA'],
+            refreshKeys: ['propB', 'propA'],
+            defaultRefreshValues: {
+              propB: 6,
+            }
+          }
+        }
+      }
+    };
   })
 })

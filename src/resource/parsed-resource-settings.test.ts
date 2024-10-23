@@ -21,4 +21,142 @@ describe('Resource options parser tests', () => {
       propB: 'propB'
     })
   })
+
+  it('Throws an error when an import.requiredParameters is not declared', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      '$id': 'https://www.codifycli.com/git-clone.json',
+      'title': 'Git-clone resource',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+          'description': 'Remote tracking url to clone repo from. Equivalent to repository and only one should be specified'
+        },
+        'repository': {
+          'type': 'string',
+          'description': 'Remote repository to clone repo from. Equivalent to remote and only one should be specified'
+        },
+        'parentDirectory': {
+          'type': 'string',
+          'description': 'Parent directory to clone into. The folder name will use default git semantics which extracts the last part of the clone url. Only one of parentDirectory or directory can be specified'
+        },
+        'directory': {
+          'type': 'string',
+          'description': 'Directory to clone contents into. This value is directly passed into git clone. This differs from parent directory in that the last part of the path will be the folder name of the repo'
+        },
+        'autoVerifySSH': {
+          'type': 'boolean',
+          'description': 'Automatically verifies the ssh connection for ssh git clones. Defaults to true.'
+        }
+      },
+      'additionalProperties': false,
+      'oneOf': [
+        { 'required': ['repository', 'directory'] },
+        { 'required': ['repository', 'parentDirectory'] },
+        { 'required': ['remote', 'directory'] }
+      ]
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+    }
+
+    expect(() => new ParsedResourceSettings(option)).toThrowError();
+  })
+
+  it('Throws an error when an import.requiredParameters is declared improperly', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        requiredParameters: ['import-error']
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).toThrowError();
+  })
+
+  it('Throws an error when an import.refreshKeys is declared improperly', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        refreshKeys: ['import-error']
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).toThrowError();
+  })
+
+  it('Doesn\'t throw an error when an import.refreshValues is declared properly', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        refreshKeys: ['remote'],
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).not.toThrowError()
+  })
+
+  it('Throws an error if defaultRefreshValue is not found in refreshKeys', () => {
+    const schema = {
+      '$schema': 'http://json-schema.org/draft-07/schema',
+      'type': 'object',
+      'properties': {
+        'remote': {
+          'type': 'string',
+        },
+      },
+      'additionalProperties': false,
+    }
+
+    const option: ResourceSettings<TestConfig> = {
+      id: 'typeId',
+      schema,
+      import: {
+        defaultRefreshValues: {
+          repository: 'abc'
+        }
+      }
+    }
+
+    expect(() => new ParsedResourceSettings(option)).toThrowError()
+  })
 })

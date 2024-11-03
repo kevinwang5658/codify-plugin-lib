@@ -8,8 +8,12 @@ import {
 } from 'codify-schemas';
 import { v4 as uuidV4 } from 'uuid';
 
-import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
-import { ArrayParameterSetting, ResourceSettings, StatefulParameterSetting } from '../resource/resource-settings.js';
+import {
+  ParsedArrayParameterSetting,
+  ParsedResourceSettings,
+  ParsedStatefulParameterSetting
+} from '../resource/parsed-resource-settings.js';
+import { ArrayParameterSetting, ResourceSettings } from '../resource/resource-settings.js';
 import { ChangeSet } from './change-set.js';
 
 /**
@@ -248,26 +252,27 @@ export class Plan<T extends StringIndexedObject> {
     }
 
     function isArrayParameterWithFiltering(k: string, v: T[keyof T]): boolean {
-      return (((settings.parameterSettings?.[k]?.type === 'stateful'
-            && (settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings().type === 'array')
-          && (((settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings() as ArrayParameterSetting).filterInStatelessMode ?? true)
-        ) || (
-          settings.parameterSettings?.[k]?.type === 'array'
-          && ((settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode ?? true)
-        ))
-        && Array.isArray(v)
+      if (settings.parameterSettings?.[k]?.type === 'stateful') {
+        const statefulSetting = settings.parameterSettings[k] as ParsedStatefulParameterSetting;
+        return statefulSetting.nestedSettings.type === 'array' &&
+          ((statefulSetting.nestedSettings as ArrayParameterSetting).filterInStatelessMode ?? true)
+          && Array.isArray(v);
+      }
+
+      return settings.parameterSettings?.[k]?.type === 'array'
+        && ((settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode ?? true)
+        && Array.isArray(v);
     }
 
     // For stateless mode, we must filter the current array so that the diff algorithm will not detect any deletes
     function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
       const desiredArray = desired![k] as unknown[];
       const matcher = settings.parameterSettings![k]!.type === 'stateful'
-        ? ((settings.parameterSettings![k] as StatefulParameterSetting)
-        .definition
-        .getSettings() as ArrayParameterSetting)
-        .isElementEqual ?? ((a, b) => a === b)
-        : (settings.parameterSettings![k] as ArrayParameterSetting)
-        .isElementEqual ?? ((a, b) => a === b)
+        ? ((settings.parameterSettings![k] as ParsedStatefulParameterSetting)
+          .nestedSettings as ParsedArrayParameterSetting)
+          .isElementEqual
+        : (settings.parameterSettings![k] as ParsedArrayParameterSetting)
+          .isElementEqual
 
       const desiredCopy = [...desiredArray];
       const currentCopy = [...v];

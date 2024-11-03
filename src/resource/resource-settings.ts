@@ -2,8 +2,8 @@ import { StringIndexedObject } from 'codify-schemas';
 import isObjectsEqual from 'lodash.isequal'
 import path from 'node:path';
 
+import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { areArraysEqual, untildify } from '../utils/utils.js';
-import { StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 
 /**
  * The configuration and settings for a resource.
@@ -251,7 +251,7 @@ export interface StatefulParameterSetting extends DefaultParameterSetting {
    * as a resource and taps, formulas and casks are represented as a stateful parameter. A formula can be installed,
    * modified and removed (has state) but it is still tied to the overall lifecycle of homebrew.
    */
-  definition: StatefulParameter<any, unknown>,
+  definition: ArrayStatefulParameter<any, unknown> | StatefulParameter<any, unknown>,
 
   /**
    * The order multiple stateful parameters should be applied in. The order is applied in ascending order (1, 2, 3...).
@@ -265,42 +265,42 @@ const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown,
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
   'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
-  'setting': (a: unknown, b: unknown) => true,
+  'setting': () => true,
   'object': isObjectsEqual,
 }
 
-export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
-  const isEqual = resolveFn(parameter.isEqual);
+export function resolveEqualsFn(parameter: ParameterSetting): (desired: unknown, current: unknown) => boolean {
+  const isEqual = resolveFnFromEqualsFnOrString(parameter.isEqual);
 
   if (parameter.type === 'array') {
     const arrayParameter = parameter as ArrayParameterSetting;
-    const isElementEqual = resolveFn(arrayParameter.isElementEqual);
+    const isElementEqual = resolveFnFromEqualsFnOrString(arrayParameter.isElementEqual);
 
     return isEqual ?? areArraysEqual.bind(areArraysEqual, isElementEqual)
   }
 
   if (parameter.type === 'stateful') {
-    return resolveEqualsFn((parameter as StatefulParameterSetting).definition.getSettings(), key)
+    return resolveEqualsFn((parameter as StatefulParameterSetting).definition.getSettings())
   }
 
   return isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+}
 
-  // This resolves the fn if it is a string.
-  // A string can be specified to use a default equals method
-  function resolveFn(
-    fn: ((a: unknown, b: unknown) => boolean) | ParameterSettingType | undefined,
-  ): ((a: unknown, b: unknown) => boolean) | undefined {
+// This resolves the fn if it is a string.
+// A string can be specified to use a default equals method
+export function resolveFnFromEqualsFnOrString(
+  fnOrString: ((a: unknown, b: unknown) => boolean) | ParameterSettingType | undefined,
+): ((a: unknown, b: unknown) => boolean) | undefined {
 
-    if (parameter.isEqual && typeof parameter.isEqual === 'string') {
-      if (!ParameterEqualsDefaults[parameter.isEqual]) {
-        throw new Error(`isEqual of type ${parameter.type} was not found`)
-      }
-
-      return ParameterEqualsDefaults[parameter.isEqual]!
+  if (fnOrString && typeof fnOrString === 'string') {
+    if (!ParameterEqualsDefaults[fnOrString]) {
+      throw new Error(`isEqual of type ${fnOrString} was not found`)
     }
 
-    return fn as ((a: unknown, b: unknown) => boolean) | undefined;
+    return ParameterEqualsDefaults[fnOrString]!
   }
+
+  return fnOrString as ((a: unknown, b: unknown) => boolean) | undefined;
 }
 
 const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any) => Promise<any> | any>> = {

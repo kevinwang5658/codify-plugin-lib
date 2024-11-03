@@ -10,6 +10,7 @@ import {
 } from '../utils/test-utils.test.js';
 import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from '../resource/resource-settings.js';
 import { ResourceController } from '../resource/resource-controller.js';
+import { StatefulParameterController } from './stateful-parameter-controller.js';
 
 describe('Stateful parameter tests', () => {
   it('addItem is called the correct number of times', async () => {
@@ -20,11 +21,12 @@ describe('Stateful parameter tests', () => {
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
     expect(plan.changeSet.parameterChanges.length).to.eq(1);
 
-    const testParameter = spy(new TestArrayStatefulParameter());
-    await testParameter.add((plan.desiredConfig! as any).propZ, plan);
+    const parameter = spy(new TestArrayStatefulParameter());
+    const controller = new StatefulParameterController(parameter);
+    await controller.add((plan.desiredConfig! as any).propZ, plan);
 
-    expect(testParameter.addItem.callCount).to.eq(3);
-    expect(testParameter.removeItem.called).to.be.false;
+    expect(parameter.addItem.callCount).to.eq(3);
+    expect(parameter.removeItem.called).to.be.false;
   })
 
   it('applyRemoveItem is called the correct number of times', async () => {
@@ -38,11 +40,12 @@ describe('Stateful parameter tests', () => {
     expect(plan.changeSet.operation).to.eq(ResourceOperation.DESTROY);
     expect(plan.changeSet.parameterChanges.length).to.eq(1);
 
-    const testParameter = spy(new TestArrayStatefulParameter());
-    await testParameter.remove((plan.currentConfig as any).propZ, plan);
+    const parameter = spy(new TestArrayStatefulParameter());
+    const controller = new StatefulParameterController(parameter);
+    await controller.remove((plan.currentConfig as any).propZ, plan);
 
-    expect(testParameter.addItem.called).to.be.false;
-    expect(testParameter.removeItem.callCount).to.eq(3);
+    expect(parameter.addItem.called).to.be.false;
+    expect(parameter.removeItem.callCount).to.eq(3);
   })
 
   it('In stateless mode only applyAddItem is called only for modifies', async () => {
@@ -61,8 +64,10 @@ describe('Stateful parameter tests', () => {
       operation: ParameterOperation.MODIFY,
     })
 
+
     const testParameter = spy(parameter);
-    await testParameter.modify((plan.desiredConfig as any).propZ, (plan.currentConfig as any).propZ, plan);
+    const controller = new StatefulParameterController(testParameter);
+    await controller.modify((plan.desiredConfig as any).propZ, (plan.currentConfig as any).propZ, plan);
 
     expect(testParameter.addItem.calledThrice).to.be.true;
     expect(testParameter.removeItem.called).to.be.false;
@@ -92,7 +97,8 @@ describe('Stateful parameter tests', () => {
       operation: ParameterOperation.MODIFY,
     })
 
-    await testParameter.modify((plan.desiredConfig as any).propZ, (plan.currentConfig as any).propZ, plan);
+    const controller = new StatefulParameterController(testParameter);
+    await controller.modify((plan.desiredConfig as any).propZ, (plan.currentConfig as any).propZ, plan);
 
     expect(testParameter.addItem.calledOnce).to.be.true;
     expect(testParameter.removeItem.called).to.be.false;
@@ -149,6 +155,79 @@ describe('Stateful parameter tests', () => {
     const controller = new ResourceController(resource);
     const plan = await controller.plan({
       nodeVersions: ['20.15'],
+    } as any)
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Accepts a string equals value', async () => {
+    const testParameter = spy(new class extends TestStatefulParameter {
+      getSettings(): ParameterSetting {
+        return {
+          type: 'string',
+          isEqual: 'version'
+        }
+      }
+
+      async refresh(): Promise<any> {
+        return '20.15.0';
+      }
+    });
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'type',
+          parameterSettings: { propA: { type: 'stateful', definition: testParameter } }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return {};
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({
+      propA: '20.15',
+    } as any)
+
+    expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
+  })
+
+  it('Accepts a string isElementEquals value', async () => {
+    const testParameter = spy(new class extends TestStatefulParameter {
+      getSettings(): ParameterSetting {
+        return {
+          type: 'array',
+          isElementEqual: 'version'
+        }
+      }
+
+      async refresh(): Promise<any> {
+        return [
+          '20.15.0',
+          '20.18.0'
+        ]
+      }
+    });
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'type',
+          parameterSettings: { propA: { type: 'stateful', definition: testParameter } }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return {};
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({
+      propA: ['20.15', '20.18'],
     } as any)
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);

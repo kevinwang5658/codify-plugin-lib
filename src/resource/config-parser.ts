@@ -1,17 +1,17 @@
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 
+import { StatefulParameterController } from '../stateful-parameter/stateful-parameter-controller.js';
 import { splitUserConfig } from '../utils/utils.js';
-import { StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 
 export class ConfigParser<T extends StringIndexedObject> {
   private readonly desiredConfig: Partial<T> & ResourceConfig | null;
   private readonly stateConfig: Partial<T> & ResourceConfig | null;
-  private statefulParametersMap: Map<keyof T, StatefulParameter<T, T[keyof T]>>;
+  private statefulParametersMap: Map<keyof T, StatefulParameterController<T, T[keyof T]>>;
 
   constructor(
     desiredConfig: Partial<T> & ResourceConfig | null,
     stateConfig: Partial<T> & ResourceConfig | null,
-    statefulParameters: Map<keyof T, StatefulParameter<T, T[keyof T]>>,
+    statefulParameters: Map<keyof T, StatefulParameterController<T, T[keyof T]>>,
   ) {
     this.desiredConfig = desiredConfig;
     this.stateConfig = stateConfig

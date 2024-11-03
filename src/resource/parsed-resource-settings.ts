@@ -1,23 +1,36 @@
 import { JSONSchemaType } from 'ajv';
 import { StringIndexedObject } from 'codify-schemas';
 
+import { StatefulParameterController } from '../stateful-parameter/stateful-parameter-controller.js';
 import {
   ArrayParameterSetting,
   DefaultParameterSetting,
   ParameterSetting,
   resolveEqualsFn,
+  resolveFnFromEqualsFnOrString,
   resolveParameterTransformFn,
   ResourceSettings,
   StatefulParameterSetting
 } from './resource-settings.js';
-import { StatefulParameter as StatefulParameterImpl } from '../stateful-parameter/stateful-parameter.js'
+
+export interface ParsedStatefulParameterSetting extends DefaultParameterSetting {
+  type: 'stateful',
+  controller: StatefulParameterController<any, unknown>
+  order?: number,
+  nestedSettings: ParsedParameterSetting;
+}
+
+export type ParsedArrayParameterSetting = {
+  isElementEqual: (a: unknown, b: unknown) => boolean;
+  isEqual: (a: unknown, b: unknown) => boolean;
+} & ArrayParameterSetting
 
 export type ParsedParameterSetting =
-  (ArrayParameterSetting
-    | DefaultParameterSetting
-    | StatefulParameterSetting) & {
+  {
   isEqual: (desired: unknown, current: unknown) => boolean;
-}
+  } & (DefaultParameterSetting
+  | ParsedArrayParameterSetting
+  | ParsedStatefulParameterSetting)
 
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
@@ -45,14 +58,17 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     return this.id;
   }
 
-  get statefulParameters(): Map<keyof T, StatefulParameterImpl<T, T[keyof T]>> {
+  get statefulParameters(): Map<keyof T, StatefulParameterController<T, T[keyof T]>> {
     return this.getFromCacheOrCreate('statefulParameters', () => {
 
       const statefulParameters = Object.entries(this.settings.parameterSettings ?? {})
         .filter(([, p]) => p?.type === 'stateful')
-        .map(([k, v]) => [k, (v as StatefulParameterSetting).definition] as const)
+        .map(([k, v]) => [
+          k,
+          new StatefulParameterController((v as StatefulParameterSetting).definition)
+        ] as const)
 
-      return new Map(statefulParameters) as Map<keyof T, StatefulParameterImpl<T, T[keyof T]>>;
+      return new Map(statefulParameters) as Map<keyof T, StatefulParameterController<T, T[keyof T]>>;
     })
   }
 
@@ -62,7 +78,29 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       const settings = Object.entries(this.settings.parameterSettings ?? {})
         .map(([k, v]) => [k, v!] as const)
         .map(([k, v]) => {
-          v.isEqual = resolveEqualsFn(v, k);
+          v.isEqual = resolveEqualsFn(v);
+
+          if (v.type === 'stateful') {
+            const spController = this.statefulParameters.get(k);
+            const parsed = {
+              ...v,
+              controller: spController,
+              nestedSettings: spController?.parsedSettings,
+              definition: undefined,
+            };
+
+            return [k, parsed as ParsedStatefulParameterSetting];
+          }
+
+          if (v.type === 'array') {
+            const parsed = {
+              ...v,
+              isElementEqual: resolveFnFromEqualsFnOrString((v as ArrayParameterSetting).isElementEqual)
+                ?? ((a: unknown, b: unknown) => a === b),
+            }
+
+            return [k, parsed as ParsedArrayParameterSetting];
+          }
 
           return [k, v];
         })

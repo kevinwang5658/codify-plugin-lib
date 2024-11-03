@@ -1,6 +1,5 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-import { ParameterSetting } from '../resource/resource-settings.js';
 import { ParsedParameterSetting } from '../resource/parsed-resource-settings.js';
 
 /**
@@ -207,6 +206,6 @@ export class ChangeSet<T extends StringIndexedObject> {
     current: unknown,
     setting?: ParsedParameterSetting,
   ): boolean {
-    return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
+    return (setting?.isEqual ?? ((a: unknown, b: unknown) => a === b))(desired, current)
   }
 }

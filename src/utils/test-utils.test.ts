@@ -3,7 +3,7 @@ import { ResourceSettings } from '../resource/resource-settings.js';
 import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
 import { CreatePlan, DestroyPlan } from '../plan/plan-types.js';
-import { ArrayStatefulParameter, StatefulParameter } from '../resource/stateful-parameter.js';
+import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
 
 export function testPlan<T extends StringIndexedObject>(params: {

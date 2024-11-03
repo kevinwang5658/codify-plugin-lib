@@ -1,8 +1,9 @@
 import { StringIndexedObject } from 'codify-schemas';
+import isObjectsEqual from 'lodash.isequal'
 import path from 'node:path';
 
 import { areArraysEqual, untildify } from '../utils/utils.js';
-import { StatefulParameter } from './stateful-parameter.js';
+import { StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 
 /**
  * The configuration and settings for a resource.
@@ -130,6 +131,7 @@ export type ParameterSettingType =
   | 'boolean'
   | 'directory'
   | 'number'
+  | 'object'
   | 'setting'
   | 'stateful'
   | 'string'
@@ -181,7 +183,7 @@ export interface DefaultParameterSetting {
    *
    * @return Return true if equal
    */
-  isEqual?: (desired: any, current: any) => boolean;
+  isEqual?: ((desired: any, current: any) => boolean) | ParameterSettingType;
 
   /**
    * Chose if the resource can be modified instead of re-created when there is a change to this parameter.
@@ -210,7 +212,7 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
    *
    * @return Return true if desired is equivalent to current.
    */
-  isElementEqual?: (desired: any, current: any) => boolean
+  isElementEqual?: ((desired: any, current: any) => boolean) | ParameterSettingType;
 
   /**
    * Filter the contents of the refreshed array by the desired. This way items currently on the system but not
@@ -264,18 +266,41 @@ const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown,
   'string': (a: unknown, b: unknown) => String(a) === String(b),
   'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
   'setting': (a: unknown, b: unknown) => true,
+  'object': isObjectsEqual,
 }
 
 export function resolveEqualsFn(parameter: ParameterSetting, key: string): (desired: unknown, current: unknown) => boolean {
+  const isEqual = resolveFn(parameter.isEqual);
+
   if (parameter.type === 'array') {
-    return parameter.isEqual ?? areArraysEqual.bind(areArraysEqual, parameter as ArrayParameterSetting)
+    const arrayParameter = parameter as ArrayParameterSetting;
+    const isElementEqual = resolveFn(arrayParameter.isElementEqual);
+
+    return isEqual ?? areArraysEqual.bind(areArraysEqual, isElementEqual)
   }
 
   if (parameter.type === 'stateful') {
     return resolveEqualsFn((parameter as StatefulParameterSetting).definition.getSettings(), key)
   }
 
-  return parameter.isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+  return isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+
+  // This resolves the fn if it is a string.
+  // A string can be specified to use a default equals method
+  function resolveFn(
+    fn: ((a: unknown, b: unknown) => boolean) | ParameterSettingType | undefined,
+  ): ((a: unknown, b: unknown) => boolean) | undefined {
+
+    if (parameter.isEqual && typeof parameter.isEqual === 'string') {
+      if (!ParameterEqualsDefaults[parameter.isEqual]) {
+        throw new Error(`isEqual of type ${parameter.type} was not found`)
+      }
+
+      return ParameterEqualsDefaults[parameter.isEqual]!
+    }
+
+    return fn as ((a: unknown, b: unknown) => boolean) | undefined;
+  }
 }
 
 const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any) => Promise<any> | any>> = {

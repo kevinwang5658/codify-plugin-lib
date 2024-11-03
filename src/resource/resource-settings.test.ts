@@ -629,4 +629,105 @@ describe('Resource parameter tests', () => {
       }
     };
   })
+
+  it('Accepts a string isEqual method which selects from one of the defaults', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'string', isEqual: 'version' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: '10.0.0'
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({ type: 'resourceType', propA: '10.0' });
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.NOOP,
+    })
+  });
+
+  it('Object equals method (works when equal)', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propD: { type: 'object' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propD: {
+            testA: 'a',
+            testB: 'b',
+            testC: 10,
+          }
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({
+      type: 'resourceType',
+      propD: {
+        testC: 10,
+        testA: 'a',
+        testB: 'b',
+      }
+    });
+
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.NOOP,
+    })
+  });
+
+  it('Object equals method (works when not equal)', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propD: { type: 'object' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propD: {
+            testA: 'a',
+            testB: 'b',
+          }
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({
+      type: 'resourceType',
+      propD: {
+        testC: 10,
+        testA: 'a',
+        testB: 'b',
+      }
+    });
+
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.RECREATE,
+    })
+  });
 })

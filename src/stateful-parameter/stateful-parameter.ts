@@ -1,7 +1,7 @@
 import { StringIndexedObject } from 'codify-schemas';
 
 import { Plan } from '../plan/plan.js';
-import { ArrayParameterSetting, ParameterSetting } from './resource-settings.js';
+import { ArrayParameterSetting, ParameterSetting } from '../resource/resource-settings.js';
 
 /**
  * A stateful parameter represents a parameter that holds state on the system (can be created, destroyed) but
@@ -101,7 +101,7 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
  * - Homebrew formulas are arrays
  * - Pyenv python versions are arrays
  */
-export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
+export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any> {
 
   /**
    * Parameter level settings. Type must be 'array'.

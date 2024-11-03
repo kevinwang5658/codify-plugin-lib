@@ -2,13 +2,22 @@ import { JSONSchemaType } from 'ajv';
 import { StringIndexedObject } from 'codify-schemas';
 
 import {
+  ArrayParameterSetting,
+  DefaultParameterSetting,
   ParameterSetting,
   resolveEqualsFn,
   resolveParameterTransformFn,
   ResourceSettings,
   StatefulParameterSetting
 } from './resource-settings.js';
-import { StatefulParameter as StatefulParameterImpl } from './stateful-parameter.js'
+import { StatefulParameter as StatefulParameterImpl } from '../stateful-parameter/stateful-parameter.js'
+
+export type ParsedParameterSetting =
+  (ArrayParameterSetting
+    | DefaultParameterSetting
+    | StatefulParameterSetting) & {
+  isEqual: (desired: unknown, current: unknown) => boolean;
+}
 
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
@@ -47,7 +56,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     })
   }
 
-  get parameterSettings(): Record<keyof T, ParameterSetting> {
+  get parameterSettings(): Record<keyof T, ParsedParameterSetting> {
     return this.getFromCacheOrCreate('parameterSetting', () => {
 
       const settings = Object.entries(this.settings.parameterSettings ?? {})

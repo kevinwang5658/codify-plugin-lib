@@ -1,7 +1,7 @@
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 
 import { splitUserConfig } from '../utils/utils.js';
-import { StatefulParameter } from './stateful-parameter.js';
+import { StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 
 export class ConfigParser<T extends StringIndexedObject> {
   private readonly desiredConfig: Partial<T> & ResourceConfig | null;

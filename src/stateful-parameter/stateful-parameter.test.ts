@@ -8,8 +8,8 @@ import {
   TestResource,
   TestStatefulParameter
 } from '../utils/test-utils.test.js';
-import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from './resource-settings.js';
-import { ResourceController } from './resource-controller.js';
+import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from '../resource/resource-settings.js';
+import { ResourceController } from '../resource/resource-controller.js';
 
 describe('Stateful parameter tests', () => {
   it('addItem is called the correct number of times', async () => {

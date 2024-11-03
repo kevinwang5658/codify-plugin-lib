@@ -3,8 +3,6 @@ import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 import { SpawnOptions } from 'node:child_process';
 import os from 'node:os';
 
-import { ArrayParameterSetting } from '../resource/resource-settings.js';
-
 export enum SpawnStatus {
   SUCCESS = 'success',
   ERROR = 'error',
@@ -111,7 +109,11 @@ export function untildify(pathWithTilde: string) {
   return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
 }
 
-export function areArraysEqual(parameter: ArrayParameterSetting, desired: unknown, current: unknown) {
+export function areArraysEqual(
+  isElementEqual: ((desired: unknown, current: unknown) => boolean) | undefined,
+  desired: unknown,
+  current: unknown
+): boolean {
   if (!Array.isArray(desired) || !Array.isArray(current)) {
     throw new Error(`A non-array value:
           
@@ -133,7 +135,10 @@ Was provided even though type array was specified.
   // Algorithm for to check equality between two un-ordered; un-hashable arrays using
   // an isElementEqual method. Time: O(n^2)
   for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
-    const idx = currentCopy.findIndex((e2) => (parameter.isElementEqual ?? ((a, b) => a === b))(desiredCopy[counter], e2))
+    const idx = currentCopy.findIndex((e2) => (
+      isElementEqual
+      ?? ((a, b) => a === b))(desiredCopy[counter], e2
+    ))
 
     if (idx === -1) {
       return false;

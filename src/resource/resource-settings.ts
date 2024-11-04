@@ -232,7 +232,7 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
    *
    * Defaults to true.
    */
-  filterInStatelessMode?: boolean,
+  filterInStatelessMode?: ((desired: any[], current: any[]) => any[]) | boolean,
 }
 
 /**

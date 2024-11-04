@@ -251,16 +251,34 @@ export class Plan<T extends StringIndexedObject> {
       ) as Partial<T>;
     }
 
+    function getFilterParameter(k: string): ((desired: any[], current: any[]) => any[]) | boolean | undefined {
+      if (settings.parameterSettings?.[k]?.type === 'stateful') {
+        const statefulSetting = settings.parameterSettings[k] as ParsedStatefulParameterSetting;
+
+        if (statefulSetting.nestedSettings.type === 'array') {
+          return (statefulSetting.nestedSettings as ArrayParameterSetting).filterInStatelessMode
+        }
+      }
+
+      if (settings.parameterSettings?.[k]?.type === 'array') {
+        return (settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode;
+      }
+
+      return undefined;
+    }
+
     function isArrayParameterWithFiltering(k: string, v: T[keyof T]): boolean {
+      const filterParameter = getFilterParameter(k);
+      
       if (settings.parameterSettings?.[k]?.type === 'stateful') {
         const statefulSetting = settings.parameterSettings[k] as ParsedStatefulParameterSetting;
         return statefulSetting.nestedSettings.type === 'array' &&
-          ((statefulSetting.nestedSettings as ArrayParameterSetting).filterInStatelessMode ?? true)
+          (filterParameter ?? true)
           && Array.isArray(v);
       }
 
       return settings.parameterSettings?.[k]?.type === 'array'
-        && ((settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode ?? true)
+        && (filterParameter ?? true)
         && Array.isArray(v);
     }
 
@@ -276,21 +294,29 @@ export class Plan<T extends StringIndexedObject> {
 
       const desiredCopy = [...desiredArray];
       const currentCopy = [...v];
-      const result = [];
 
-      for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
-        const idx = currentCopy.findIndex((e2) => matcher(desiredCopy[counter], e2))
+      const defaultFilterMethod = ((desired: any[], current: any[]) => {
+        const result = [];
 
-        if (idx === -1) {
-          continue;
+        for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
+          const idx = currentCopy.findIndex((e2) => matcher(desiredCopy[counter], e2))
+
+          if (idx === -1) {
+            continue;
+          }
+
+          desiredCopy.splice(counter, 1)
+          const [element] = currentCopy.splice(idx, 1)
+          result.push(element)
         }
 
-        desiredCopy.splice(counter, 1)
-        const [element] = currentCopy.splice(idx, 1)
-        result.push(element)
-      }
+        return result;
+      })
 
-      return result;
+      const filterParameter = getFilterParameter(k);
+      return typeof filterParameter === 'function'
+        ? filterParameter(desiredCopy, currentCopy)
+        : defaultFilterMethod(desiredCopy, currentCopy);
     }
   }
 

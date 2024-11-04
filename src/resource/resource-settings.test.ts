@@ -239,6 +239,94 @@ describe('Resource parameter tests', () => {
     })
   })
 
+  it('Can accept a custom filter function to filter in stateless mode', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          parameterSettings: {
+            hosts: {
+              type: 'array',
+              isElementEqual: 'object',
+              filterInStatelessMode: (desired, current) => {
+                return current.filter((d) => desired.some((c) => d.Host === c.Host))
+              }
+            }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          hosts: [
+            {
+              Host: '*',
+              AddKeysToAgent: 'yes',
+              IdentityFile: 'id_ed25519'
+            },
+            {
+              Host: 'github.com',
+              AddKeysToAgent: 'yes',
+              UseKeychain: 'yes',
+              IgnoreUnknown: 'UseKeychain',
+              IdentityFile: '~/.ssh/id_ed25519',
+            }
+          ]
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({
+      type: 'type',
+      hosts: [
+        {
+          Host: 'new.com',
+          AddKeysToAgent: 'yes',
+          IdentityFile: '~/.ssh/id_ed25519'
+        },
+        {
+          Host: 'github.com',
+          AddKeysToAgent: 'yes',
+          UseKeychain: 'yes',
+        }
+      ]
+    });
+
+    expect(plan).toMatchObject({
+      'changeSet': {
+        'operation': 'recreate',
+        'parameterChanges': [
+          {
+            'name': 'hosts',
+            'previousValue': [
+              {
+                'Host': 'github.com',
+                'AddKeysToAgent': 'yes',
+                'UseKeychain': 'yes',
+                'IgnoreUnknown': 'UseKeychain',
+                'IdentityFile': '~/.ssh/id_ed25519'
+              }
+            ],
+            'newValue': [
+              {
+                'Host': 'new.com',
+                'AddKeysToAgent': 'yes',
+                'IdentityFile': '~/.ssh/id_ed25519'
+              },
+              {
+                'Host': 'github.com',
+                'AddKeysToAgent': 'yes',
+                'UseKeychain': 'yes'
+              }
+            ],
+            'operation': 'modify'
+          }
+        ]
+      },
+    })
+  })
+
   it('Uses isElementEqual for stateless mode filtering if available', async () => {
     const statefulParameter = new class extends TestArrayStatefulParameter {
       getSettings(): ArrayParameterSetting {

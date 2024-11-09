@@ -107,6 +107,6 @@ export class StatefulParameterController<T extends StringIndexedObject, V extend
   }
 
   private calculateIsArrayStatefulParameter() {
-    return Object.hasOwn(this.sp, 'addItem') && Object.hasOwn(this.sp, 'removeItem');
+    return 'addItem' in this.sp && 'removeItem' in this.sp;
   }
 }

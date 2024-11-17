@@ -303,13 +303,19 @@ export function resolveFnFromEqualsFnOrString(
   return fnOrString as ((a: unknown, b: unknown) => boolean) | undefined;
 }
 
-const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any) => Promise<any> | any>> = {
+const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any, parameter: ParameterSetting) => Promise<any> | any>> = {
   'directory': (a: unknown) => path.resolve(untildify(String(a))),
+  'stateful': (a: unknown, b: ParameterSetting) => {
+    const sp = b as StatefulParameterSetting;
+    return (sp.definition?.getSettings()?.inputTransformation)
+      ? (sp.definition.getSettings().inputTransformation!(a))
+      : a;
+  },
   'string': String,
 }
 
 export function resolveParameterTransformFn(
   parameter: ParameterSetting
-): ((input: any) => Promise<any> | any) | undefined {
+): ((input: any, parameter: ParameterSetting) => Promise<any> | any) | undefined {
   return parameter.inputTransformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
 }

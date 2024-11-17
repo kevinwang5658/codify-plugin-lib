@@ -133,7 +133,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     });
   }
 
-  get inputTransformations(): Partial<Record<keyof T, (a: unknown) => unknown>> {
+  get inputTransformations(): Partial<Record<keyof T, (a: unknown, parameter: ParameterSetting) => unknown>> {
     return this.getFromCacheOrCreate('inputTransformations', () => {
       if (!this.settings.parameterSettings) {
         return {};
@@ -141,7 +141,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
       return Object.fromEntries(
         Object.entries(this.settings.parameterSettings)
-          .filter(([, v]) => resolveParameterTransformFn(v!) !== undefined)
+          .filter(([_, v]) => resolveParameterTransformFn(v!) !== undefined)
           .map(([k, v]) => [k, resolveParameterTransformFn(v!)] as const)
       ) as Record<keyof T, (a: unknown) => unknown>;
     });

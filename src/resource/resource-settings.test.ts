@@ -818,4 +818,122 @@ describe('Resource parameter tests', () => {
       operation: ResourceOperation.RECREATE,
     })
   });
+
+  it('Transforms input parameters', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propD: {
+              type: 'array',
+              inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                  Object.entries(h)
+                    .map(([k, v]) => [
+                      k,
+                      typeof v === 'boolean'
+                        ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                        : v,
+                    ])
+                )
+              )
+            }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        expect(parameters.propD[0].AddKeysToAgent).to.eq('yes')
+        expect(parameters.propD[1].AddKeysToAgent).to.eq('yes')
+        expect(parameters.propD[1].UseKeychain).to.eq('yes')
+        expect(parameters.propD[2].PasswordAuthentication).to.eq('yes')
+
+        return null;
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    await controller.plan({
+      type: 'resourceType',
+      propD: [
+        {
+          Host: 'new.com',
+          AddKeysToAgent: true,
+          IdentityFile: 'id_ed25519'
+        },
+        {
+          Host: 'github.com',
+          AddKeysToAgent: true,
+          UseKeychain: true,
+        },
+        {
+          Match: 'User bob,joe,phil',
+          PasswordAuthentication: true,
+        }
+      ]
+    });
+
+  })
+
+  it('Transforms input parameters for stateful parameters', async () => {
+    const sp = new class extends TestStatefulParameter {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          type: 'array',
+          inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+              Object.entries(h)
+                .map(([k, v]) => [
+                  k,
+                  typeof v === 'boolean'
+                    ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                    : v,
+                ])
+            )
+          )
+        }
+      }
+
+      async refresh(desired: any): Promise<Partial<TestConfig> | null> {
+        expect(desired[0].AddKeysToAgent).to.eq('yes')
+        expect(desired[1].AddKeysToAgent).to.eq('yes')
+        expect(desired[1].UseKeychain).to.eq('yes')
+        expect(desired[2].PasswordAuthentication).to.eq('yes')
+
+        return null;
+      }
+    }
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propD: { type: 'stateful', definition: sp }
+          }
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    await controller.plan({
+      type: 'resourceType',
+      propD: [
+        {
+          Host: 'new.com',
+          AddKeysToAgent: true,
+          IdentityFile: 'id_ed25519'
+        },
+        {
+          Host: 'github.com',
+          AddKeysToAgent: true,
+          UseKeychain: true,
+        },
+        {
+          Match: 'User bob,joe,phil',
+          PasswordAuthentication: true,
+        }
+      ]
+    });
+
+  })
 })

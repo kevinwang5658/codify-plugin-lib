@@ -318,7 +318,7 @@ ${JSON.stringify(refresh, null, 2)}
         continue;
       }
 
-      (config as Record<string, unknown>)[key] = await inputTransformation(config[key]);
+      (config as Record<string, unknown>)[key] = await inputTransformation(config[key], this.settings.parameterSettings![key]!);
     }
 
     if (this.settings.inputTransformation) {

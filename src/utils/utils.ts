@@ -114,6 +114,10 @@ export function areArraysEqual(
   desired: unknown,
   current: unknown
 ): boolean {
+  if (!desired || !current) {
+    return false;
+  }
+
   if (!Array.isArray(desired) || !Array.isArray(current)) {
     throw new Error(`A non-array value:
           

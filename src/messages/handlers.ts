@@ -11,6 +11,8 @@ import {
   InitializeResponseDataSchema,
   IpcMessage,
   IpcMessageSchema,
+  IpcMessageV2,
+  IpcMessageV2Schema,
   MessageStatus,
   PlanRequestDataSchema,
   PlanResponseDataSchema,
@@ -61,7 +63,8 @@ const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) =
 export class MessageHandler {
   private ajv: Ajv;
   private readonly plugin: Plugin;
-  private messageSchemaValidator: ValidateFunction;
+  private messageSchemaValidatorV1: ValidateFunction;
+  private messageSchemaValidatorV2: ValidateFunction;
   private requestValidators: Map<string, ValidateFunction>;
   private responseValidators: Map<string, ValidateFunction>;
 
@@ -71,7 +74,9 @@ export class MessageHandler {
     this.ajv.addSchema(ResourceSchema);
     this.plugin = plugin;
 
-    this.messageSchemaValidator = this.ajv.compile(IpcMessageSchema);
+    this.messageSchemaValidatorV1 = this.ajv.compile(IpcMessageSchema);
+    this.messageSchemaValidatorV2 = this.ajv.compile(IpcMessageV2Schema);
+
     this.requestValidators = new Map(
       Object.entries(SupportedRequests)
         .map(([k, v]) => [k, this.ajv.compile(v.requestValidator)])
@@ -84,8 +89,8 @@ export class MessageHandler {
 
   async onMessage(message: unknown): Promise<void> {
     try {
-      if (!this.validateMessage(message)) {
-        throw new Error(`Plugin: ${this.plugin}. Message is malformed: ${JSON.stringify(this.messageSchemaValidator.errors, null, 2)}`);
+      if (!this.validateMessageV2(message) && !this.validateMessage(message)) {
+        throw new Error(`Plugin: ${this.plugin}. Message is malformed: ${JSON.stringify(this.messageSchemaValidatorV1.errors, null, 2)}`);
       }
 
       if (!this.requestValidators.has(message.cmd)) {
@@ -107,6 +112,8 @@ export class MessageHandler {
       process.send!({
         cmd: message.cmd + '_Response',
         data: result,
+        // @ts-expect-error TS2239
+        requestId: message.requestId || undefined,
         status: MessageStatus.SUCCESS,
       })
 
@@ -116,7 +123,11 @@ export class MessageHandler {
   }
 
   private validateMessage(message: unknown): message is IpcMessage {
-    return this.messageSchemaValidator(message);
+    return this.messageSchemaValidatorV1(message);
+  }
+
+  private validateMessageV2(message: unknown): message is IpcMessageV2 {
+    return this.messageSchemaValidatorV2(message);
   }
 
   private handleErrors(message: unknown, e: Error) {
@@ -128,12 +139,14 @@ export class MessageHandler {
       return;
     }
 
-    // @ts-ignore
+    // @ts-expect-error TS2239
     const cmd = message.cmd + '_Response';
 
     if (e instanceof SudoError) {
       return process.send?.({
         cmd,
+        // @ts-expect-error TS2239
+        requestId: message.requestId || undefined,
         data: `Plugin: '${this.plugin.name}'. Forbidden usage of sudo for command '${e.command}'. Please contact the plugin developer to fix this.`,
         status: MessageStatus.ERROR,
       })
@@ -143,6 +156,8 @@ export class MessageHandler {
 
     process.send?.({
       cmd,
+      // @ts-expect-error TS2239
+      requestId: message.requestId || undefined,
       data: isDebug ? e.stack : e.message,
       status: MessageStatus.ERROR,
     })

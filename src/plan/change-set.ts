@@ -1,6 +1,6 @@
 import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 
-import { ParameterSetting } from '../resource/resource-settings.js';
+import { ParsedParameterSetting } from '../resource/parsed-resource-settings.js';
 
 /**
  * A parameter change describes a parameter level change to a resource.
@@ -87,7 +87,7 @@ export class ChangeSet<T extends StringIndexedObject> {
   static calculateModification<T extends StringIndexedObject>(
     desired: Partial<T>,
     current: Partial<T>,
-    parameterSettings: Partial<Record<keyof T, ParameterSetting>> = {},
+    parameterSettings: Partial<Record<keyof T, ParsedParameterSetting>> = {},
   ): ChangeSet<T> {
     const pc = ChangeSet.calculateParameterChanges(desired, current, parameterSettings);
 
@@ -128,7 +128,7 @@ export class ChangeSet<T extends StringIndexedObject> {
   private static calculateParameterChanges<T extends StringIndexedObject>(
     desiredParameters: Partial<T>,
     currentParameters: Partial<T>,
-    parameterOptions?: Partial<Record<keyof T, ParameterSetting>>,
+    parameterOptions?: Partial<Record<keyof T, ParsedParameterSetting>>,
   ): ParameterChange<T>[] {
     const parameterChangeSet = new Array<ParameterChange<T>>();
 
@@ -204,8 +204,8 @@ export class ChangeSet<T extends StringIndexedObject> {
   private static isSame(
     desired: unknown,
     current: unknown,
-    setting?: ParameterSetting,
+    setting?: ParsedParameterSetting,
   ): boolean {
-    return (setting?.isEqual ?? ((a, b) => a === b))(desired, current)
+    return (setting?.isEqual ?? ((a: unknown, b: unknown) => a === b))(desired, current)
   }
 }

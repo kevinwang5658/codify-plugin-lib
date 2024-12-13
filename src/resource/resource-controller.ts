@@ -63,7 +63,8 @@ export class ResourceController<T extends StringIndexedObject> {
     this.addDefaultValues(parameters);
 
     if (this.schemaValidator) {
-      const isValid = this.schemaValidator(parameters);
+      // Schema validator uses pre transformation parameters
+      const isValid = this.schemaValidator(splitUserConfig(desiredConfig).parameters);
 
       if (!isValid) {
         return {
@@ -317,7 +318,7 @@ ${JSON.stringify(refresh, null, 2)}
         continue;
       }
 
-      (config as Record<string, unknown>)[key] = await inputTransformation(config[key]);
+      (config as Record<string, unknown>)[key] = await inputTransformation(config[key], this.settings.parameterSettings![key]!);
     }
 
     if (this.settings.inputTransformation) {

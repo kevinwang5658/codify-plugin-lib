@@ -8,8 +8,12 @@ import {
 } from 'codify-schemas';
 import { v4 as uuidV4 } from 'uuid';
 
-import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
-import { ArrayParameterSetting, ResourceSettings, StatefulParameterSetting } from '../resource/resource-settings.js';
+import {
+  ParsedArrayParameterSetting,
+  ParsedResourceSettings,
+  ParsedStatefulParameterSetting
+} from '../resource/parsed-resource-settings.js';
+import { ArrayParameterSetting, ResourceSettings } from '../resource/resource-settings.js';
 import { ChangeSet } from './change-set.js';
 
 /**
@@ -247,45 +251,72 @@ export class Plan<T extends StringIndexedObject> {
       ) as Partial<T>;
     }
 
+    function getFilterParameter(k: string): ((desired: any[], current: any[]) => any[]) | boolean | undefined {
+      if (settings.parameterSettings?.[k]?.type === 'stateful') {
+        const statefulSetting = settings.parameterSettings[k] as ParsedStatefulParameterSetting;
+
+        if (statefulSetting.nestedSettings.type === 'array') {
+          return (statefulSetting.nestedSettings as ArrayParameterSetting).filterInStatelessMode
+        }
+      }
+
+      if (settings.parameterSettings?.[k]?.type === 'array') {
+        return (settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode;
+      }
+
+      return undefined;
+    }
+
     function isArrayParameterWithFiltering(k: string, v: T[keyof T]): boolean {
-      return (((settings.parameterSettings?.[k]?.type === 'stateful'
-            && (settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings().type === 'array')
-          && (((settings.parameterSettings[k] as StatefulParameterSetting).definition.getSettings() as ArrayParameterSetting).filterInStatelessMode ?? true)
-        ) || (
-          settings.parameterSettings?.[k]?.type === 'array'
-          && ((settings.parameterSettings?.[k] as ArrayParameterSetting).filterInStatelessMode ?? true)
-        ))
-        && Array.isArray(v)
+      const filterParameter = getFilterParameter(k);
+      
+      if (settings.parameterSettings?.[k]?.type === 'stateful') {
+        const statefulSetting = settings.parameterSettings[k] as ParsedStatefulParameterSetting;
+        return statefulSetting.nestedSettings.type === 'array' &&
+          (filterParameter ?? true)
+          && Array.isArray(v);
+      }
+
+      return settings.parameterSettings?.[k]?.type === 'array'
+        && (filterParameter ?? true)
+        && Array.isArray(v);
     }
 
     // For stateless mode, we must filter the current array so that the diff algorithm will not detect any deletes
     function filterArrayStatefulParameter(k: string, v: unknown[]): unknown[] {
       const desiredArray = desired![k] as unknown[];
       const matcher = settings.parameterSettings![k]!.type === 'stateful'
-        ? ((settings.parameterSettings![k] as StatefulParameterSetting)
-        .definition
-        .getSettings() as ArrayParameterSetting)
-        .isElementEqual ?? ((a, b) => a === b)
-        : (settings.parameterSettings![k] as ArrayParameterSetting)
-        .isElementEqual ?? ((a, b) => a === b)
+        ? ((settings.parameterSettings![k] as ParsedStatefulParameterSetting)
+          .nestedSettings as ParsedArrayParameterSetting)
+          .isElementEqual
+        : (settings.parameterSettings![k] as ParsedArrayParameterSetting)
+          .isElementEqual
 
       const desiredCopy = [...desiredArray];
       const currentCopy = [...v];
-      const result = [];
 
-      for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
-        const idx = currentCopy.findIndex((e2) => matcher(desiredCopy[counter], e2))
+      const defaultFilterMethod = ((desired: any[], current: any[]) => {
+        const result = [];
 
-        if (idx === -1) {
-          continue;
+        for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
+          const idx = currentCopy.findIndex((e2) => matcher(desiredCopy[counter], e2))
+
+          if (idx === -1) {
+            continue;
+          }
+
+          desiredCopy.splice(counter, 1)
+          const [element] = currentCopy.splice(idx, 1)
+          result.push(element)
         }
 
-        desiredCopy.splice(counter, 1)
-        const [element] = currentCopy.splice(idx, 1)
-        result.push(element)
-      }
+        return result;
+      })
 
-      return result;
+      const filterParameter = getFilterParameter(k);
+      return typeof filterParameter === 'function'
+        ? filterParameter(desiredCopy, currentCopy)
+        : defaultFilterMethod(desiredCopy, currentCopy);
     }
   }
 

@@ -1,7 +1,7 @@
 import { StringIndexedObject } from 'codify-schemas';
 
 import { Plan } from '../plan/plan.js';
-import { ArrayParameterSetting, ParameterSetting } from './resource-settings.js';
+import { ArrayParameterSetting, ParameterSetting } from '../resource/resource-settings.js';
 
 /**
  * A stateful parameter represents a parameter that holds state on the system (can be created, destroyed) but
@@ -101,83 +101,25 @@ export abstract class StatefulParameter<T extends StringIndexedObject, V extends
  * - Homebrew formulas are arrays
  * - Pyenv python versions are arrays
  */
-export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> extends StatefulParameter<T, any>{
+export abstract class ArrayStatefulParameter<T extends StringIndexedObject, V> {
 
   /**
-   * Parameter level settings. Type must be 'array'.
+   * Parameter settings for the stateful parameter. Stateful parameters share the same parameter settings as
+   * regular parameters except that they cannot be of type 'stateful'. See {@link ParameterSetting} for more
+   * information on available settings. Type must be 'array'.
+   *
+   * @return The parameter settings
    */
   getSettings(): ArrayParameterSetting {
     return { type: 'array' }
   }
 
   /**
-   * It is not recommended to override the `add` method. A addItem helper method is available to operate on
-   * individual elements of the desired array. See {@link StatefulParameter.add} for more info.
-   *
-   * @param valuesToAdd The array of values to add
-   * @param plan The overall plan
-   *
-   */
-  async add(valuesToAdd: V[], plan: Plan<T>): Promise<void> {
-    for (const value of valuesToAdd) {
-      await this.addItem(value, plan);
-    }
-  }
-
-  /**
-   * It is not recommended to override the `modify` method. `addItem` and `removeItem` will be called accordingly based
-   * on the modifications. See {@link StatefulParameter.modify} for more info.
-   *
-   * @param newValues The new array value
-   * @param previousValues The previous array value
-   * @param plan The overall plan
-   */
-  async modify(newValues: V[], previousValues: V[], plan: Plan<T>): Promise<void> {
-
-    // TODO: I don't think this works with duplicate elements. Solve at another time
-    const valuesToAdd = newValues.filter((n) => !previousValues.some((p) => {
-      if (this.getSettings()?.isElementEqual) {
-        return this.getSettings().isElementEqual!(n, p);
-      }
-
-      return n === p;
-    }));
-
-    const valuesToRemove = previousValues.filter((p) => !newValues.some((n) => {
-      if (this.getSettings().isElementEqual) {
-        return this.getSettings().isElementEqual!(n, p);
-      }
-
-      return n === p;
-    }));
-
-    for (const value of valuesToAdd) {
-      await this.addItem(value, plan)
-    }
-
-    for (const value of valuesToRemove) {
-      await this.removeItem(value, plan)
-    }
-  }
-
-  /**
-   * It is not recommended to override the `remove` method. A removeItem helper method is available to operate on
-   * individual elements of the desired array. See {@link StatefulParameter.remove} for more info.
-   *
-   * @param valuesToAdd The array of values to add
-   * @param plan The overall plan
-   *
-   */
-  async remove(valuesToRemove: V[], plan: Plan<T>): Promise<void> {
-    for (const value of valuesToRemove) {
-      await this.removeItem(value as V, plan);
-    }
-  }
-
-  /**
    * See {@link StatefulParameter.refresh} for more info.
    *
    * @param desired The desired value to refresh
+   * @param config The desired config
+   *
    * @return The current value on the system or null if not found.
    */
   abstract refresh(desired: V[] | null, config: Partial<T>): Promise<V[] | null>;

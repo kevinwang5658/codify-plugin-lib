@@ -2,12 +2,14 @@ import { Resource } from './resource.js';
 import { ResourceOperation } from 'codify-schemas';
 import { spy } from 'sinon';
 import { describe, expect, it } from 'vitest'
-import { ResourceSettings } from './resource-settings.js';
+import { ArrayParameterSetting, ParameterSetting, ResourceSettings } from './resource-settings.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ParameterChange } from '../plan/change-set.js';
 import { ResourceController } from './resource-controller.js';
 import { TestConfig, testPlan, TestResource, TestStatefulParameter } from '../utils/test-utils.test.js';
 import { untildify } from '../utils/utils.js';
+import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
+import { Plan } from '../plan/plan.js';
 
 describe('Resource tests', () => {
 
@@ -391,4 +393,131 @@ describe('Resource tests', () => {
       }
     }
   })
+
+  it('Can use multiple stateful parameters (create)', async () => {
+    const parameter1 = new class extends StatefulParameter<any, any> {
+      getSettings(): ParameterSetting {
+        return {
+          type: 'version'
+        }
+      }
+
+      override async refresh(desired: any, config: Partial<any>): Promise<any> {
+        return null;
+      }
+
+      override async add(valueToAdd: any, plan: Plan<any>): Promise<void> {
+      }
+
+      override async modify(newValue: any, previousValue: any, plan: Plan<any>): Promise<void> {
+      }
+
+      override async remove(valueToRemove: any, plan: Plan<any>): Promise<void> {
+      }
+    }
+
+    const parameter2 = new class extends ArrayStatefulParameter<any, any> {
+      override getSettings(): ArrayParameterSetting {
+        return {
+          type: 'array',
+          isElementEqual: (desired, current) => current.includes(desired),
+        }
+      }
+
+      override async refresh(desired: any[] | null, config: Partial<any>): Promise<any[] | null> {
+        return null;
+      }
+
+      override async addItem(item: any, plan: Plan<any>): Promise<void> {
+      }
+
+      override async removeItem(item: any, plan: Plan<any>): Promise<void> {
+      }
+    }
+
+    const p1Spy = spy(parameter1);
+    const p2Spy = spy(parameter2);
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'nvm',
+          parameterSettings: {
+            global: { type: 'stateful', definition: parameter1, order: 2 },
+            nodeVersions: { type: 'stateful', definition: parameter2, order: 1 },
+          },
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({ type: 'nvm', global: '20.12', nodeVersions: ['18', '20'] })
+
+    expect(plan).toMatchObject({
+      changeSet: {
+        operation: ResourceOperation.CREATE,
+      }
+    })
+
+    console.log(JSON.stringify(plan, null, 2))
+
+    await controller.apply(plan)
+
+    expect(p1Spy.add.calledOnce).to.be.true;
+    expect(p2Spy.addItem.calledTwice).to.be.true;
+  });
+
+  it('Can use multiple stateful parameters (modify)', async () => {
+    const parameter1 = spy(new class extends TestStatefulParameter {
+      async refresh(desired: string | null): Promise<string | null> {
+        return '16';
+      }
+    })
+
+    const parameter2 = spy(new class extends ArrayStatefulParameter<any, any> {
+      async refresh(desired: any[] | null, config: Partial<any>): Promise<any[] | null> {
+        return ['20']
+      }
+
+      async addItem(item: any, plan: Plan<any>): Promise<void> {
+      }
+
+      async removeItem(item: any, plan: Plan<any>): Promise<void> {
+      }
+    })
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'nvm',
+          parameterSettings: {
+            global: { type: 'stateful', definition: parameter1, order: 2 },
+            nodeVersions: { type: 'stateful', definition: parameter2, order: 1 },
+          },
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {};
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.plan({ type: 'nvm', global: '20.12', nodeVersions: ['18', '20'] })
+
+    expect(plan).toMatchObject({
+      changeSet: {
+        operation: ResourceOperation.MODIFY,
+      }
+    })
+
+    await controller.apply(plan)
+
+    expect(parameter1.modify.calledOnce).to.be.true;
+    expect(parameter2.addItem.calledOnce).to.be.true;
+  });
 });

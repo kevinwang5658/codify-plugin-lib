@@ -9,7 +9,7 @@ export * from './plugin/plugin.js'
 export * from './resource/parsed-resource-settings.js';
 export * from './resource/resource.js'
 export * from './resource/resource-settings.js'
-export * from './resource/stateful-parameter.js'
+export * from './stateful-parameter/stateful-parameter.js'
 export * from './utils/utils.js'
 
 export async function runPlugin(plugin: Plugin) {

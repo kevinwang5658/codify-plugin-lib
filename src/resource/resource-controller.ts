@@ -362,14 +362,14 @@ ${JSON.stringify(refresh, null, 2)}
         ([key1], [key2]) => this.parsedSettings.statefulParameterOrder.get(key1)! - this.parsedSettings.statefulParameterOrder.get(key2)!
       )
 
-    for (const [key, desiredValue] of sortedEntries) {
+    await Promise.all(sortedEntries.map(async ([key, desiredValue]) => {
       const statefulParameter = this.parsedSettings.statefulParameters.get(key);
       if (!statefulParameter) {
         throw new Error(`Stateful parameter ${key} was not found`);
       }
 
       (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null, allParameters)
-    }
+    }))
 
     return result;
   }

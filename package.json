@@ -17,7 +17,10 @@
     "codify-schemas": "1.0.53",
     "@npmcli/promise-spawn": "^7.0.1",
     "uuid": "^10.0.0",
-    "lodash.isequal": "^4.5.0"
+    "lodash.isequal": "^4.5.0",
+    "nanoid": "^5.0.9",
+    "node-pty": "^1.0.0",
+    "strip-ansi": "^7.1.0"
   },
   "devDependencies": {
     "@oclif/prettier-config": "^0.2.1",

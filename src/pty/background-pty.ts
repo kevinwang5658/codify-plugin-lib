@@ -2,13 +2,12 @@ import { nanoid } from 'nanoid';
 import * as cp from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs/promises';
-import * as net from 'node:net';
 import pty from 'node-pty';
 import stripAnsi from 'strip-ansi';
 
+import { debugLog } from '../utils/debug.js';
 import { IPty, SpawnError, SpawnOptions, SpawnResult } from './index.js';
 import { PromiseQueue } from './promise-queue.js';
-import { debugLog } from '../utils/debug.js';
 
 EventEmitter.defaultMaxListeners = 1000;
 
@@ -54,17 +53,12 @@ export class BackgroundPty implements IPty {
       })
     })
 
-    // Use read and write so that the pipe doesn't close
-    const fileHandle = await fs.open(`/tmp/${cid}`, fs.constants.O_RDWR | fs.constants.O_NONBLOCK);
-    let pipe: net.Socket;
-
     return new Promise<SpawnResult>((resolve) => {
-      pipe = new net.Socket({ fd: fileHandle.fd });
-
-      // pipe.pipe(process.stdout);
+      const cat = cp.spawn('cat', [`/tmp/${cid}`])
+      cat.stdout.pipe(process.stdout);
 
       let output = '';
-      pipe.on('data', (data) => {
+      cat.stdout.on('data', (data) => {
         output += data.toString();
 
         if (output.includes('%%%done%%%"')) {
@@ -85,6 +79,10 @@ export class BackgroundPty implements IPty {
         }
       })
 
+      cat.on('close', () => {
+        console.log('close');
+      })
+
       this.promiseQueue.run(async () => new Promise((resolve) => {
         const cdCommand = options?.cwd ? `cd ${options.cwd}; ` : '';
         // Redirecting everything to the pipe and running in theb background avoids most if not all back-pressure problems
@@ -102,7 +100,7 @@ export class BackgroundPty implements IPty {
           }
         });
 
-        // console.log(`Running command ${cmd}`)
+        console.log(`Running command ${cmd}`)
         this.basePty.write(`${command}\r`);
 
       }));

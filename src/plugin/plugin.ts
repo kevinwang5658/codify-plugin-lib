@@ -16,9 +16,12 @@ import {
 import { Plan } from '../plan/plan.js';
 import { Resource } from '../resource/resource.js';
 import { ResourceController } from '../resource/resource-controller.js';
+import { ptyLocalStorage } from '../utils/pty-local-storage.js';
+import { BackgroundPty } from '../pty/background-pty.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;
+  planPty = new BackgroundPty();
 
   constructor(
     public name: string,
@@ -119,11 +122,14 @@ export class Plugin {
       throw new Error(`Resource type not found: ${type}`);
     }
 
-    const plan = await this.resourceControllers.get(type)!.plan(
-      data.desired ?? null,
-      data.state ?? null,
-      data.isStateful
-    );
+    const plan = await ptyLocalStorage.run(this.planPty, async () => {
+      return this.resourceControllers.get(type)!.plan(
+        data.desired ?? null,
+        data.state ?? null,
+        data.isStateful
+      );
+    })
+
     this.planStorage.set(plan.id, plan);
 
     return plan.toResponse();

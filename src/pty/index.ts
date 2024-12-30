@@ -1,7 +1,14 @@
+import { ptyLocalStorage } from '../utils/pty-local-storage.js';
+
 export interface SpawnResult {
   status: 'success' | 'error';
   exitCode: number;
   data: string;
+}
+
+export enum SpawnStatus {
+  SUCCESS = 'success',
+  ERROR = 'error',
 }
 
 export interface SpawnOptions {
@@ -30,4 +37,8 @@ export interface IPty {
   spawnSafe(cmd: string, options?: SpawnOptions): Promise<SpawnResult>
 
   kill(): Promise<{ exitCode: number, signal?: number | undefined }>
+}
+
+export function getPty(): IPty {
+  return ptyLocalStorage.getStore() as IPty;
 }

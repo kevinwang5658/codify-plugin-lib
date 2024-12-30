@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BackgroundPty } from './background-pty.js';
 
-describe.sequential('BackgroundPty tests', () => {
+describe('BackgroundPty tests', () => {
   it('Can launch a simple command', async () => {
     const pty = new BackgroundPty();
 

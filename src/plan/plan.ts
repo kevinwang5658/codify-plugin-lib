@@ -23,13 +23,24 @@ import { ChangeSet } from './change-set.js';
  */
 export class Plan<T extends StringIndexedObject> {
   id: string;
-  changeSet: ChangeSet<T>;
-  coreParameters: ResourceConfig
 
-  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig) {
+  /**
+   * List of changes to make
+   */
+  changeSet: ChangeSet<T>;
+
+  /**
+   * Ex: name, type, dependsOn etc. Metadata parameters
+   */
+  coreParameters: ResourceConfig;
+
+  statefulMode: boolean;
+
+  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig, statefulMode: boolean) {
     this.id = id;
     this.changeSet = changeSet;
     this.coreParameters = resourceMetadata;
+    this.statefulMode = statefulMode;
   }
 
   /**
@@ -58,6 +69,90 @@ export class Plan<T extends StringIndexedObject> {
       ...this.coreParameters,
       ...this.changeSet.currentParameters,
     }
+  }
+
+  get resourceId(): string {
+    return this.coreParameters.name
+      ? `${this.coreParameters.type}.${this.coreParameters.name}`
+      : this.coreParameters.type;
+  }
+
+  static calculate<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParametersArray: Partial<T>[] | null,
+    stateParameters: Partial<T> | null,
+    coreParameters: ResourceConfig,
+    settings: ParsedResourceSettings<T>,
+    statefulMode: boolean,
+  }): Plan<T> {
+    const {
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      coreParameters,
+      settings,
+      statefulMode
+    } = params
+
+    const currentParameters = Plan.matchCurrentParameters<T>({
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      settings,
+      statefulMode
+    });
+
+    const filteredCurrentParameters = Plan.filterCurrentParams<T>({
+      desiredParameters,
+      currentParameters,
+      stateParameters,
+      settings,
+      statefulMode
+    });
+
+    // Empty
+    if (!filteredCurrentParameters && !desiredParameters) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.empty<T>(),
+        coreParameters,
+        statefulMode,
+      )
+    }
+
+    // CREATE
+    if (!filteredCurrentParameters && desiredParameters) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.create(desiredParameters),
+        coreParameters,
+        statefulMode,
+      )
+    }
+
+    // DESTROY
+    if (filteredCurrentParameters && !desiredParameters) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.destroy(filteredCurrentParameters),
+        coreParameters,
+        statefulMode,
+      )
+    }
+
+    // NO-OP, MODIFY or RE-CREATE
+    const changeSet = ChangeSet.calculateModification(
+      desiredParameters!,
+      filteredCurrentParameters!,
+      settings.parameterSettings,
+    );
+
+    return new Plan(
+      uuidV4(),
+      changeSet,
+      coreParameters,
+      statefulMode,
+    );
   }
 
   /**
@@ -109,78 +204,75 @@ export class Plan<T extends StringIndexedObject> {
     return this.coreParameters.type
   }
 
-  static calculate<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    coreParameters: ResourceConfig,
-    settings: ParsedResourceSettings<T>,
-    statefulMode: boolean,
-  }): Plan<T> {
-    const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      coreParameters,
-      settings,
-      statefulMode
-    } = params
-
-    const currentParameters = Plan.matchCurrentParameters<T>({
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      settings,
-      statefulMode
-    });
-
-    const filteredCurrentParameters = Plan.filterCurrentParams<T>({
-      desiredParameters,
-      currentParameters,
-      stateParameters,
-      settings,
-      statefulMode
-    });
-
-    // Empty
-    if (!filteredCurrentParameters && !desiredParameters) {
-      return new Plan(
-        uuidV4(),
-        ChangeSet.empty<T>(),
-        coreParameters,
-      )
+  //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
+    if (!data) {
+      throw new Error('Data is empty');
     }
 
-    // CREATE
-    if (!filteredCurrentParameters && desiredParameters) {
-      return new Plan(
-        uuidV4(),
-        ChangeSet.create(desiredParameters),
-        coreParameters
-      )
-    }
-
-    // DESTROY
-    if (filteredCurrentParameters && !desiredParameters) {
-      return new Plan(
-        uuidV4(),
-        ChangeSet.destroy(filteredCurrentParameters),
-        coreParameters
-      )
-    }
-
-    // NO-OP, MODIFY or RE-CREATE
-    const changeSet = ChangeSet.calculateModification(
-      desiredParameters!,
-      filteredCurrentParameters!,
-      settings.parameterSettings,
-    );
+    addDefaultValues();
 
     return new Plan(
       uuidV4(),
-      changeSet,
-      coreParameters,
+      new ChangeSet<T>(
+        data.operation,
+        data.parameters
+      ),
+      {
+        type: data.resourceType,
+        name: data.resourceName,
+      },
+      data.statefulMode
     );
+
+   function addDefaultValues(): void {
+      Object.entries(defaultValues ?? {})
+        .forEach(([key, defaultValue]) => {
+          const configValueExists = data!
+            .parameters
+            .some((p) => p.name === key);
+
+          // Only set default values if the value does not exist in the config
+          if (configValueExists) {
+            return;
+          }
+
+          switch (data!.operation) {
+            case ResourceOperation.CREATE: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.ADD,
+                previousValue: null,
+                newValue: defaultValue,
+              });
+              break;
+            }
+
+            case ResourceOperation.DESTROY: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.REMOVE,
+                previousValue: defaultValue,
+                newValue: null,
+              });
+              break;
+            }
+
+            case ResourceOperation.MODIFY:
+            case ResourceOperation.RECREATE:
+            case ResourceOperation.NOOP: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.NOOP,
+                previousValue: defaultValue,
+                newValue: defaultValue,
+              });
+              break;
+            }
+          }
+        });
+    }
+
   }
 
   /**
@@ -322,74 +414,9 @@ export class Plan<T extends StringIndexedObject> {
 
   // TODO: This needs to be revisited. I don't think this is valid anymore.
   //   1. For all scenarios, there shouldn't be an apply without a plan beforehand
-  //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
-  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
-    if (!data) {
-      throw new Error('Data is empty');
-    }
 
-    addDefaultValues();
-
-    return new Plan(
-      uuidV4(),
-      new ChangeSet<T>(
-        data.operation,
-        data.parameters
-      ),
-      {
-        type: data.resourceType,
-        name: data.resourceName,
-      },
-    );
-
-   function addDefaultValues(): void {
-      Object.entries(defaultValues ?? {})
-        .forEach(([key, defaultValue]) => {
-          const configValueExists = data!
-            .parameters
-            .some((p) => p.name === key);
-
-          // Only set default values if the value does not exist in the config
-          if (configValueExists) {
-            return;
-          }
-
-          switch (data!.operation) {
-            case ResourceOperation.CREATE: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.ADD,
-                previousValue: null,
-                newValue: defaultValue,
-              });
-              break;
-            }
-
-            case ResourceOperation.DESTROY: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.REMOVE,
-                previousValue: defaultValue,
-                newValue: null,
-              });
-              break;
-            }
-
-            case ResourceOperation.MODIFY:
-            case ResourceOperation.RECREATE:
-            case ResourceOperation.NOOP: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.NOOP,
-                previousValue: defaultValue,
-                newValue: defaultValue,
-              });
-              break;
-            }
-          }
-        });
-    }
-
+  requiresChanges(): boolean {
+    return this.changeSet.operation !== ResourceOperation.NOOP;
   }
 
   /**

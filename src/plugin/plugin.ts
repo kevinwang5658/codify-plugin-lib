@@ -13,11 +13,13 @@ import {
   ValidateResponseData
 } from 'codify-schemas';
 
+import { ApplyValidationError } from '../common/errors.js';
 import { Plan } from '../plan/plan.js';
+import { BackgroundPty } from '../pty/background-pty.js';
+import { getPty } from '../pty/index.js';
 import { Resource } from '../resource/resource.js';
 import { ResourceController } from '../resource/resource-controller.js';
 import { ptyLocalStorage } from '../utils/pty-local-storage.js';
-import { BackgroundPty } from '../pty/background-pty.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;
@@ -122,13 +124,11 @@ export class Plugin {
       throw new Error(`Resource type not found: ${type}`);
     }
 
-    const plan = await ptyLocalStorage.run(this.planPty, async () => {
-      return this.resourceControllers.get(type)!.plan(
+    const plan = await ptyLocalStorage.run(this.planPty, async () => this.resourceControllers.get(type)!.plan(
         data.desired ?? null,
         data.state ?? null,
         data.isStateful
-      );
-    })
+    ))
 
     this.planStorage.set(plan.id, plan);
 
@@ -148,6 +148,25 @@ export class Plugin {
     }
 
     await resource.apply(plan);
+
+    const validationPlan = await ptyLocalStorage.run(new BackgroundPty(), async () => {
+      const result = await resource.plan(
+        plan.desiredConfig,
+        plan.currentConfig,
+        plan.statefulMode
+      );
+
+      await getPty().kill();
+      return result;
+    })
+
+    if (validationPlan.requiresChanges()) {
+      throw new ApplyValidationError(plan);
+    }
+  }
+
+  async kill() {
+    await this.planPty.kill();
   }
 
   private resolvePlan(data: ApplyRequestData): Plan<ResourceConfig> {
@@ -170,5 +189,4 @@ export class Plugin {
   }
 
   protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}
-
 }

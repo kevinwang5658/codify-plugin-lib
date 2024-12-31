@@ -19,7 +19,8 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.ADD,
         previousValue: null,
         newValue: 'propBValue'
-      }]
+      }],
+      statefulMode: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null;
@@ -47,7 +48,8 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.REMOVE,
         previousValue: 'propBValue',
         newValue: null,
-      }]
+      }],
+      statefulMode: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
@@ -75,7 +77,8 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.NOOP,
         previousValue: 'propBValue',
         newValue: 'propBValue',
-      }]
+      }],
+      statefulMode: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
@@ -112,7 +115,8 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.ADD,
         previousValue: null,
         newValue: 'propAValue',
-      }]
+      }],
+      statefulMode: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null

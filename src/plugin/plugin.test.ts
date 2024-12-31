@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Plugin } from './plugin.js';
-import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
+import { ApplyRequestData, ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { Resource } from '../resource/resource.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ResourceSettings } from '../resource/resource-settings.js';
+import { TestConfig } from '../utils/test-utils.test.js';
+import { ApplyValidationError } from '../common/errors.js';
+import { getPty } from '../pty/index.js';
 
 interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -38,15 +41,22 @@ class TestResource extends Resource<TestConfig> {
 
 describe('Plugin tests', () => {
   it('Can apply resource', async () => {
-    const resource= spy(new TestResource())
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'abc',
+        }
+      }
+    })
     const plugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.CREATE,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.ADD, newValue: 'abc', previousValue: null },
-      ]
+      ],
+      statefulMode: false,
     };
 
     await plugin.apply({ plan });
@@ -54,15 +64,20 @@ describe('Plugin tests', () => {
   });
 
   it('Can destroy resource', async () => {
-    const resource = spy(new TestResource());
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    });
     const testPlugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.DESTROY,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.REMOVE, newValue: null, previousValue: 'abc' },
-      ]
+      ],
+      statefulMode: true,
     };
 
     await testPlugin.apply({ plan })
@@ -70,15 +85,22 @@ describe('Plugin tests', () => {
   });
 
   it('Can re-create resource', async () => {
-    const resource = spy(new TestResource())
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'def',
+        }
+      }
+    })
     const testPlugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.RECREATE,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
-      ]
+      ],
+      statefulMode: false,
     };
 
     await testPlugin.apply({ plan })
@@ -87,15 +109,22 @@ describe('Plugin tests', () => {
   });
 
   it('Can modify resource', async () => {
-    const resource = spy(new TestResource())
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'def',
+        }
+      }
+    })
     const testPlugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.MODIFY,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
-      ]
+      ],
+      statefulMode: false,
     };
 
     await testPlugin.apply({ plan })
@@ -177,5 +206,79 @@ describe('Plugin tests', () => {
     expect(resourceInfo.import).toMatchObject({
       requiredParameters: []
     })
+  })
+
+  it('Fails an apply if the validation fails', async () => {
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'abc',
+        }
+      }
+    })
+    const testPlugin = Plugin.create('testPlugin', [resource as any])
+
+    const plan: ApplyRequestData['plan'] = {
+      operation: ResourceOperation.MODIFY,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
+      ],
+      statefulMode: false,
+    };
+
+    await expect(() => testPlugin.apply({ plan }))
+      .rejects
+      .toThrowError(new ApplyValidationError(Plan.fromResponse(plan)));
+    expect(resource.modify.calledOnce).to.be.true;
+  })
+
+  it('Allows the usage of pty in refresh (plan)', async () => {
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        expect(getPty()).to.not.be.undefined;
+        expect(getPty()).to.not.be.null;
+
+        return null;
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+    await testPlugin.plan({
+      desired: {
+        type: 'testResource'
+      },
+      state: undefined,
+      isStateful: false,
+    })
+
+    expect(resource.refresh.calledOnce).to.be.true;
+  });
+
+  it('Allows the usage of pty in validation refresh (apply)', async () => {
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        expect(getPty()).to.not.be.undefined;
+        expect(getPty()).to.not.be.null;
+
+        return {
+          propA: 'abc'
+        };
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const plan: ApplyRequestData['plan'] = {
+      operation: ResourceOperation.CREATE,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.ADD, newValue: 'abc', previousValue: null },
+      ],
+      statefulMode: false,
+    };
+
+    await testPlugin.apply({ plan })
+    expect(resource.refresh.calledOnce).to.be.true;
   })
 });

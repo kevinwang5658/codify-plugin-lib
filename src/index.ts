@@ -16,4 +16,8 @@ export * from './utils/utils.js'
 export async function runPlugin(plugin: Plugin) {
   const messageHandler = new MessageHandler(plugin);
   process.on('message', (message) => messageHandler.onMessage(message))
+
+  process.on('beforeExit', () => {
+    plugin.kill();
+  })
 }

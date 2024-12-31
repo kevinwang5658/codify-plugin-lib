@@ -87,9 +87,11 @@ export class Plugin {
       throw new Error(`Cannot get info for resource ${data.config.type}, resource doesn't exist`);
     }
 
-    const result = await this.resourceControllers
-      .get(data.config.type!)
-      ?.import(data.config);
+    const result = await ptyLocalStorage.run(this.planPty, () =>
+      this.resourceControllers
+        .get(data.config.type!)
+        ?.import(data.config)
+    )
 
     return {
       request: data.config,

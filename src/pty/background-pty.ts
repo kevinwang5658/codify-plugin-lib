@@ -117,7 +117,7 @@ export class BackgroundPty implements IPty {
         resolve(status);
       })
 
-      this.basePty.kill()
+      this.basePty.kill('SIGKILL')
     })
   }
 

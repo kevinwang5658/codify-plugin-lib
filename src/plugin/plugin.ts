@@ -151,10 +151,12 @@ export class Plugin {
 
     await resource.apply(plan);
 
+    // Validate using desired/desired. If the apply was successful, no changes should be reported back.
+    // Default back desired back to current if it is not defined (for destroys only)
     const validationPlan = await ptyLocalStorage.run(new BackgroundPty(), async () => {
       const result = await resource.plan(
         plan.desiredConfig,
-        plan.currentConfig,
+        plan.desiredConfig ?? plan.currentConfig,
         plan.statefulMode
       );
 

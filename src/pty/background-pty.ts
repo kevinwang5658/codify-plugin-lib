@@ -1,8 +1,8 @@
+import pty from '@homebridge/node-pty-prebuilt-multiarch';
 import { nanoid } from 'nanoid';
 import * as cp from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs/promises';
-import pty from 'node-pty';
 import stripAnsi from 'strip-ansi';
 
 import { debugLog } from '../utils/debug.js';
@@ -79,10 +79,6 @@ export class BackgroundPty implements IPty {
         }
       })
 
-      cat.on('close', () => {
-        console.log('close');
-      })
-
       this.promiseQueue.run(async () => new Promise((resolve) => {
         const cdCommand = options?.cwd ? `cd ${options.cwd}; ` : '';
         // Redirecting everything to the pipe and running in theb background avoids most if not all back-pressure problems
@@ -105,8 +101,6 @@ export class BackgroundPty implements IPty {
 
       }));
     }).finally(async () => {
-      // console.log('finally');
-      // await fileHandle?.close();
       await fs.rm(`/tmp/${cid}`);
     })
   }

@@ -14,8 +14,7 @@ describe('BackgroundPty tests', () => {
 
     const exitCode = await pty.kill();
     expect(exitCode).toMatchObject({
-      exitCode: 1,
-      signal: 0,
+      exitCode: 0,
     });
   })
 

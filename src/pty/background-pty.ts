@@ -55,7 +55,6 @@ export class BackgroundPty implements IPty {
 
     return new Promise<SpawnResult>((resolve) => {
       const cat = cp.spawn('cat', [`/tmp/${cid}`])
-      cat.stdout.pipe(process.stdout);
 
       let output = '';
       cat.stdout.on('data', (data) => {
@@ -76,6 +75,8 @@ export class BackgroundPty implements IPty {
             exitCode: Number.parseInt(exit ?? 1, 10),
             data: strippedData,
           });
+        } else {
+          process.stdout.write(data);
         }
       })
 

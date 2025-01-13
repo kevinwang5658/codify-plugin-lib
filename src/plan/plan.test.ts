@@ -20,7 +20,7 @@ describe('Plan entity tests', () => {
         previousValue: null,
         newValue: 'propBValue'
       }],
-      statefulMode: false,
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null;
@@ -49,7 +49,7 @@ describe('Plan entity tests', () => {
         previousValue: 'propBValue',
         newValue: null,
       }],
-      statefulMode: false,
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
@@ -78,7 +78,7 @@ describe('Plan entity tests', () => {
         previousValue: 'propBValue',
         newValue: 'propBValue',
       }],
-      statefulMode: false,
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
@@ -116,7 +116,7 @@ describe('Plan entity tests', () => {
         previousValue: null,
         newValue: 'propAValue',
       }],
-      statefulMode: false,
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null
@@ -142,7 +142,7 @@ describe('Plan entity tests', () => {
         name: 'name1'
       },
       settings: new ParsedResourceSettings<TestConfig>({ id: 'type' }),
-      statefulMode: false,
+      isStateful: false,
     });
 
     expect(plan.toResponse()).toMatchObject({

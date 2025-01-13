@@ -12,7 +12,7 @@ export function testPlan<T extends StringIndexedObject>(params: {
   state?: Partial<T> | null;
   core?: ResourceConfig;
   settings?: ResourceSettings<T>;
-  statefulMode?: boolean;
+  isStateful?: boolean;
 }) {
   return Plan.calculate({
     desiredParameters: params.desired ?? null,
@@ -22,7 +22,7 @@ export function testPlan<T extends StringIndexedObject>(params: {
     settings: params.settings ?
       new ParsedResourceSettings<T>(params.settings)
       : new ParsedResourceSettings<T>({ id: 'type' }),
-    statefulMode: params.statefulMode ?? false,
+    isStateful: params.isStateful ?? false,
   })
 }
 

@@ -6,7 +6,6 @@ export default defineConfig({
     fileParallelism: false,
     exclude: [
       ...defaultExclude,
-      './src/utils/test-utils.test.ts',
     ]
   },
 });

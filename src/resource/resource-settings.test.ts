@@ -500,7 +500,7 @@ describe('Resource parameter tests', () => {
           { name: 'propB', operation: ParameterOperation.ADD, previousValue: null, newValue: null },
           { name: 'propC', operation: ParameterOperation.ADD, previousValue: null, newValue: null },
         ],
-        statefulMode: false,
+        isStateful: false,
       }, {}) as any
     );
 
@@ -523,7 +523,7 @@ describe('Resource parameter tests', () => {
           { name: 'propB', operation: ParameterOperation.MODIFY, previousValue: null, newValue: null },
           { name: 'propC', operation: ParameterOperation.MODIFY, previousValue: null, newValue: null },
         ],
-        statefulMode: false,
+        isStateful: false,
       }, {}) as any
     );
 
@@ -542,7 +542,7 @@ describe('Resource parameter tests', () => {
           { name: 'propB', operation: ParameterOperation.REMOVE, previousValue: null, newValue: null },
           { name: 'propC', operation: ParameterOperation.REMOVE, previousValue: null, newValue: null },
         ],
-        statefulMode: false,
+        isStateful: false,
       }, {}) as any
     );
 

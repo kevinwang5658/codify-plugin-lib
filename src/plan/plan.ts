@@ -34,13 +34,13 @@ export class Plan<T extends StringIndexedObject> {
    */
   coreParameters: ResourceConfig;
 
-  statefulMode: boolean;
+  isStateful: boolean;
 
-  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig, statefulMode: boolean) {
+  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig, isStateful: boolean) {
     this.id = id;
     this.changeSet = changeSet;
     this.coreParameters = resourceMetadata;
-    this.statefulMode = statefulMode;
+    this.isStateful = isStateful;
   }
 
   /**
@@ -83,7 +83,7 @@ export class Plan<T extends StringIndexedObject> {
     stateParameters: Partial<T> | null,
     coreParameters: ResourceConfig,
     settings: ParsedResourceSettings<T>,
-    statefulMode: boolean,
+    isStateful: boolean,
   }): Plan<T> {
     const {
       desiredParameters,
@@ -91,7 +91,7 @@ export class Plan<T extends StringIndexedObject> {
       stateParameters,
       coreParameters,
       settings,
-      statefulMode
+      isStateful
     } = params
 
     const currentParameters = Plan.matchCurrentParameters<T>({
@@ -99,7 +99,7 @@ export class Plan<T extends StringIndexedObject> {
       currentParametersArray,
       stateParameters,
       settings,
-      statefulMode
+      isStateful
     });
 
     const filteredCurrentParameters = Plan.filterCurrentParams<T>({
@@ -107,7 +107,7 @@ export class Plan<T extends StringIndexedObject> {
       currentParameters,
       stateParameters,
       settings,
-      statefulMode
+      isStateful
     });
 
     // Empty
@@ -116,7 +116,7 @@ export class Plan<T extends StringIndexedObject> {
         uuidV4(),
         ChangeSet.empty<T>(),
         coreParameters,
-        statefulMode,
+        isStateful,
       )
     }
 
@@ -126,7 +126,7 @@ export class Plan<T extends StringIndexedObject> {
         uuidV4(),
         ChangeSet.create(desiredParameters),
         coreParameters,
-        statefulMode,
+        isStateful,
       )
     }
 
@@ -136,7 +136,7 @@ export class Plan<T extends StringIndexedObject> {
         uuidV4(),
         ChangeSet.destroy(filteredCurrentParameters),
         coreParameters,
-        statefulMode,
+        isStateful,
       )
     }
 
@@ -151,57 +151,8 @@ export class Plan<T extends StringIndexedObject> {
       uuidV4(),
       changeSet,
       coreParameters,
-      statefulMode,
+      isStateful,
     );
-  }
-
-  /**
-   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
-   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
-   * the application name and location to match it to our desired configs name and location.
-   *
-   * @param params
-   * @private
-   */
-  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    settings: ResourceSettings<T>,
-    statefulMode: boolean,
-  }): Partial<T> | null {
-    const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      settings,
-      statefulMode
-    } = params;
-
-    if (!settings.allowMultiple) {
-      return currentParametersArray?.[0] ?? null;
-    }
-
-    if (!currentParametersArray) {
-      return null;
-    }
-
-    if (statefulMode) {
-      return stateParameters
-        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
-        : null
-    }
-
-    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
-  }
-
-  /**
-   * The type (id) of the resource
-   *
-   * @return string
-   */
-  getResourceType(): string {
-    return this.coreParameters.type
   }
 
   //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
@@ -222,7 +173,7 @@ export class Plan<T extends StringIndexedObject> {
         type: data.resourceType,
         name: data.resourceName,
       },
-      data.statefulMode
+      data.isStateful
     );
 
    function addDefaultValues(): void {
@@ -276,6 +227,55 @@ export class Plan<T extends StringIndexedObject> {
   }
 
   /**
+   * The type (id) of the resource
+   *
+   * @return string
+   */
+  getResourceType(): string {
+    return this.coreParameters.type
+  }
+
+  /**
+   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
+   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
+   * the application name and location to match it to our desired configs name and location.
+   *
+   * @param params
+   * @private
+   */
+  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
+    desiredParameters: Partial<T> | null,
+    currentParametersArray: Partial<T>[] | null,
+    stateParameters: Partial<T> | null,
+    settings: ResourceSettings<T>,
+    isStateful: boolean,
+  }): Partial<T> | null {
+    const {
+      desiredParameters,
+      currentParametersArray,
+      stateParameters,
+      settings,
+      isStateful
+    } = params;
+
+    if (!settings.allowMultiple) {
+      return currentParametersArray?.[0] ?? null;
+    }
+
+    if (!currentParametersArray) {
+      return null;
+    }
+
+    if (isStateful) {
+      return stateParameters
+        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
+        : null
+    }
+
+    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
+  }
+
+  /**
    *  Only keep relevant params for the plan. We don't want to change settings that were not already
    *  defined.
    *
@@ -288,14 +288,14 @@ export class Plan<T extends StringIndexedObject> {
     currentParameters: Partial<T> | null,
     stateParameters: Partial<T> | null,
     settings: ResourceSettings<T>,
-    statefulMode: boolean,
+    isStateful: boolean,
   }): Partial<T> | null {
     const {
       desiredParameters: desired,
       currentParameters: current,
       stateParameters: state,
       settings,
-      statefulMode
+      isStateful
     } = params;
 
     if (!current) {
@@ -309,7 +309,7 @@ export class Plan<T extends StringIndexedObject> {
 
     // For stateful mode, we're done after filtering by the keys of desired + state. Stateless mode
     // requires additional filtering for stateful parameter arrays and objects.
-    if (statefulMode) {
+    if (isStateful) {
       return filteredCurrent;
     }
 
@@ -327,7 +327,7 @@ export class Plan<T extends StringIndexedObject> {
         return null;
       }
 
-      if (statefulMode) {
+      if (isStateful) {
         const keys = new Set([...Object.keys(state ?? {}), ...Object.keys(desired ?? {})]);
         return Object.fromEntries(
           Object.entries(current)
@@ -426,6 +426,7 @@ export class Plan<T extends StringIndexedObject> {
     return {
       planId: this.id,
       operation: this.changeSet.operation,
+      isStateful: this.isStateful,
       resourceName: this.coreParameters.name,
       resourceType: this.coreParameters.type,
       parameters: this.changeSet.parameterChanges,

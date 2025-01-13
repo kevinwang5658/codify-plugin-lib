@@ -150,7 +150,7 @@ describe('Resource tests', () => {
       testPlan({
         current: [{ propA: 'a', propB: 0 }],
         state: { propA: 'a', propB: 0 },
-        statefulMode: true,
+        isStateful: true,
       })
     )
 
@@ -169,7 +169,7 @@ describe('Resource tests', () => {
       testPlan({
         desired: { propA: 'a', propB: 0 },
         current: [{ propA: 'b', propB: -1 }],
-        statefulMode: true
+        isStateful: true
       })
     );
 

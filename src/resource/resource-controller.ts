@@ -106,9 +106,9 @@ export class ResourceController<T extends StringIndexedObject> {
   async plan(
     desiredConfig: Partial<T> & ResourceConfig | null,
     stateConfig: Partial<T> & ResourceConfig | null = null,
-    statefulMode = false,
+    isStateful = false,
   ): Promise<Plan<T>> {
-    this.validatePlanInputs(desiredConfig, stateConfig, statefulMode);
+    this.validatePlanInputs(desiredConfig, stateConfig, isStateful);
 
     this.addDefaultValues(desiredConfig);
     await this.applyTransformParameters(desiredConfig);
@@ -143,7 +143,7 @@ export class ResourceController<T extends StringIndexedObject> {
         stateParameters,
         coreParameters,
         settings: this.parsedSettings,
-        statefulMode,
+        isStateful,
       });
     }
 
@@ -157,7 +157,7 @@ export class ResourceController<T extends StringIndexedObject> {
       stateParameters,
       coreParameters,
       settings: this.parsedSettings,
-      statefulMode
+      isStateful
     })
   }
 
@@ -377,13 +377,13 @@ ${JSON.stringify(refresh, null, 2)}
   private validatePlanInputs(
     desired: Partial<T> & ResourceConfig | null,
     current: Partial<T> & ResourceConfig | null,
-    statefulMode: boolean,
+    isStateful: boolean,
   ) {
     if (!desired && !current) {
       throw new Error('Desired config and current config cannot both be missing')
     }
 
-    if (!statefulMode && !desired) {
+    if (!isStateful && !desired) {
       throw new Error('Desired config must be provided in non-stateful mode')
     }
   }

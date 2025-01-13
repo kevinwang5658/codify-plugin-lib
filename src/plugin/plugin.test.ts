@@ -56,7 +56,7 @@ describe('Plugin tests', () => {
       parameters: [
         { name: 'propA', operation: ParameterOperation.ADD, newValue: 'abc', previousValue: null },
       ],
-      statefulMode: false,
+      isStateful: false,
     };
 
     await plugin.apply({ plan });
@@ -77,7 +77,7 @@ describe('Plugin tests', () => {
       parameters: [
         { name: 'propA', operation: ParameterOperation.REMOVE, newValue: null, previousValue: 'abc' },
       ],
-      statefulMode: true,
+      isStateful: true,
     };
 
     await testPlugin.apply({ plan })
@@ -100,7 +100,7 @@ describe('Plugin tests', () => {
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
       ],
-      statefulMode: false,
+      isStateful: false,
     };
 
     await testPlugin.apply({ plan })
@@ -124,7 +124,7 @@ describe('Plugin tests', () => {
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
       ],
-      statefulMode: false,
+      isStateful: false,
     };
 
     await testPlugin.apply({ plan })
@@ -224,7 +224,7 @@ describe('Plugin tests', () => {
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
       ],
-      statefulMode: false,
+      isStateful: false,
     };
 
     await expect(() => testPlugin.apply({ plan }))
@@ -275,7 +275,7 @@ describe('Plugin tests', () => {
       parameters: [
         { name: 'propA', operation: ParameterOperation.ADD, newValue: 'abc', previousValue: null },
       ],
-      statefulMode: false,
+      isStateful: false,
     };
 
     await testPlugin.apply({ plan })

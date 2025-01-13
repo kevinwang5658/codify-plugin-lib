@@ -12,7 +12,7 @@ describe('Test file for errors file', () => {
         type: 'homebrew',
         name: 'first'
       },
-      statefulMode: true,
+      isStateful: true,
     })
 
     try {

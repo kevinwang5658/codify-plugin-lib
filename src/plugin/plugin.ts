@@ -157,7 +157,7 @@ export class Plugin {
       const result = await resource.plan(
         plan.desiredConfig,
         plan.desiredConfig ?? plan.currentConfig,
-        plan.statefulMode
+        plan.isStateful
       );
 
       await getPty().kill();

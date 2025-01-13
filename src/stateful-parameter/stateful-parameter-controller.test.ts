@@ -34,7 +34,7 @@ describe('Stateful parameter tests', () => {
       desired: null,
       current: [{ propZ: ['a', 'b', 'c'] }],
       state: { propZ: ['a', 'b', 'c'] },
-      statefulMode: true,
+      isStateful: true,
     });
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.DESTROY);

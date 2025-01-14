@@ -25,9 +25,11 @@ describe('Message handler tests', () => {
       await handler.onMessage({
         cmd: 'plan',
         data: {
-          desired: {
+          core: {
             type: 'resourceType',
             name: 'name',
+          },
+          desired: {
             prop1: 'A',
             prop2: 'B',
           },
@@ -45,7 +47,6 @@ describe('Message handler tests', () => {
     const handler = new MessageHandler(plugin);
 
     process.send = (message) => {
-      console.log(message);
       expect(message).toMatchObject({
         cmd: 'plan_Response',
         status: MessageStatus.ERROR,
@@ -168,6 +169,9 @@ describe('Message handler tests', () => {
     expect(async () => await handler.onMessage({
       cmd: 'plan',
       data: {
+        core: {
+          type: 'resourceA',
+        },
         desired: {
           type: 'resourceA'
         },
@@ -250,9 +254,11 @@ describe('Message handler tests', () => {
       cmd: 'plan',
       requestId: 'abcdef',
       data: {
-        desired: {
+        core: {
           type: 'type',
           name: 'name',
+        },
+        desired: {
           prop1: 'A',
           prop2: 'B',
         },

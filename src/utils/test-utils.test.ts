@@ -15,10 +15,10 @@ export function testPlan<T extends StringIndexedObject>(params: {
   isStateful?: boolean;
 }) {
   return Plan.calculate({
-    desiredParameters: params.desired ?? null,
-    currentParametersArray: params.current ?? null,
-    stateParameters: params.state ?? null,
-    coreParameters: params.core ?? { type: 'type' },
+    desired: params.desired ?? null,
+    currentArray: params.current ?? null,
+    state: params.state ?? null,
+    core: params.core ?? { type: 'type' },
     settings: params.settings ?
       new ParsedResourceSettings<T>(params.settings)
       : new ParsedResourceSettings<T>({ id: 'type' }),

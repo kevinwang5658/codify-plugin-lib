@@ -245,9 +245,8 @@ describe('Plugin tests', () => {
 
     const testPlugin = Plugin.create('testPlugin', [resource as any]);
     await testPlugin.plan({
-      desired: {
-        type: 'testResource'
-      },
+      core: { type: 'testResource' },
+      desired: {},
       state: undefined,
       isStateful: false,
     })

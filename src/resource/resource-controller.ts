@@ -2,6 +2,7 @@ import { Ajv, ValidateFunction } from 'ajv';
 import {
   ParameterOperation,
   ResourceConfig,
+  ResourceJson,
   ResourceOperation,
   StringIndexedObject,
   ValidateResponseData
@@ -10,7 +11,6 @@ import {
 import { ParameterChange } from '../plan/change-set.js';
 import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
-import { splitUserConfig } from '../utils/utils.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
 import { Resource } from './resource.js';
@@ -54,23 +54,21 @@ export class ResourceController<T extends StringIndexedObject> {
   }
 
   async validate(
-    desiredConfig: Partial<T> & ResourceConfig,
+    core: ResourceConfig,
+    parameters: Partial<T>,
   ): Promise<ValidateResponseData['resourceValidations'][0]> {
-    const configToValidate = { ...desiredConfig };
-    await this.applyTransformParameters(configToValidate);
-
-    const { parameters, coreParameters } = splitUserConfig(configToValidate);
+    await this.applyTransformParameters(parameters);
     this.addDefaultValues(parameters);
 
     if (this.schemaValidator) {
       // Schema validator uses pre transformation parameters
-      const isValid = this.schemaValidator(splitUserConfig(desiredConfig).parameters);
+      const isValid = this.schemaValidator(parameters);
 
       if (!isValid) {
         return {
           isValid: false,
-          resourceName: coreParameters.name,
-          resourceType: coreParameters.type,
+          resourceName: core.name,
+          resourceType: core.type,
           schemaValidationErrors: this.schemaValidator?.errors ?? [],
         }
       }
@@ -89,59 +87,57 @@ export class ResourceController<T extends StringIndexedObject> {
       return {
         customValidationErrorMessage,
         isValid: false,
-        resourceName: coreParameters.name,
-        resourceType: coreParameters.type,
+        resourceName: core.name,
+        resourceType: core.type,
         schemaValidationErrors: this.schemaValidator?.errors ?? [],
       }
     }
 
     return {
       isValid: true,
-      resourceName: coreParameters.name,
-      resourceType: coreParameters.type,
+      resourceName: core.name,
+      resourceType: core.type,
       schemaValidationErrors: [],
     }
   }
 
   async plan(
-    desiredConfig: Partial<T> & ResourceConfig | null,
-    stateConfig: Partial<T> & ResourceConfig | null = null,
+    core: ResourceConfig,
+    desired: Partial<T> | null,
+    state: Partial<T> | null,
     isStateful = false,
   ): Promise<Plan<T>> {
-    this.validatePlanInputs(desiredConfig, stateConfig, isStateful);
+    this.validatePlanInputs(core, desired, state, isStateful);
 
-    this.addDefaultValues(desiredConfig);
-    await this.applyTransformParameters(desiredConfig);
+    this.addDefaultValues(desired);
+    await this.applyTransformParameters(desired);
 
-    this.addDefaultValues(stateConfig);
-    await this.applyTransformParameters(stateConfig);
+    this.addDefaultValues(state);
+    await this.applyTransformParameters(state);
 
     // Parse data from the user supplied config
-    const parsedConfig = new ConfigParser(desiredConfig, stateConfig, this.parsedSettings.statefulParameters)
+    const parsedConfig = new ConfigParser(desired, state, this.parsedSettings.statefulParameters)
     const {
-      coreParameters,
-      desiredParameters,
-      stateParameters,
       allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
-    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
+    const currentArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
-    if (currentParametersArray === null
-      || currentParametersArray === undefined
+    if (currentArray === null
+      || currentArray === undefined
       || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
-      || currentParametersArray.length === 0
-      || currentParametersArray.filter(Boolean).length === 0
+      || currentArray.length === 0
+      || currentArray.filter(Boolean).length === 0
     ) {
       return Plan.calculate({
-        desiredParameters,
-        currentParametersArray,
-        stateParameters,
-        coreParameters,
+        desired,
+        currentArray,
+        state,
+        core,
         settings: this.parsedSettings,
         isStateful,
       });
@@ -152,10 +148,10 @@ export class ResourceController<T extends StringIndexedObject> {
     const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, allParameters);
 
     return Plan.calculate({
-      desiredParameters,
-      currentParametersArray: [{ ...currentParametersArray[0], ...statefulCurrentParameters }] as Partial<T>[],
-      stateParameters,
-      coreParameters,
+      desired,
+      currentArray: [{ ...currentArray[0], ...statefulCurrentParameters }] as Partial<T>[],
+      state,
+      core,
       settings: this.parsedSettings,
       isStateful
     })
@@ -186,9 +182,12 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
-  async import(config: Partial<T> & ResourceConfig): Promise<(Partial<T> & ResourceConfig)[] | null> {
-    this.addDefaultValues(config);
-    await this.applyTransformParameters(config);
+  async import(
+    core: ResourceConfig,
+    parameters: Partial<T>
+  ): Promise<Array<ResourceJson> | null> {
+    this.addDefaultValues(parameters);
+    await this.applyTransformParameters(parameters);
 
     // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
     const parametersToRefresh = this.settings.import?.refreshKeys
@@ -197,14 +196,14 @@ export class ResourceController<T extends StringIndexedObject> {
           this.settings.import?.refreshKeys.map((k) => [k, null])
         ),
         ...this.settings.import?.defaultRefreshValues,
-        ...config,
+        ...parameters,
       }
       : {
         ...Object.fromEntries(
           this.getAllParameterKeys().map((k) => [k, null])
         ),
         ...this.settings.import?.defaultRefreshValues,
-        ...config,
+        ...parameters,
       };
 
     // Parse data from the user supplied config
@@ -212,7 +211,6 @@ export class ResourceController<T extends StringIndexedObject> {
     const {
       allNonStatefulParameters,
       allStatefulParameters,
-      coreParameters,
     } = parsedConfig;
 
     const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
@@ -220,16 +218,15 @@ export class ResourceController<T extends StringIndexedObject> {
     if (currentParametersArray === null
       || currentParametersArray === undefined
       || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
-      || currentParametersArray.length === 0
       || currentParametersArray.filter(Boolean).length === 0
     ) {
       return currentParametersArray
-          ?.map((r) => ({ ...coreParameters, ...r }))
+          ?.map((r) => ({ core, parameters: r }))
         ?? null;
     }
 
     const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, parametersToRefresh);
-    return [{ ...coreParameters, ...currentParametersArray[0], ...statefulCurrentParameters }];
+    return [{ core, parameters: { ...currentParametersArray[0], ...statefulCurrentParameters } }];
   }
 
   private async applyCreate(plan: Plan<T>): Promise<void> {
@@ -308,7 +305,7 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(config: Partial<T> & ResourceConfig | null): Promise<void> {
+  private async applyTransformParameters(config: Partial<T> | null): Promise<void> {
     if (!config) {
       return;
     }
@@ -322,11 +319,9 @@ ${JSON.stringify(refresh, null, 2)}
     }
 
     if (this.settings.inputTransformation) {
-      const { parameters, coreParameters } = splitUserConfig(config);
-
-      const transformed = await this.settings.inputTransformation(parameters)
+      const transformed = await this.settings.inputTransformation({ ...config })
       Object.keys(config).forEach((k) => delete config[k])
-      Object.assign(config, transformed, coreParameters);
+      Object.assign(config, transformed);
     }
   }
 
@@ -375,10 +370,15 @@ ${JSON.stringify(refresh, null, 2)}
   }
 
   private validatePlanInputs(
-    desired: Partial<T> & ResourceConfig | null,
-    current: Partial<T> & ResourceConfig | null,
+    core: ResourceConfig,
+    desired: Partial<T> | null,
+    current: Partial<T> | null,
     isStateful: boolean,
   ) {
+    if (!core || !core.type) {
+      throw new Error('Core parameters type must be defined');
+    }
+
     if (!desired && !current) {
       throw new Error('Desired config and current config cannot both be missing')
     }

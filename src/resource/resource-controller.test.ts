@@ -34,11 +34,14 @@ describe('Resource tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    await controller.validate({
-      type: 'type',
-      propA: '~/.tool_versions',
-      propB: 10,
-    })
+    await controller.validate(
+      { type: 'type' },
+      {
+        type: 'type',
+        propA: '~/.tool_versions',
+        propB: 10,
+      }
+    )
   })
 
   it('Plans successfully', async () => {
@@ -55,16 +58,17 @@ describe('Resource tests', () => {
     const controller = new ResourceController(resource)
 
     const resourceSpy = spy(controller);
-    const result = await resourceSpy.plan({
-      type: 'type',
-      name: 'name',
-      propA: 'propA',
-      propB: 10,
-    })
+    const result = await resourceSpy.plan(
+      { type: 'type', name: 'name' },
+      {
+        propA: 'propA',
+        propB: 10,
+      },
+      null,
+      false,
+    )
 
     expect(result.desiredConfig).to.deep.eq({
-      type: 'type',
-      name: 'name',
       propA: 'propA',
       propB: 10,
     });
@@ -92,15 +96,16 @@ describe('Resource tests', () => {
     const controller = new ResourceController(resource);
 
     const resourceSpy = spy(controller);
-    const result = await resourceSpy.plan({
-      type: 'type',
-      name: 'name',
-      propA: 'propA',
-      propB: 10,
-      propC: 'somethingAfter'
-    })
-
-    console.log(result.changeSet.parameterChanges)
+    const result = await resourceSpy.plan(
+      { type: 'type', name: 'name' },
+      {
+        propA: 'propA',
+        propB: 10,
+        propC: 'somethingAfter'
+      },
+      null,
+      false,
+    )
 
     expect(result.changeSet.operation).to.eq(ResourceOperation.CREATE);
     expect(result.changeSet.parameterChanges.length).to.eq(3);
@@ -115,7 +120,12 @@ describe('Resource tests', () => {
     const controller = new ResourceController(resource);
 
     const resourceSpy = spy(controller);
-    const result = await resourceSpy.plan({ type: 'type' })
+    const result = await resourceSpy.plan(
+      { type: 'type' },
+      {},
+      null,
+      false
+    )
 
     expect(result.changeSet.operation).to.eq(ResourceOperation.CREATE);
     expect(result.changeSet.parameterChanges.length).to.eq(0);
@@ -195,7 +205,12 @@ describe('Resource tests', () => {
     }
     const controller = new ResourceController(resource);
 
-    const plan = await controller.plan({ type: 'resource', propA: 'a', propB: 0 })
+    const plan = await controller.plan(
+      { type: 'resource' },
+      { propA: 'a', propB: 0 },
+      null,
+      false,
+    )
 
     const resourceSpy = spy(resource);
     await controller.apply(
@@ -267,7 +282,7 @@ describe('Resource tests', () => {
     }
     const controller = new ResourceController(resource);
 
-    const plan = await controller.plan({ type: 'resource' })
+    const plan = await controller.plan({ type: 'resource' }, {}, null, false)
     expect(plan.currentConfig?.propA).to.eq('propAAfter');
     expect(plan.desiredConfig?.propA).to.eq('propADefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
@@ -294,7 +309,7 @@ describe('Resource tests', () => {
     }
     const controller = new ResourceController(resource);
 
-    const plan = await controller.plan({ type: 'resource' })
+    const plan = await controller.plan({ type: 'resource' }, {}, null, false)
     expect(plan.currentConfig?.propE).to.eq('propEDefault');
     expect(plan.desiredConfig?.propE).to.eq('propEDefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
@@ -317,7 +332,7 @@ describe('Resource tests', () => {
     }
     const controller = new ResourceController(resource);
 
-    const plan = await controller.plan({ type: 'resource' })
+    const plan = await controller.plan({ type: 'resource' }, {}, null, false)
     expect(plan.currentConfig).to.be.null
     expect(plan.desiredConfig!.propE).to.eq('propEDefault');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
@@ -345,7 +360,7 @@ describe('Resource tests', () => {
     }
     const controller = new ResourceController(resource);
 
-    const plan = await controller.plan({ type: 'resource', propA: 'propA' })
+    const plan = await controller.plan({ type: 'resource' }, { propA: 'propA' }, null, false)
     expect(plan.currentConfig?.propA).to.eq('propAAfter');
     expect(plan.desiredConfig?.propA).to.eq('propA');
     expect(plan.changeSet.operation).to.eq(ResourceOperation.RECREATE);
@@ -455,7 +470,7 @@ describe('Resource tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'nvm', global: '20.12', nodeVersions: ['18', '20'] })
+    const plan = await controller.plan({ type: 'nvm' }, { global: '20.12', nodeVersions: ['18', '20'] }, null, false)
 
     expect(plan).toMatchObject({
       changeSet: {
@@ -507,7 +522,7 @@ describe('Resource tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'nvm', global: '20.12', nodeVersions: ['18', '20'] })
+    const plan = await controller.plan({ type: 'nvm' }, { global: '20.12', nodeVersions: ['18', '20'] }, null, false)
 
     expect(plan).toMatchObject({
       changeSet: {

@@ -36,10 +36,10 @@ export class Plan<T extends StringIndexedObject> {
 
   isStateful: boolean;
 
-  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig, isStateful: boolean) {
+  constructor(id: string, changeSet: ChangeSet<T>, coreParameters: ResourceConfig, isStateful: boolean) {
     this.id = id;
     this.changeSet = changeSet;
-    this.coreParameters = resourceMetadata;
+    this.coreParameters = coreParameters;
     this.isStateful = isStateful;
   }
 
@@ -51,10 +51,7 @@ export class Plan<T extends StringIndexedObject> {
       return null;
     }
 
-    return {
-      ...this.coreParameters,
-      ...this.changeSet.desiredParameters,
-    }
+    return this.changeSet.desiredParameters;
   }
 
   /**
@@ -65,10 +62,7 @@ export class Plan<T extends StringIndexedObject> {
       return null;
     }
 
-    return {
-      ...this.coreParameters,
-      ...this.changeSet.currentParameters,
-    }
+    return this.changeSet.currentParameters;
   }
 
   get resourceId(): string {
@@ -78,71 +72,71 @@ export class Plan<T extends StringIndexedObject> {
   }
 
   static calculate<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    coreParameters: ResourceConfig,
+    desired: Partial<T> | null,
+    currentArray: Partial<T>[] | null,
+    state: Partial<T> | null,
+    core: ResourceConfig,
     settings: ParsedResourceSettings<T>,
     isStateful: boolean,
   }): Plan<T> {
     const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      coreParameters,
+      desired,
+      currentArray,
+      state,
+      core,
       settings,
       isStateful
     } = params
 
-    const currentParameters = Plan.matchCurrentParameters<T>({
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
+    const current = Plan.matchCurrentParameters<T>({
+      desired,
+      currentArray,
+      state,
       settings,
       isStateful
     });
 
     const filteredCurrentParameters = Plan.filterCurrentParams<T>({
-      desiredParameters,
-      currentParameters,
-      stateParameters,
+      desired,
+      current,
+      state,
       settings,
       isStateful
     });
 
     // Empty
-    if (!filteredCurrentParameters && !desiredParameters) {
+    if (!filteredCurrentParameters && !desired) {
       return new Plan(
         uuidV4(),
         ChangeSet.empty<T>(),
-        coreParameters,
+        core,
         isStateful,
       )
     }
 
     // CREATE
-    if (!filteredCurrentParameters && desiredParameters) {
+    if (!filteredCurrentParameters && desired) {
       return new Plan(
         uuidV4(),
-        ChangeSet.create(desiredParameters),
-        coreParameters,
+        ChangeSet.create(desired),
+        core,
         isStateful,
       )
     }
 
     // DESTROY
-    if (filteredCurrentParameters && !desiredParameters) {
+    if (filteredCurrentParameters && !desired) {
       return new Plan(
         uuidV4(),
         ChangeSet.destroy(filteredCurrentParameters),
-        coreParameters,
+        core,
         isStateful,
       )
     }
 
     // NO-OP, MODIFY or RE-CREATE
     const changeSet = ChangeSet.calculateModification(
-      desiredParameters!,
+      desired!,
       filteredCurrentParameters!,
       settings.parameterSettings,
     );
@@ -150,7 +144,7 @@ export class Plan<T extends StringIndexedObject> {
     return new Plan(
       uuidV4(),
       changeSet,
-      coreParameters,
+      core,
       isStateful,
     );
   }
@@ -244,35 +238,35 @@ export class Plan<T extends StringIndexedObject> {
    * @private
    */
   private static matchCurrentParameters<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
+    desired: Partial<T> | null,
+    currentArray: Partial<T>[] | null,
+    state: Partial<T> | null,
     settings: ResourceSettings<T>,
     isStateful: boolean,
   }): Partial<T> | null {
     const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
+      desired,
+      currentArray,
+      state,
       settings,
       isStateful
     } = params;
 
     if (!settings.allowMultiple) {
-      return currentParametersArray?.[0] ?? null;
+      return currentArray?.[0] ?? null;
     }
 
-    if (!currentParametersArray) {
+    if (!currentArray) {
       return null;
     }
 
     if (isStateful) {
-      return stateParameters
-        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
+      return state
+        ? settings.allowMultiple.matcher(state, currentArray)
         : null
     }
 
-    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
+    return settings.allowMultiple.matcher(desired!, currentArray);
   }
 
   /**
@@ -284,16 +278,16 @@ export class Plan<T extends StringIndexedObject> {
    *  or wants to set. If a parameter is not specified then it's not managed by Codify.
    */
   private static filterCurrentParams<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParameters: Partial<T> | null,
-    stateParameters: Partial<T> | null,
+    desired: Partial<T> | null,
+    current: Partial<T> | null,
+    state: Partial<T> | null,
     settings: ResourceSettings<T>,
     isStateful: boolean,
   }): Partial<T> | null {
     const {
-      desiredParameters: desired,
-      currentParameters: current,
-      stateParameters: state,
+      desired,
+      current,
+      state,
       settings,
       isStateful
     } = params;

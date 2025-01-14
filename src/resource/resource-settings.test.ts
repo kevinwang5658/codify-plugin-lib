@@ -38,16 +38,19 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      type: 'type',
-      propA: 'a',
-      propB: 10
-    })
+    const plan = await controller.plan(
+      { type: 'type' },
+      {
+        propA: 'a',
+        propB: 10
+      },
+      null,
+      false
+    )
 
     expect(statefulParameter.refresh.notCalled).to.be.true;
     expect(plan.currentConfig).to.be.null;
     expect(plan.desiredConfig).toMatchObject({
-      type: 'type',
       propA: 'a',
       propB: 10
     })
@@ -116,7 +119,12 @@ describe('Resource parameter tests', () => {
 
     const controller = new ResourceController(resource);
 
-    const plan = await controller.plan({ type: 'type', propA: 'a', propB: 0, propC: 'b' })
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propA: 'a', propB: 0, propC: 'b' },
+      null,
+      false
+    )
 
     const resourceSpy = spy(resource);
     await controller.apply(plan);
@@ -156,12 +164,11 @@ describe('Resource parameter tests', () => {
     const controller = new ResourceController(resource);
     const plan = await controller.plan({
       type: 'type',
-    })
+    }, {}, null, false)
 
     expect(statefulParameter.refresh.notCalled).to.be.true;
     expect(plan.currentConfig).to.be.null;
     expect(plan.desiredConfig).toMatchObject({
-      type: 'type',
       propA: 'abc',
     })
     expect(plan.changeSet.operation).to.eq(ResourceOperation.CREATE);
@@ -196,7 +203,7 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'type', propA: ['a', 'b'] } as any)
+    const plan = await controller.plan({ type: 'type' }, { propA: ['a', 'b'] } as any, null, false)
 
     expect(plan).toMatchObject({
       changeSet: {
@@ -230,7 +237,7 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'type', propA: ['a', 'b', 'c', 'd'] } as any)
+    const plan = await controller.plan({ type: 'type' }, { propA: ['a', 'b', 'c', 'd'] } as any, null, false)
 
     expect(plan).toMatchObject({
       changeSet: {
@@ -277,21 +284,25 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      type: 'type',
-      hosts: [
-        {
-          Host: 'new.com',
-          AddKeysToAgent: 'yes',
-          IdentityFile: '~/.ssh/id_ed25519'
-        },
-        {
-          Host: 'github.com',
-          AddKeysToAgent: 'yes',
-          UseKeychain: 'yes',
-        }
-      ]
-    });
+    const plan = await controller.plan(
+      { type: 'type' },
+      {
+        hosts: [
+          {
+            Host: 'new.com',
+            AddKeysToAgent: 'yes',
+            IdentityFile: '~/.ssh/id_ed25519'
+          },
+          {
+            Host: 'github.com',
+            AddKeysToAgent: 'yes',
+            UseKeychain: 'yes',
+          }
+        ]
+      },
+      null,
+      false
+    );
 
     expect(plan).toMatchObject({
       'changeSet': {
@@ -361,7 +372,7 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'type', propA: ['3.11'] } as any)
+    const plan = await controller.plan({ type: 'type' }, { propA: ['3.11'] } as any, null, false)
 
     expect(plan).toMatchObject({
       changeSet: {
@@ -421,14 +432,17 @@ describe('Resource parameter tests', () => {
     });
 
     const controller = new ResourceController(resource)
-    const plan = await controller.plan({
-      type: 'resourceType',
-      propA: 'propA',
-      propB: 10,
-      propC: 'propC',
-      propD: 'propD',
-      propE: 'propE',
-    });
+    const plan = await controller.plan(
+      { type: 'resourceType' },
+      {
+        propA: 'propA',
+        propB: 10,
+        propC: 'propC',
+        propD: 'propD',
+        propE: 'propE',
+      }, null,
+      false
+    );
 
     expect(plan.currentConfig?.propB).to.be.lessThan(plan.currentConfig?.propC as any);
     expect(plan.currentConfig?.propC).to.be.lessThan(plan.currentConfig?.propA as any);
@@ -571,7 +585,7 @@ describe('Resource parameter tests', () => {
     });
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'resourceType', propC: 'abc' } as any);
+    const plan = await controller.plan({ type: 'resourceType' }, { propC: 'abc' } as any, null, false);
 
     expect(resource.refresh.called).to.be.true;
     expect(resource.refresh.getCall(0).firstArg['propA']).to.exist;
@@ -606,7 +620,7 @@ describe('Resource parameter tests', () => {
     });
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan(null, { type: 'resourceType', propC: 'abc' } as any, true);
+    const plan = await controller.plan({ type: 'resourceType' }, null, { propC: 'abc' }, true);
 
     expect(resource.refresh.called).to.be.true;
     expect(resource.refresh.getCall(0).firstArg['propA']).to.exist;
@@ -654,7 +668,7 @@ describe('Resource parameter tests', () => {
     };
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'resourceType', propA: '~/test/folder' } as any);
+    const plan = await controller.plan({ type: 'resourceType' }, { propA: '~/test/folder' } as any, null, false);
 
     expect(plan.changeSet.parameterChanges[0]).toMatchObject({
       operation: ParameterOperation.NOOP,
@@ -682,7 +696,7 @@ describe('Resource parameter tests', () => {
     };
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({ type: 'resourceType', propA: 'setting', propB: 64 } as any);
+    const plan = await controller.plan({ type: 'resourceType' }, { propA: 'setting', propB: 64 } as any, null, false);
 
     expect(plan.changeSet.parameterChanges).toMatchObject(
       expect.arrayContaining([
@@ -741,7 +755,7 @@ describe('Resource parameter tests', () => {
 
     const controller = new ResourceController(resource);
 
-    const result = await controller.plan({ type: 'resourceType', propA: '10.0' });
+    const result = await controller.plan({ type: 'resourceType' }, { propA: '10.0' }, null, false);
     expect(result.changeSet).toMatchObject({
       operation: ResourceOperation.NOOP,
     })
@@ -771,14 +785,18 @@ describe('Resource parameter tests', () => {
 
     const controller = new ResourceController(resource);
 
-    const result = await controller.plan({
-      type: 'resourceType',
-      propD: {
-        testC: 10,
-        testA: 'a',
-        testB: 'b',
-      }
-    });
+    const result = await controller.plan(
+      { type: 'resourceType' },
+      {
+        propD: {
+          testC: 10,
+          testA: 'a',
+          testB: 'b',
+        }
+      },
+      null,
+      false
+    );
 
     expect(result.changeSet).toMatchObject({
       operation: ResourceOperation.NOOP,
@@ -808,14 +826,18 @@ describe('Resource parameter tests', () => {
 
     const controller = new ResourceController(resource);
 
-    const result = await controller.plan({
-      type: 'resourceType',
-      propD: {
-        testC: 10,
-        testA: 'a',
-        testB: 'b',
-      }
-    });
+    const result = await controller.plan(
+      { type: 'resourceType' },
+      {
+        propD: {
+          testC: 10,
+          testA: 'a',
+          testB: 'b',
+        }
+      },
+      null,
+      false
+    );
 
     expect(result.changeSet).toMatchObject({
       operation: ResourceOperation.RECREATE,
@@ -856,8 +878,9 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    await controller.plan({
-      type: 'resourceType',
+    await controller.plan(
+      { type: 'resourceType' },
+      {
       propD: [
         {
           Host: 'new.com',
@@ -874,13 +897,16 @@ describe('Resource parameter tests', () => {
           PasswordAuthentication: true,
         }
       ]
-    });
+      },
+      null,
+      false
+    );
 
   })
 
   it('Transforms input parameters for stateful parameters', async () => {
     const sp = new class extends TestStatefulParameter {
-      getSettings(): ResourceSettings<TestConfig> {
+      getSettings(): any {
         return {
           type: 'array',
           inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
@@ -896,7 +922,7 @@ describe('Resource parameter tests', () => {
         }
       }
 
-      async refresh(desired: any): Promise<Partial<TestConfig> | null> {
+      async refresh(desired: any): Promise<any | null> {
         expect(desired[0].AddKeysToAgent).to.eq('yes')
         expect(desired[1].AddKeysToAgent).to.eq('yes')
         expect(desired[1].UseKeychain).to.eq('yes')
@@ -918,25 +944,29 @@ describe('Resource parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    await controller.plan({
-      type: 'resourceType',
-      propD: [
-        {
-          Host: 'new.com',
-          AddKeysToAgent: true,
-          IdentityFile: 'id_ed25519'
-        },
-        {
-          Host: 'github.com',
-          AddKeysToAgent: true,
-          UseKeychain: true,
-        },
-        {
-          Match: 'User bob,joe,phil',
-          PasswordAuthentication: true,
-        }
-      ]
-    });
+    await controller.plan(
+      { type: 'resourceType' },
+      {
+        propD: [
+          {
+            Host: 'new.com',
+            AddKeysToAgent: true,
+            IdentityFile: 'id_ed25519'
+          },
+          {
+            Host: 'github.com',
+            AddKeysToAgent: true,
+            UseKeychain: true,
+          },
+          {
+            Match: 'User bob,joe,phil',
+            PasswordAuthentication: true,
+          }
+        ]
+      },
+      null,
+      false
+    );
 
   })
 })

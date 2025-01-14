@@ -9,6 +9,7 @@ import {
   PlanRequestData,
   PlanResponseData,
   ResourceConfig,
+  ResourceJson,
   ValidateRequestData,
   ValidateResponseData
 } from 'codify-schemas';
@@ -83,18 +84,20 @@ export class Plugin {
   }
 
   async import(data: ImportRequestData): Promise<ImportResponseData> {
-    if (!this.resourceControllers.has(data.config.type)) {
-      throw new Error(`Cannot get info for resource ${data.config.type}, resource doesn't exist`);
+    const { core, parameters } = data;
+
+    if (!this.resourceControllers.has(core.type)) {
+      throw new Error(`Cannot get info for resource ${core.type}, resource doesn't exist`);
     }
 
     const result = await ptyLocalStorage.run(this.planPty, () =>
       this.resourceControllers
-        .get(data.config.type!)
-        ?.import(data.config)
+        .get(core.type!)
+        ?.import(core, parameters)
     )
 
     return {
-      request: data.config,
+      request: data,
       result: result ?? [],
     }
   }
@@ -102,13 +105,15 @@ export class Plugin {
   async validate(data: ValidateRequestData): Promise<ValidateResponseData> {
     const validationResults = [];
     for (const config of data.configs) {
-      if (!this.resourceControllers.has(config.type)) {
-        throw new Error(`Resource type not found: ${config.type}`);
+      const { core, parameters } = config;
+
+      if (!this.resourceControllers.has(core.type)) {
+        throw new Error(`Resource type not found: ${core.type}`);
       }
 
       const validation = await this.resourceControllers
-        .get(config.type)!
-        .validate(config);
+        .get(core.type)!
+        .validate(core, parameters);
 
       validationResults.push(validation);
     }
@@ -120,16 +125,17 @@ export class Plugin {
   }
 
   async plan(data: PlanRequestData): Promise<PlanResponseData> {
-    const type = data.desired?.type ?? data.state?.type
+    const { type } = data.core
 
-    if (!type || !this.resourceControllers.has(type)) {
+    if (!this.resourceControllers.has(type)) {
       throw new Error(`Resource type not found: ${type}`);
     }
 
     const plan = await ptyLocalStorage.run(this.planPty, async () => this.resourceControllers.get(type)!.plan(
-        data.desired ?? null,
-        data.state ?? null,
-        data.isStateful
+      data.core,
+      data.desired ?? null,
+      data.state ?? null,
+      data.isStateful
     ))
 
     this.planStorage.set(plan.id, plan);
@@ -155,6 +161,7 @@ export class Plugin {
     // Default back desired back to current if it is not defined (for destroys only)
     const validationPlan = await ptyLocalStorage.run(new BackgroundPty(), async () => {
       const result = await resource.plan(
+        plan.coreParameters,
         plan.desiredConfig,
         plan.desiredConfig ?? plan.currentConfig,
         plan.isStateful
@@ -192,5 +199,6 @@ export class Plugin {
     return Plan.fromResponse(planRequest, resource.parsedSettings.defaultValues);
   }
 
-  protected async crossValidateResources(configs: ResourceConfig[]): Promise<void> {}
+  protected async crossValidateResources(resources: ResourceJson[]): Promise<void> {
+  }
 }

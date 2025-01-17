@@ -5,6 +5,7 @@ import { Resource } from '../resource/resource.js';
 import { CreatePlan, DestroyPlan } from '../plan/plan-types.js';
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
+import { describe, it } from 'vitest';
 
 export function testPlan<T extends StringIndexedObject>(params: {
   desired?: Partial<T> | null;
@@ -85,3 +86,8 @@ export class TestArrayStatefulParameter extends ArrayStatefulParameter<TestConfi
     return Promise.resolve(undefined);
   }
 }
+
+describe('Empty tests', () => {
+  it('empty', () => {
+  })
+})

@@ -25,9 +25,8 @@ describe('General tests for PTYs', () => {
 
     const plugin = Plugin.create('test plugin', [testResource])
     const plan = await plugin.plan({
-      desired: {
-        type: 'type'
-      },
+      core: { type: 'type' },
+      desired: {},
       state: undefined,
       isStateful: false,
     })
@@ -84,17 +83,15 @@ describe('General tests for PTYs', () => {
 
     const plugin = Plugin.create('test plugin', [testResource1, testResource2]);
     await plugin.plan({
-      desired: {
-        type: 'type1'
-      },
+      core: { type: 'type1' },
+      desired: {},
       state: undefined,
       isStateful: false,
     })
 
     await plugin.plan({
-      desired: {
-        type: 'type2'
-      },
+      core: { type: 'type2' },
+      desired: {},
       state: undefined,
       isStateful: false,
     })

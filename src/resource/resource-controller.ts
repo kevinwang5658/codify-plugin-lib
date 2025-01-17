@@ -57,12 +57,13 @@ export class ResourceController<T extends StringIndexedObject> {
     core: ResourceConfig,
     parameters: Partial<T>,
   ): Promise<ValidateResponseData['resourceValidations'][0]> {
+    const originalParameters = structuredClone(parameters);
     await this.applyTransformParameters(parameters);
     this.addDefaultValues(parameters);
 
     if (this.schemaValidator) {
       // Schema validator uses pre transformation parameters
-      const isValid = this.schemaValidator(parameters);
+      const isValid = this.schemaValidator(originalParameters);
 
       if (!isValid) {
         return {

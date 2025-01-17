@@ -1,12 +1,14 @@
 {
   "name": "codify-plugin-lib",
-  "version": "1.0.129",
+  "version": "1.0.131",
   "description": "Library plugin library",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "test": "vitest"
+    "test": "vitest",
+    "posttest": "tsc",
+    "prepublishOnly": "tsc"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +16,7 @@
   "dependencies": {
     "ajv": "^8.12.0",
     "ajv-formats": "^2.1.1",
-    "codify-schemas": "1.0.61",
+    "codify-schemas": "1.0.63",
     "@npmcli/promise-spawn": "^7.0.1",
     "@homebridge/node-pty-prebuilt-multiarch": "^0.12.0-beta.5",
     "uuid": "^10.0.0",

@@ -280,4 +280,49 @@ describe('Plugin tests', () => {
     await testPlugin.apply({ plan })
     expect(resource.refresh.calledOnce).to.be.true;
   })
+
+  it('Maintains types for validate', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          schema: {
+            '$schema': 'http://json-schema.org/draft-07/schema',
+            '$id': 'https://www.codifycli.com/ssh-config.json',
+            'type': 'object',
+            'properties': {
+              'hosts': {
+                'description': 'The host blocks inside of the ~/.ssh/config file. See http://man.openbsd.org/OpenBSD-current/man5/ssh_config.5 ',
+                'type': 'array',
+                'items': {
+                  'type': 'object',
+                  'description': 'The individual host blocks inside of the ~/.ssh/config file',
+                  'properties': {
+                    'UseKeychain': {
+                      'type': 'boolean',
+                      'description': 'A UseKeychain option was introduced in macOS Sierra allowing users to specify whether they would like for the passphrase to be stored in the keychain'
+                    },
+                  }
+                }
+              }
+            }
+          }
+        }
+      };
+    }
+
+    const plugin = Plugin.create('testPlugin', [resource as any]);
+    const result = await plugin.validate({
+      configs: [{
+        core: { type: 'type' },
+        parameters: {
+          hosts: [{
+            UseKeychain: true,
+          }]
+        }
+      }]
+    })
+
+    console.log(result);
+  })
 });

@@ -34,7 +34,7 @@ describe('Stateful parameter tests', () => {
       desired: null,
       current: [{ propZ: ['a', 'b', 'c'] }],
       state: { propZ: ['a', 'b', 'c'] },
-      statefulMode: true,
+      isStateful: true,
     });
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.DESTROY);
@@ -153,9 +153,12 @@ describe('Stateful parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      nodeVersions: ['20.15'],
-    } as any)
+    const plan = await controller.plan(
+      { type: 'type' },
+      { nodeVersions: ['20.15'] } as any,
+      null,
+      false
+    )
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
@@ -188,9 +191,12 @@ describe('Stateful parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      propA: '20.15',
-    } as any)
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propA: '20.15', } as any,
+      null,
+      false
+    )
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
@@ -226,9 +232,12 @@ describe('Stateful parameter tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      propA: ['20.15', '20.18'],
-    } as any)
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propA: ['20.15', '20.18'] } as any,
+      null,
+      false
+    )
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })

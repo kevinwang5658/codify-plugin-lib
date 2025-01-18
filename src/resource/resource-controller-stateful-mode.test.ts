@@ -19,9 +19,9 @@ describe('Resource tests for stateful plans', () => {
 
     const controller = new ResourceController(resource);
     const plan = await controller.plan(
+      { type: 'type' },
       null,
       {
-        type: 'type',
         propA: 'propA',
         propB: 10,
         propC: 'propC',
@@ -67,8 +67,8 @@ describe('Resource tests for stateful plans', () => {
 
     const controller = new ResourceController(resource);
     const plan = await controller.plan(
+      { type: 'resource' },
       {
-        type: 'resource',
         propA: 'propA',
         propB: 10,
         propC: 'propC',
@@ -119,6 +119,7 @@ describe('Resource tests for stateful plans', () => {
 
     const controller = new ResourceController(resource)
     const plan = await controller.plan(
+      { type: 'type' },
       {
         type: 'type',
         propA: 'propA',
@@ -191,15 +192,14 @@ describe('Resource tests for stateful plans', () => {
 
     const controller = new ResourceController(resource);
     const plan = await controller.plan(
+      { type: 'type' },
       {
-        type: 'type',
         propA: 'propA',
         propB: 10,
         propC: 'propC',
         propD: 'propD'
       },
       {
-        type: 'type',
         propA: 'propA',
         propC: 'propC'
       },

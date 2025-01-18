@@ -25,9 +25,11 @@ describe('Message handler tests', () => {
       await handler.onMessage({
         cmd: 'plan',
         data: {
-          desired: {
+          core: {
             type: 'resourceType',
             name: 'name',
+          },
+          desired: {
             prop1: 'A',
             prop2: 'B',
           },
@@ -45,7 +47,6 @@ describe('Message handler tests', () => {
     const handler = new MessageHandler(plugin);
 
     process.send = (message) => {
-      console.log(message);
       expect(message).toMatchObject({
         cmd: 'plan_Response',
         status: MessageStatus.ERROR,
@@ -168,6 +169,9 @@ describe('Message handler tests', () => {
     expect(async () => await handler.onMessage({
       cmd: 'plan',
       data: {
+        core: {
+          type: 'resourceA',
+        },
         desired: {
           type: 'resourceA'
         },
@@ -207,7 +211,6 @@ describe('Message handler tests', () => {
   it('handles errors for apply (destroy)', async () => {
     const resource = new TestResource()
     const plugin = testPlugin(resource);
-
     const handler = new MessageHandler(plugin);
 
     process.send = (message) => {
@@ -228,6 +231,73 @@ describe('Message handler tests', () => {
         }
       }
     })).rejects.to.not.throw;
+
+    process.send = undefined;
+  })
+
+  it('Supports ipc message v2 (success)', async () => {
+    const resource = new TestResource()
+    const plugin = testPlugin(resource);
+    const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      console.log(message)
+      expect(message).toMatchObject({
+        cmd: 'plan_Response',
+        requestId: 'abcdef',
+        status: MessageStatus.SUCCESS,
+      })
+      return true;
+    }
+
+    await expect(handler.onMessage({
+      cmd: 'plan',
+      requestId: 'abcdef',
+      data: {
+        core: {
+          type: 'type',
+          name: 'name',
+        },
+        desired: {
+          prop1: 'A',
+          prop2: 'B',
+        },
+        isStateful: false,
+      }
+    })).resolves.to.eq(undefined);
+
+    process.send = undefined;
+  })
+
+  it('Supports ipc message v2 (error)', async () => {
+    const resource = new TestResource()
+    const plugin = testPlugin(resource);
+    const handler = new MessageHandler(plugin);
+
+    process.send = (message) => {
+      expect(message).toMatchObject({
+        cmd: 'apply_Response',
+        requestId: 'abcdef',
+        status: MessageStatus.ERROR,
+      })
+      return true;
+    }
+
+    await expect(handler.onMessage({
+      cmd: 'apply', // Supposed to be a plan so that's why it throws
+      requestId: 'abcdef',
+      data: {
+        desired: {
+          type: 'type',
+          name: 'name',
+          prop1: 'A',
+          prop2: 'B',
+        },
+        isStateful: false,
+      }
+    })).resolves.to.eq(undefined);
+
+    process.send = undefined;
   })
 });
 

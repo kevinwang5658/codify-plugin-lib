@@ -19,13 +19,13 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.ADD,
         previousValue: null,
         newValue: 'propBValue'
-      }]
+      }],
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null;
 
     expect(plan.desiredConfig).toMatchObject({
-      type: 'type',
       propA: 'defaultA',
       propB: 'propBValue',
     })
@@ -47,11 +47,11 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.REMOVE,
         previousValue: 'propBValue',
         newValue: null,
-      }]
+      }],
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
-      type: 'type',
       propA: 'defaultA',
       propB: 'propBValue',
     })
@@ -75,17 +75,16 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.NOOP,
         previousValue: 'propBValue',
         newValue: 'propBValue',
-      }]
+      }],
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).toMatchObject({
-      type: 'type',
       propA: 'defaultA',
       propB: 'propBValue',
     })
 
     expect(plan.desiredConfig).toMatchObject({
-      type: 'type',
       propA: 'defaultA',
       propB: 'propBValue',
     })
@@ -112,13 +111,13 @@ describe('Plan entity tests', () => {
         operation: ParameterOperation.ADD,
         previousValue: null,
         newValue: 'propAValue',
-      }]
+      }],
+      isStateful: false,
     }, controller.parsedSettings.defaultValues);
 
     expect(plan.currentConfig).to.be.null
 
     expect(plan.desiredConfig).toMatchObject({
-      type: 'type',
       propA: 'propAValue',
       propB: 'propBValue',
     })
@@ -130,15 +129,15 @@ describe('Plan entity tests', () => {
 
   it('Returns the original resource names', () => {
     const plan = Plan.calculate<TestConfig>({
-      desiredParameters: { propA: 'propA' },
-      currentParametersArray: [{ propA: 'propA2' }],
-      stateParameters: null,
-      coreParameters: {
+      desired: { propA: 'propA' },
+      currentArray: [{ propA: 'propA2' }],
+      state: null,
+      core: {
         type: 'type',
         name: 'name1'
       },
       settings: new ParsedResourceSettings<TestConfig>({ id: 'type' }),
-      statefulMode: false,
+      isStateful: false,
     });
 
     expect(plan.toResponse()).toMatchObject({
@@ -170,9 +169,12 @@ describe('Plan entity tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      propZ: ['20.15'],
-    } as any)
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propZ: ['20.15'], } as any,
+      null,
+      false
+    )
 
     expect(plan.changeSet.operation).to.eq(ResourceOperation.NOOP);
   })
@@ -204,9 +206,12 @@ describe('Plan entity tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.plan({
-      propZ: ['20.15'],
-    } as any)
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propZ: ['20.15'], } as any,
+      null,
+      false
+    )
 
     expect(plan.changeSet).toMatchObject({
       operation: ResourceOperation.MODIFY,

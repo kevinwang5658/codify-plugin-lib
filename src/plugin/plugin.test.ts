@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { Plugin } from './plugin.js';
-import { ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
+import { ApplyRequestData, ParameterOperation, ResourceOperation, StringIndexedObject } from 'codify-schemas';
 import { Resource } from '../resource/resource.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ResourceSettings } from '../resource/resource-settings.js';
+import { TestConfig } from '../utils/test-utils.test.js';
+import { ApplyValidationError } from '../common/errors.js';
+import { getPty } from '../pty/index.js';
 
 interface TestConfig extends StringIndexedObject {
   propA: string;
@@ -38,15 +41,22 @@ class TestResource extends Resource<TestConfig> {
 
 describe('Plugin tests', () => {
   it('Can apply resource', async () => {
-    const resource= spy(new TestResource())
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'abc',
+        }
+      }
+    })
     const plugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.CREATE,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.ADD, newValue: 'abc', previousValue: null },
-      ]
+      ],
+      isStateful: false,
     };
 
     await plugin.apply({ plan });
@@ -54,15 +64,20 @@ describe('Plugin tests', () => {
   });
 
   it('Can destroy resource', async () => {
-    const resource = spy(new TestResource());
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return null;
+      }
+    });
     const testPlugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.DESTROY,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.REMOVE, newValue: null, previousValue: 'abc' },
-      ]
+      ],
+      isStateful: true,
     };
 
     await testPlugin.apply({ plan })
@@ -70,15 +85,22 @@ describe('Plugin tests', () => {
   });
 
   it('Can re-create resource', async () => {
-    const resource = spy(new TestResource())
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'def',
+        }
+      }
+    })
     const testPlugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.RECREATE,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
-      ]
+      ],
+      isStateful: false,
     };
 
     await testPlugin.apply({ plan })
@@ -87,15 +109,22 @@ describe('Plugin tests', () => {
   });
 
   it('Can modify resource', async () => {
-    const resource = spy(new TestResource())
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'def',
+        }
+      }
+    })
     const testPlugin = Plugin.create('testPlugin', [resource as any])
 
-    const plan = {
+    const plan: ApplyRequestData['plan'] = {
       operation: ResourceOperation.MODIFY,
       resourceType: 'testResource',
       parameters: [
         { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
-      ]
+      ],
+      isStateful: false,
     };
 
     await testPlugin.apply({ plan })
@@ -177,5 +206,123 @@ describe('Plugin tests', () => {
     expect(resourceInfo.import).toMatchObject({
       requiredParameters: []
     })
+  })
+
+  it('Fails an apply if the validation fails', async () => {
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'abc',
+        }
+      }
+    })
+    const testPlugin = Plugin.create('testPlugin', [resource as any])
+
+    const plan: ApplyRequestData['plan'] = {
+      operation: ResourceOperation.MODIFY,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.MODIFY, newValue: 'def', previousValue: 'abc' },
+      ],
+      isStateful: false,
+    };
+
+    await expect(() => testPlugin.apply({ plan }))
+      .rejects
+      .toThrowError(new ApplyValidationError(Plan.fromResponse(plan)));
+    expect(resource.modify.calledOnce).to.be.true;
+  })
+
+  it('Allows the usage of pty in refresh (plan)', async () => {
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        expect(getPty()).to.not.be.undefined;
+        expect(getPty()).to.not.be.null;
+
+        return null;
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+    await testPlugin.plan({
+      core: { type: 'testResource' },
+      desired: {},
+      state: undefined,
+      isStateful: false,
+    })
+
+    expect(resource.refresh.calledOnce).to.be.true;
+  });
+
+  it('Allows the usage of pty in validation refresh (apply)', async () => {
+    const resource = spy(new class extends TestResource {
+      async refresh(): Promise<Partial<TestConfig> | null> {
+        expect(getPty()).to.not.be.undefined;
+        expect(getPty()).to.not.be.null;
+
+        return {
+          propA: 'abc'
+        };
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const plan: ApplyRequestData['plan'] = {
+      operation: ResourceOperation.CREATE,
+      resourceType: 'testResource',
+      parameters: [
+        { name: 'propA', operation: ParameterOperation.ADD, newValue: 'abc', previousValue: null },
+      ],
+      isStateful: false,
+    };
+
+    await testPlugin.apply({ plan })
+    expect(resource.refresh.calledOnce).to.be.true;
+  })
+
+  it('Maintains types for validate', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          schema: {
+            '$schema': 'http://json-schema.org/draft-07/schema',
+            '$id': 'https://www.codifycli.com/ssh-config.json',
+            'type': 'object',
+            'properties': {
+              'hosts': {
+                'description': 'The host blocks inside of the ~/.ssh/config file. See http://man.openbsd.org/OpenBSD-current/man5/ssh_config.5 ',
+                'type': 'array',
+                'items': {
+                  'type': 'object',
+                  'description': 'The individual host blocks inside of the ~/.ssh/config file',
+                  'properties': {
+                    'UseKeychain': {
+                      'type': 'boolean',
+                      'description': 'A UseKeychain option was introduced in macOS Sierra allowing users to specify whether they would like for the passphrase to be stored in the keychain'
+                    },
+                  }
+                }
+              }
+            }
+          }
+        }
+      };
+    }
+
+    const plugin = Plugin.create('testPlugin', [resource as any]);
+    const result = await plugin.validate({
+      configs: [{
+        core: { type: 'type' },
+        parameters: {
+          hosts: [{
+            UseKeychain: true,
+          }]
+        }
+      }]
+    })
+
+    console.log(result);
   })
 });

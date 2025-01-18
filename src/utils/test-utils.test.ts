@@ -5,6 +5,7 @@ import { Resource } from '../resource/resource.js';
 import { CreatePlan, DestroyPlan } from '../plan/plan-types.js';
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { ParsedResourceSettings } from '../resource/parsed-resource-settings.js';
+import { describe, it } from 'vitest';
 
 export function testPlan<T extends StringIndexedObject>(params: {
   desired?: Partial<T> | null;
@@ -12,17 +13,17 @@ export function testPlan<T extends StringIndexedObject>(params: {
   state?: Partial<T> | null;
   core?: ResourceConfig;
   settings?: ResourceSettings<T>;
-  statefulMode?: boolean;
+  isStateful?: boolean;
 }) {
   return Plan.calculate({
-    desiredParameters: params.desired ?? null,
-    currentParametersArray: params.current ?? null,
-    stateParameters: params.state ?? null,
-    coreParameters: params.core ?? { type: 'type' },
+    desired: params.desired ?? null,
+    currentArray: params.current ?? null,
+    state: params.state ?? null,
+    core: params.core ?? { type: 'type' },
     settings: params.settings ?
       new ParsedResourceSettings<T>(params.settings)
       : new ParsedResourceSettings<T>({ id: 'type' }),
-    statefulMode: params.statefulMode ?? false,
+    isStateful: params.isStateful ?? false,
   })
 }
 
@@ -85,3 +86,8 @@ export class TestArrayStatefulParameter extends ArrayStatefulParameter<TestConfi
     return Promise.resolve(undefined);
   }
 }
+
+describe('Empty tests', () => {
+  it('empty', () => {
+  })
+})

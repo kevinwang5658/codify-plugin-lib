@@ -23,13 +23,24 @@ import { ChangeSet } from './change-set.js';
  */
 export class Plan<T extends StringIndexedObject> {
   id: string;
-  changeSet: ChangeSet<T>;
-  coreParameters: ResourceConfig
 
-  constructor(id: string, changeSet: ChangeSet<T>, resourceMetadata: ResourceConfig) {
+  /**
+   * List of changes to make
+   */
+  changeSet: ChangeSet<T>;
+
+  /**
+   * Ex: name, type, dependsOn etc. Metadata parameters
+   */
+  coreParameters: ResourceConfig;
+
+  isStateful: boolean;
+
+  constructor(id: string, changeSet: ChangeSet<T>, coreParameters: ResourceConfig, isStateful: boolean) {
     this.id = id;
     this.changeSet = changeSet;
-    this.coreParameters = resourceMetadata;
+    this.coreParameters = coreParameters;
+    this.isStateful = isStateful;
   }
 
   /**
@@ -40,10 +51,7 @@ export class Plan<T extends StringIndexedObject> {
       return null;
     }
 
-    return {
-      ...this.coreParameters,
-      ...this.changeSet.desiredParameters,
-    }
+    return this.changeSet.desiredParameters;
   }
 
   /**
@@ -54,50 +62,162 @@ export class Plan<T extends StringIndexedObject> {
       return null;
     }
 
-    return {
-      ...this.coreParameters,
-      ...this.changeSet.currentParameters,
-    }
+    return this.changeSet.currentParameters;
   }
 
-  /**
-   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
-   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
-   * the application name and location to match it to our desired configs name and location.
-   *
-   * @param params
-   * @private
-   */
-  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    settings: ResourceSettings<T>,
-    statefulMode: boolean,
-  }): Partial<T> | null {
+  get resourceId(): string {
+    return this.coreParameters.name
+      ? `${this.coreParameters.type}.${this.coreParameters.name}`
+      : this.coreParameters.type;
+  }
+
+  static calculate<T extends StringIndexedObject>(params: {
+    desired: Partial<T> | null,
+    currentArray: Partial<T>[] | null,
+    state: Partial<T> | null,
+    core: ResourceConfig,
+    settings: ParsedResourceSettings<T>,
+    isStateful: boolean,
+  }): Plan<T> {
     const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
+      desired,
+      currentArray,
+      state,
+      core,
       settings,
-      statefulMode
-    } = params;
+      isStateful
+    } = params
 
-    if (!settings.allowMultiple) {
-      return currentParametersArray?.[0] ?? null;
+    const current = Plan.matchCurrentParameters<T>({
+      desired,
+      currentArray,
+      state,
+      settings,
+      isStateful
+    });
+
+    const filteredCurrentParameters = Plan.filterCurrentParams<T>({
+      desired,
+      current,
+      state,
+      settings,
+      isStateful
+    });
+
+    // Empty
+    if (!filteredCurrentParameters && !desired) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.empty<T>(),
+        core,
+        isStateful,
+      )
     }
 
-    if (!currentParametersArray) {
-      return null;
+    // CREATE
+    if (!filteredCurrentParameters && desired) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.create(desired),
+        core,
+        isStateful,
+      )
     }
 
-    if (statefulMode) {
-      return stateParameters
-        ? settings.allowMultiple.matcher(stateParameters, currentParametersArray)
-        : null
+    // DESTROY
+    if (filteredCurrentParameters && !desired) {
+      return new Plan(
+        uuidV4(),
+        ChangeSet.destroy(filteredCurrentParameters),
+        core,
+        isStateful,
+      )
     }
 
-    return settings.allowMultiple.matcher(desiredParameters!, currentParametersArray);
+    // NO-OP, MODIFY or RE-CREATE
+    const changeSet = ChangeSet.calculateModification(
+      desired!,
+      filteredCurrentParameters!,
+      settings.parameterSettings,
+    );
+
+    return new Plan(
+      uuidV4(),
+      changeSet,
+      core,
+      isStateful,
+    );
+  }
+
+  //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
+  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
+    if (!data) {
+      throw new Error('Data is empty');
+    }
+
+    addDefaultValues();
+
+    return new Plan(
+      uuidV4(),
+      new ChangeSet<T>(
+        data.operation,
+        data.parameters
+      ),
+      {
+        type: data.resourceType,
+        name: data.resourceName,
+      },
+      data.isStateful
+    );
+
+   function addDefaultValues(): void {
+      Object.entries(defaultValues ?? {})
+        .forEach(([key, defaultValue]) => {
+          const configValueExists = data!
+            .parameters
+            .some((p) => p.name === key);
+
+          // Only set default values if the value does not exist in the config
+          if (configValueExists) {
+            return;
+          }
+
+          switch (data!.operation) {
+            case ResourceOperation.CREATE: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.ADD,
+                previousValue: null,
+                newValue: defaultValue,
+              });
+              break;
+            }
+
+            case ResourceOperation.DESTROY: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.REMOVE,
+                previousValue: defaultValue,
+                newValue: null,
+              });
+              break;
+            }
+
+            case ResourceOperation.MODIFY:
+            case ResourceOperation.RECREATE:
+            case ResourceOperation.NOOP: {
+              data!.parameters.push({
+                name: key,
+                operation: ParameterOperation.NOOP,
+                previousValue: defaultValue,
+                newValue: defaultValue,
+              });
+              break;
+            }
+          }
+        });
+    }
+
   }
 
   /**
@@ -109,78 +229,44 @@ export class Plan<T extends StringIndexedObject> {
     return this.coreParameters.type
   }
 
-  static calculate<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParametersArray: Partial<T>[] | null,
-    stateParameters: Partial<T> | null,
-    coreParameters: ResourceConfig,
-    settings: ParsedResourceSettings<T>,
-    statefulMode: boolean,
-  }): Plan<T> {
+  /**
+   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
+   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
+   * the application name and location to match it to our desired configs name and location.
+   *
+   * @param params
+   * @private
+   */
+  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
+    desired: Partial<T> | null,
+    currentArray: Partial<T>[] | null,
+    state: Partial<T> | null,
+    settings: ResourceSettings<T>,
+    isStateful: boolean,
+  }): Partial<T> | null {
     const {
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      coreParameters,
+      desired,
+      currentArray,
+      state,
       settings,
-      statefulMode
-    } = params
+      isStateful
+    } = params;
 
-    const currentParameters = Plan.matchCurrentParameters<T>({
-      desiredParameters,
-      currentParametersArray,
-      stateParameters,
-      settings,
-      statefulMode
-    });
-
-    const filteredCurrentParameters = Plan.filterCurrentParams<T>({
-      desiredParameters,
-      currentParameters,
-      stateParameters,
-      settings,
-      statefulMode
-    });
-
-    // Empty
-    if (!filteredCurrentParameters && !desiredParameters) {
-      return new Plan(
-        uuidV4(),
-        ChangeSet.empty<T>(),
-        coreParameters,
-      )
+    if (!settings.allowMultiple) {
+      return currentArray?.[0] ?? null;
     }
 
-    // CREATE
-    if (!filteredCurrentParameters && desiredParameters) {
-      return new Plan(
-        uuidV4(),
-        ChangeSet.create(desiredParameters),
-        coreParameters
-      )
+    if (!currentArray) {
+      return null;
     }
 
-    // DESTROY
-    if (filteredCurrentParameters && !desiredParameters) {
-      return new Plan(
-        uuidV4(),
-        ChangeSet.destroy(filteredCurrentParameters),
-        coreParameters
-      )
+    if (isStateful) {
+      return state
+        ? settings.allowMultiple.matcher(state, currentArray)
+        : null
     }
 
-    // NO-OP, MODIFY or RE-CREATE
-    const changeSet = ChangeSet.calculateModification(
-      desiredParameters!,
-      filteredCurrentParameters!,
-      settings.parameterSettings,
-    );
-
-    return new Plan(
-      uuidV4(),
-      changeSet,
-      coreParameters,
-    );
+    return settings.allowMultiple.matcher(desired!, currentArray);
   }
 
   /**
@@ -192,18 +278,18 @@ export class Plan<T extends StringIndexedObject> {
    *  or wants to set. If a parameter is not specified then it's not managed by Codify.
    */
   private static filterCurrentParams<T extends StringIndexedObject>(params: {
-    desiredParameters: Partial<T> | null,
-    currentParameters: Partial<T> | null,
-    stateParameters: Partial<T> | null,
+    desired: Partial<T> | null,
+    current: Partial<T> | null,
+    state: Partial<T> | null,
     settings: ResourceSettings<T>,
-    statefulMode: boolean,
+    isStateful: boolean,
   }): Partial<T> | null {
     const {
-      desiredParameters: desired,
-      currentParameters: current,
-      stateParameters: state,
+      desired,
+      current,
+      state,
       settings,
-      statefulMode
+      isStateful
     } = params;
 
     if (!current) {
@@ -217,7 +303,7 @@ export class Plan<T extends StringIndexedObject> {
 
     // For stateful mode, we're done after filtering by the keys of desired + state. Stateless mode
     // requires additional filtering for stateful parameter arrays and objects.
-    if (statefulMode) {
+    if (isStateful) {
       return filteredCurrent;
     }
 
@@ -235,7 +321,7 @@ export class Plan<T extends StringIndexedObject> {
         return null;
       }
 
-      if (statefulMode) {
+      if (isStateful) {
         const keys = new Set([...Object.keys(state ?? {}), ...Object.keys(desired ?? {})]);
         return Object.fromEntries(
           Object.entries(current)
@@ -322,74 +408,9 @@ export class Plan<T extends StringIndexedObject> {
 
   // TODO: This needs to be revisited. I don't think this is valid anymore.
   //   1. For all scenarios, there shouldn't be an apply without a plan beforehand
-  //   2. Even if there was (maybe for testing reasons), the plan values should not be adjusted
-  static fromResponse<T extends ResourceConfig>(data: ApplyRequestData['plan'], defaultValues?: Partial<Record<keyof T, unknown>>): Plan<T> {
-    if (!data) {
-      throw new Error('Data is empty');
-    }
 
-    addDefaultValues();
-
-    return new Plan(
-      uuidV4(),
-      new ChangeSet<T>(
-        data.operation,
-        data.parameters
-      ),
-      {
-        type: data.resourceType,
-        name: data.resourceName,
-      },
-    );
-
-   function addDefaultValues(): void {
-      Object.entries(defaultValues ?? {})
-        .forEach(([key, defaultValue]) => {
-          const configValueExists = data!
-            .parameters
-            .some((p) => p.name === key);
-
-          // Only set default values if the value does not exist in the config
-          if (configValueExists) {
-            return;
-          }
-
-          switch (data!.operation) {
-            case ResourceOperation.CREATE: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.ADD,
-                previousValue: null,
-                newValue: defaultValue,
-              });
-              break;
-            }
-
-            case ResourceOperation.DESTROY: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.REMOVE,
-                previousValue: defaultValue,
-                newValue: null,
-              });
-              break;
-            }
-
-            case ResourceOperation.MODIFY:
-            case ResourceOperation.RECREATE:
-            case ResourceOperation.NOOP: {
-              data!.parameters.push({
-                name: key,
-                operation: ParameterOperation.NOOP,
-                previousValue: defaultValue,
-                newValue: defaultValue,
-              });
-              break;
-            }
-          }
-        });
-    }
-
+  requiresChanges(): boolean {
+    return this.changeSet.operation !== ResourceOperation.NOOP;
   }
 
   /**
@@ -399,6 +420,7 @@ export class Plan<T extends StringIndexedObject> {
     return {
       planId: this.id,
       operation: this.changeSet.operation,
+      isStateful: this.isStateful,
       resourceName: this.coreParameters.name,
       resourceType: this.coreParameters.type,
       parameters: this.changeSet.parameterChanges,

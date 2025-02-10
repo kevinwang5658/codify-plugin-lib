@@ -194,7 +194,7 @@ describe('Plugin tests', () => {
         return {
           id: 'typeId',
           schema,
-          import: {
+          importAndDestroy: {
             requiredParameters: []
           }
         }

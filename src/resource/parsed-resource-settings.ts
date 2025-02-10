@@ -6,8 +6,8 @@ import {
   ArrayParameterSetting,
   DefaultParameterSetting,
   ParameterSetting,
+  resolveElementEqualsFn,
   resolveEqualsFn,
-  resolveFnFromEqualsFnOrString,
   resolveParameterTransformFn,
   ResourceSettings,
   StatefulParameterSetting
@@ -95,8 +95,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
           if (v.type === 'array') {
             const parsed = {
               ...v,
-              isElementEqual: resolveFnFromEqualsFnOrString((v as ArrayParameterSetting).isElementEqual)
-                ?? ((a: unknown, b: unknown) => a === b),
+              isElementEqual: resolveElementEqualsFn(v as ArrayParameterSetting)
             }
 
             return [k, parsed as ParsedArrayParameterSetting];
@@ -186,7 +185,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     }
 
     const schema = this.settings.schema as JSONSchemaType<any>;
-    if (!this.settings.import && (schema?.oneOf
+    if (!this.settings.importAndDestroy && (schema?.oneOf
         && Array.isArray(schema.oneOf)
         && schema.oneOf.some((s) => s.required)
       )
@@ -214,8 +213,8 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       )
     }
 
-    if (this.settings.import) {
-      const { requiredParameters, refreshKeys, defaultRefreshValues } = this.settings.import;
+    if (this.settings.importAndDestroy) {
+      const { requiredParameters, refreshKeys, defaultRefreshValues } = this.settings.importAndDestroy;
 
       const requiredParametersNotInSchema = requiredParameters
         ?.filter(

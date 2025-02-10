@@ -5,8 +5,8 @@ import { ParsedArrayParameterSetting, ParsedParameterSetting, } from '../resourc
 import {
   ArrayParameterSetting,
   ParameterSetting,
+  resolveElementEqualsFn,
   resolveEqualsFn,
-  resolveFnFromEqualsFnOrString
 } from '../resource/resource-settings.js';
 import { ArrayStatefulParameter, StatefulParameter } from './stateful-parameter.js';
 
@@ -31,8 +31,7 @@ export class StatefulParameterController<T extends StringIndexedObject, V extend
     this.parsedSettings = (this.isArrayStatefulParameter || this.settings.type === 'array') ? {
       ...this.settings,
       isEqual: resolveEqualsFn(this.settings),
-      isElementEqual: resolveFnFromEqualsFnOrString((this.settings as ArrayParameterSetting).isElementEqual)
-        ?? ((a: unknown, b: unknown) => a === b)
+      isElementEqual: resolveElementEqualsFn(this.settings as ArrayParameterSetting)
     } as ParsedParameterSetting : {
       ...this.settings,
       isEqual: resolveEqualsFn(this.settings),

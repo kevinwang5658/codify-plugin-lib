@@ -158,6 +158,33 @@ export class ResourceController<T extends StringIndexedObject> {
     })
   }
 
+  async planDestroy(
+    core: ResourceConfig,
+    parameters: Partial<T>
+  ): Promise<Plan<T>> {
+    this.addDefaultValues(parameters);
+    await this.applyTransformParameters(parameters);
+
+    // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
+    const parametersToRefresh = this.settings.importAndDestroy?.refreshKeys
+      ? {
+        ...Object.fromEntries(
+          this.settings.importAndDestroy?.refreshKeys.map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+      }
+      : {
+        ...Object.fromEntries(
+          this.getAllParameterKeys().map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+      };
+
+    return this.plan(core, null, parametersToRefresh, true);
+  }
+
   async apply(plan: Plan<T>): Promise<void> {
     if (plan.getResourceType() !== this.typeId) {
       throw new Error(`Internal error: Plan set to wrong resource during apply. Expected ${this.typeId} but got: ${plan.getResourceType()}`);
@@ -191,19 +218,19 @@ export class ResourceController<T extends StringIndexedObject> {
     await this.applyTransformParameters(parameters);
 
     // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
-    const parametersToRefresh = this.settings.import?.refreshKeys
+    const parametersToRefresh = this.settings.importAndDestroy?.refreshKeys
       ? {
         ...Object.fromEntries(
-          this.settings.import?.refreshKeys.map((k) => [k, null])
+          this.settings.importAndDestroy?.refreshKeys.map((k) => [k, null])
         ),
-        ...this.settings.import?.defaultRefreshValues,
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
         ...parameters,
       }
       : {
         ...Object.fromEntries(
           this.getAllParameterKeys().map((k) => [k, null])
         ),
-        ...this.settings.import?.defaultRefreshValues,
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
         ...parameters,
       };
 

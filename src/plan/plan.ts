@@ -384,15 +384,15 @@ export class Plan<T extends StringIndexedObject> {
       const defaultFilterMethod = ((desired: any[], current: any[]) => {
         const result = [];
 
-        for (let counter = desiredCopy.length - 1; counter >= 0; counter--) {
-          const idx = currentCopy.findIndex((e2) => matcher(desiredCopy[counter], e2))
+        for (let counter = desired.length - 1; counter >= 0; counter--) {
+          const idx = currentCopy.findIndex((e2) => matcher(desired[counter], e2))
 
           if (idx === -1) {
             continue;
           }
 
-          desiredCopy.splice(counter, 1)
-          const [element] = currentCopy.splice(idx, 1)
+          desired.splice(counter, 1)
+          const [element] = current.splice(idx, 1)
           result.push(element)
         }
 
@@ -413,9 +413,7 @@ export class Plan<T extends StringIndexedObject> {
     return this.changeSet.operation !== ResourceOperation.NOOP;
   }
 
-  /**
-   * Convert the plan to a JSON response object
-   */
+  /** Convert the plan to a JSON response object */
   toResponse(): PlanResponseData {
     return {
       planId: this.id,

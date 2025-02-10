@@ -67,9 +67,9 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
 
   /**
-   * Customize the import behavior of the resource. By default, <code>codify import</code> will call `refresh()` with
-   * every parameter set to null and return the result of the refresh as the imported config. It looks for required parameters
-   * in the schema and will prompt the user for these values before performing the import.
+   * Customize the import and destory behavior of the resource. By default, <code>codify import</code> and <code>codify destroy</code> will call
+   * `refresh()` with every parameter set to null and return the result of the refresh as the imported config. It looks for required parameters
+   * in the schema and will prompt the user for these values before performing the import or destroy.
    *
    * <b>Example:</b><br>
    * Resource `alias` with parameters
@@ -85,7 +85,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * { type: 'alias', alias: 'user-input', value: 'git push' }
    * ```
    */
-  import?: {
+  importAndDestroy?: {
 
     /**
      * Customize the required parameters needed to import this resource. By default, the `requiredParameters` are taken
@@ -96,7 +96,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * the required parameters change the behaviour of the refresh (for example for the `alias` resource, the `alias` parmaeter
      * chooses which alias the resource is managing).
      *
-     * See {@link import} for more information on how importing works.
+     * See {@link importAndDestroy} for more information on how importing works.
      */
     requiredParameters?: Array<Partial<keyof T>>;
 
@@ -107,14 +107,14 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * By default all parameters (except for {@link requiredParameters }) are passed in with the value `null`. The passed
      * in value can be customized using {@link defaultRefreshValues}
      *
-     * See {@link import} for more information on how importing works.
+     * See {@link importAndDestroy} for more information on how importing works.
      */
     refreshKeys?: Array<Partial<keyof T>>;
 
     /**
      * Customize the value that is passed into refresh when importing. This must only contain keys found in {@link refreshKeys}.
      *
-     * See {@link import} for more information on how importing works.
+     * See {@link importAndDestroy} for more information on how importing works.
      */
     defaultRefreshValues?: Partial<T>
   }
@@ -233,6 +233,12 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
    * Defaults to true.
    */
   filterInStatelessMode?: ((desired: any[], current: any[]) => any[]) | boolean,
+
+  /**
+   * The type of the array item. See {@link ParameterSettingType} for the available options. This value
+   * is mainly used to determine the equality method when performing diffing.
+   */
+  itemType?: ParameterSettingType,
 }
 
 /**
@@ -273,10 +279,7 @@ export function resolveEqualsFn(parameter: ParameterSetting): (desired: unknown,
   const isEqual = resolveFnFromEqualsFnOrString(parameter.isEqual);
 
   if (parameter.type === 'array') {
-    const arrayParameter = parameter as ArrayParameterSetting;
-    const isElementEqual = resolveFnFromEqualsFnOrString(arrayParameter.isElementEqual);
-
-    return isEqual ?? areArraysEqual.bind(areArraysEqual, isElementEqual)
+    return isEqual ?? areArraysEqual.bind(areArraysEqual, resolveElementEqualsFn(parameter as ArrayParameterSetting))
   }
 
   if (parameter.type === 'stateful') {
@@ -284,6 +287,21 @@ export function resolveEqualsFn(parameter: ParameterSetting): (desired: unknown,
   }
 
   return isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+}
+
+export function resolveElementEqualsFn(parameter: ArrayParameterSetting): (desired: unknown, current: unknown) => boolean {
+  if (parameter.isElementEqual) {
+    const elementEq = resolveFnFromEqualsFnOrString(parameter.isElementEqual);
+    if (elementEq) {
+      return elementEq;
+    }
+  }
+
+  if (parameter.itemType && ParameterEqualsDefaults[parameter.itemType]) {
+    return ParameterEqualsDefaults[parameter.itemType]!
+  }
+
+  return (a, b) => a === b;
 }
 
 // This resolves the fn if it is a string.
@@ -312,10 +330,26 @@ const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (inp
       : a;
   },
   'string': String,
+  // TODO: Add a array parameter itemType parameter
+  // 'array': (arr: unknown[]) => arr.map((i) => (parameter as ArrayParameterSetting).itemType ? ParameterTransformationDefaults[])
 }
 
 export function resolveParameterTransformFn(
   parameter: ParameterSetting
 ): ((input: any, parameter: ParameterSetting) => Promise<any> | any) | undefined {
+
+  if (parameter.type === 'array'
+    && (parameter as ArrayParameterSetting).itemType
+    && ParameterTransformationDefaults[(parameter as ArrayParameterSetting).itemType!]
+    && !parameter.inputTransformation
+  ) {
+    const itemType = (parameter as ArrayParameterSetting).itemType!;
+    const itemTransformation = ParameterTransformationDefaults[itemType]!;
+
+    return (input: unknown[], parameter) => {
+      return input.map((i) => itemTransformation(i, parameter))
+    }
+  }
+
   return parameter.inputTransformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
 }

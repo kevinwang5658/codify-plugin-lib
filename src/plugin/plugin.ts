@@ -67,7 +67,7 @@ export class Plugin {
 
     const schema = resource.settings.schema as JSONSchemaType<any> | undefined;
     const requiredPropertyNames = (
-      resource.settings.import?.requiredParameters
+      resource.settings.importAndDestroy?.requiredParameters
       ?? schema?.required
       ?? null
     ) as null | string[];

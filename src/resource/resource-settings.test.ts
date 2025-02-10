@@ -637,7 +637,7 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          import: {
+          importAndDestroy: {
             requiredParameters: [
               'propA',
               'propB',
@@ -723,7 +723,7 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          import: {
+          importAndDestroy: {
             requiredParameters: ['propA'],
             refreshKeys: ['propB', 'propA'],
             defaultRefreshValues: {
@@ -968,5 +968,60 @@ describe('Resource parameter tests', () => {
       false
     );
 
+  })
+
+  it('Supports equality check for itemType', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'version' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: ['10.0.0']
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({ type: 'resourceType' }, { propA: ['10.0'] }, null, false);
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.NOOP,
+    })
+  })
+
+  it('Supports transformations for itemType', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'directory' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: [testPath]
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({ type: 'resourceType' }, { propA: ['~/test/folder'] }, null, false);
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.NOOP,
+    })
   })
 })

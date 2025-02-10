@@ -852,16 +852,25 @@ describe('Resource parameter tests', () => {
           parameterSettings: {
             propD: {
               type: 'array',
-              inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+              inputTransformation: {
+                to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                    Object.entries(h)
+                      .map(([k, v]) => [
+                        k,
+                        typeof v === 'boolean'
+                          ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                          : v,
+                      ])
+                  )
+                ),
+                from: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
                   Object.entries(h)
                     .map(([k, v]) => [
                       k,
-                      typeof v === 'boolean'
-                        ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
-                        : v,
+                      v === 'yes',
                     ])
-                )
-              )
+                ))
+              }
             }
           }
         }
@@ -909,16 +918,25 @@ describe('Resource parameter tests', () => {
       getSettings(): any {
         return {
           type: 'array',
-          inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+          inputTransformation: {
+            to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                Object.entries(h)
+                  .map(([k, v]) => [
+                    k,
+                    typeof v === 'boolean'
+                      ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                      : v,
+                  ])
+              )
+            ),
+            from: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
               Object.entries(h)
                 .map(([k, v]) => [
                   k,
-                  typeof v === 'boolean'
-                    ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
-                    : v,
+                  v === 'yes',
                 ])
-            )
-          )
+            ))
+          }
         }
       }
 

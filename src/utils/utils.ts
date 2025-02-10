@@ -33,6 +33,10 @@ export function untildify(pathWithTilde: string) {
   return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
 }
 
+export function tildify(pathWithTilde: string) {
+  return homeDirectory ? pathWithTilde.replace(homeDirectory, '~') : pathWithTilde;
+}
+
 export function areArraysEqual(
   isElementEqual: ((desired: unknown, current: unknown) => boolean) | undefined,
   desired: unknown,

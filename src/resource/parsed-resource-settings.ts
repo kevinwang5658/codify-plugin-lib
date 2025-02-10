@@ -141,7 +141,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       return Object.fromEntries(
         Object.entries(this.settings.parameterSettings)
           .filter(([_, v]) => resolveParameterTransformFn(v!) !== undefined)
-          .map(([k, v]) => [k, resolveParameterTransformFn(v!)] as const)
+          .map(([k, v]) => [k, resolveParameterTransformFn(v!)!.to] as const)
       ) as Record<keyof T, (a: unknown) => unknown>;
     });
   }

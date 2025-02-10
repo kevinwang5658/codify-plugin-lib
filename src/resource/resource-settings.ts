@@ -3,7 +3,12 @@ import isObjectsEqual from 'lodash.isequal'
 import path from 'node:path';
 
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
-import { areArraysEqual, untildify } from '../utils/utils.js';
+import { areArraysEqual, tildify, untildify } from '../utils/utils.js';
+
+export interface InputTransformation {
+  to: (input: any) => Promise<any> | any;
+  from: (current: any) => Promise<any> | any;
+}
 
 /**
  * The configuration and settings for a resource.
@@ -166,12 +171,13 @@ export interface DefaultParameterSetting {
   default?: unknown;
 
   /**
-   * A transformation of the input value for this parameter. This transformation is only applied to the desired parameter
-   * value supplied by the user.
+   * A transformation of the input value for this parameter. Two transformations need to be provided: to (from desired to
+   * the internal type), and from (from the internal type back to desired). All transformations need to be bi-directional
+   * to support imports properly
    *
    * @param input The original parameter value from the desired config.
    */
-  inputTransformation?: (input: any) => Promise<any> | any;
+  inputTransformation?: InputTransformation;
 
   /**
    * Customize the equality comparison for a parameter. This is used in the diffing algorithm for generating the plan.
@@ -321,22 +327,29 @@ export function resolveFnFromEqualsFnOrString(
   return fnOrString as ((a: unknown, b: unknown) => boolean) | undefined;
 }
 
-const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any, parameter: ParameterSetting) => Promise<any> | any>> = {
-  'directory': (a: unknown) => path.resolve(untildify(String(a))),
-  'stateful': (a: unknown, b: ParameterSetting) => {
-    const sp = b as StatefulParameterSetting;
-    return (sp.definition?.getSettings()?.inputTransformation)
-      ? (sp.definition.getSettings().inputTransformation!(a))
-      : a;
+const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, InputTransformation>> = {
+  'directory': {
+    to: (a: unknown) => path.resolve(untildify(String(a))),
+    from: (a: unknown) => tildify(String(a)),
   },
-  'string': String,
-  // TODO: Add a array parameter itemType parameter
-  // 'array': (arr: unknown[]) => arr.map((i) => (parameter as ArrayParameterSetting).itemType ? ParameterTransformationDefaults[])
+  'string': {
+    to: String,
+    from: String,
+  }
 }
 
 export function resolveParameterTransformFn(
   parameter: ParameterSetting
-): ((input: any, parameter: ParameterSetting) => Promise<any> | any) | undefined {
+): InputTransformation | undefined {
+
+  if (parameter.type === 'stateful' && !parameter.inputTransformation) {
+    const sp = (parameter as StatefulParameterSetting).definition.getSettings();
+    if (sp.inputTransformation) {
+      return (parameter as StatefulParameterSetting).definition?.getSettings()?.inputTransformation
+    }
+
+    return sp.type ? ParameterTransformationDefaults[sp.type] : undefined;
+  }
 
   if (parameter.type === 'array'
     && (parameter as ArrayParameterSetting).itemType
@@ -346,8 +359,13 @@ export function resolveParameterTransformFn(
     const itemType = (parameter as ArrayParameterSetting).itemType!;
     const itemTransformation = ParameterTransformationDefaults[itemType]!;
 
-    return (input: unknown[], parameter) => {
-      return input.map((i) => itemTransformation(i, parameter))
+    return {
+      to(input: unknown[]) {
+        return input.map((i) => itemTransformation.to(i))
+      },
+      from(input: unknown[]) {
+        return input.map((i) => itemTransformation.from(i))
+      }
     }
   }
 

@@ -260,13 +260,44 @@ export class Plan<T extends StringIndexedObject> {
       return null;
     }
 
+    const matcher = typeof settings.allowMultiple === 'boolean' || !settings.allowMultiple.matcher
+      ? ((desired: Partial<T>, currentArr: Array<Partial<T>>) => {
+        const requiredParameters = typeof settings.allowMultiple === 'object'
+          ? settings.allowMultiple?.requiredParameters ?? (settings.schema?.required as string[]) ?? []
+          : (settings.schema?.required as string[]) ?? []
+
+        const matched = currentArr.filter((c) => requiredParameters.every((key) => {
+          const currentParameter = c[key];
+          const desiredParameter = desired[key];
+
+          if (!currentParameter) {
+            console.warn(`Unable to find required parameter for current ${currentParameter}`)
+            return false;
+          }
+
+          if (!desiredParameter) {
+            console.warn(`Unable to find required parameter for current ${currentParameter}`)
+            return false;
+          }
+
+          return currentParameter === desiredParameter;
+        }))
+
+        if (matched.length > 1) {
+          console.warn(`Required parameters did not uniquely identify a resource: ${currentArray}. Defaulting to the first one`);
+        }
+
+        return matched[0];
+      })
+      : settings.allowMultiple.matcher
+
     if (isStateful) {
       return state
-        ? settings.allowMultiple.matcher(state, currentArray)
+        ? matcher(state, currentArray) ?? null
         : null
     }
 
-    return settings.allowMultiple.matcher(desired!, currentArray);
+    return matcher(desired!, currentArray) ?? null;
   }
 
   /**

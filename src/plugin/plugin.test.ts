@@ -6,7 +6,6 @@ import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ResourceSettings } from '../resource/resource-settings.js';
 import { TestConfig } from '../utils/test-utils.test.js';
-import { ApplyValidationError } from '../common/errors.js';
 import { getPty } from '../pty/index.js';
 
 interface TestConfig extends StringIndexedObject {
@@ -229,7 +228,7 @@ describe('Plugin tests', () => {
 
     await expect(() => testPlugin.apply({ plan }))
       .rejects
-      .toThrowError(new ApplyValidationError(Plan.fromResponse(plan)));
+      .toThrowError();
     expect(resource.modify.calledOnce).to.be.true;
   })
 

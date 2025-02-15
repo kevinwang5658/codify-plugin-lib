@@ -35,8 +35,12 @@ export type ParsedParameterSetting =
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
   id!: string;
-  schema?: unknown;
-  allowMultiple?: { matcher: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>; } | undefined;
+  schema?: JSONSchemaType<T | any>;
+  allowMultiple?: {
+    matcher?: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>;
+    requiredParameters?: string[]
+  } | boolean;
+
   removeStatefulParametersBeforeDestroy?: boolean | undefined;
   dependencies?: string[] | undefined;
   inputTransformation?: ((desired: Partial<T>) => unknown) | undefined;

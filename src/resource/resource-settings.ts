@@ -1,3 +1,4 @@
+import { JSONSchemaType } from 'ajv';
 import { StringIndexedObject } from 'codify-schemas';
 import isObjectsEqual from 'lodash.isequal'
 import path from 'node:path';
@@ -23,7 +24,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   /**
    * Schema to validate user configs with. Must be in the format JSON Schema draft07
    */
-  schema?: unknown;
+  schema?: JSONSchemaType<T | any>;
 
   /**
    * Allow multiple of the same resource to unique. Set truthy if
@@ -31,6 +32,17 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * on the system. Or there can be multiple git repos. Defaults to false.
    */
   allowMultiple?: {
+
+    /**
+     * A set of parameters that uniquely identifies a resource. The value of these parameters is used to determine which
+     * resource is which when multiple can exist at the same time. Defaults to the required parameters inside the json
+     * schema.
+     *
+     * For example:
+     * If paramA is required, then if resource1.paramA === resource2.paramA then are the same resource.
+     * If resource1.paramA !== resource1.paramA, then they are different.
+     */
+    requiredParameters?: string[]
 
     /**
      * If multiple copies are allowed then a matcher must be defined to match the desired
@@ -41,8 +53,8 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      *
      * @return The matched resource.
      */
-    matcher: (desired: Partial<T>, current: Partial<T>[],) => Partial<T>
-  }
+    matcher?: (desired: Partial<T>, current: Partial<T>[],) => Partial<T>
+  } | boolean
 
   /**
    * If true, {@link StatefulParameter} remove() will be called before resource destruction. This is useful

@@ -696,7 +696,7 @@ describe('Resource parameter tests', () => {
         return {
           id: 'resourceType',
           parameterSettings: {
-            propA: { type: 'setting' },
+            propA: { type: 'string', setting: true },
             propB: { type: 'number' }
           }
         }

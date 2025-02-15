@@ -212,6 +212,16 @@ export interface DefaultParameterSetting {
    * 2. AWS profile secret keys that can be updated without the re-installation of AWS CLI
    */
   canModify?: boolean
+
+  /**
+   * This option allows the plan to skip this parameter entirely as it is used for setting purposes only. The value
+   * of this parameter is used to configure the resource or other parameters.
+   *
+   * Examples:
+   * 1. homebrew.onlyPlanUserInstalled option will tell homebrew to filter by --installed-on-request. But the value,
+   * of the parameter itself (true or false) does not have an impact on the plan
+   */
+  setting?: boolean
 }
 
 /**
@@ -289,11 +299,15 @@ const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown,
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
   'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
-  'setting': () => true,
   'object': isObjectsEqual,
 }
 
 export function resolveEqualsFn(parameter: ParameterSetting): (desired: unknown, current: unknown) => boolean {
+  // Setting parameters do not impact the plan
+  if (parameter.setting) {
+    return () => true;
+  }
+
   const isEqual = resolveFnFromEqualsFnOrString(parameter.isEqual);
 
   if (parameter.type === 'array') {

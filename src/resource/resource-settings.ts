@@ -24,7 +24,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   /**
    * Schema to validate user configs with. Must be in the format JSON Schema draft07
    */
-  schema?: JSONSchemaType<T | any>;
+  schema?: Partial<JSONSchemaType<T | any>>;
 
   /**
    * Allow multiple of the same resource to unique. Set truthy if

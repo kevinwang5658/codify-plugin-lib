@@ -35,7 +35,7 @@ export type ParsedParameterSetting =
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
   id!: string;
-  schema?: JSONSchemaType<T | any>;
+  schema?: Partial<JSONSchemaType<T | any>>;
   allowMultiple?: {
     matcher?: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>;
     requiredParameters?: string[]

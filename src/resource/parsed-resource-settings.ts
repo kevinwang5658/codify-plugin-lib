@@ -44,7 +44,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
   removeStatefulParametersBeforeDestroy?: boolean | undefined;
   dependencies?: string[] | undefined;
-  inputTransformation?: ((desired: Partial<T>) => unknown) | undefined;
+  transformation?: InputTransformation;
   private settings: ResourceSettings<T>;
 
   constructor(settings: ResourceSettings<T>) {
@@ -54,7 +54,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     this.allowMultiple = settings.allowMultiple;
     this.removeStatefulParametersBeforeDestroy = settings.removeStatefulParametersBeforeDestroy;
     this.dependencies = settings.dependencies;
-    this.inputTransformation = settings.inputTransformation;
+    this.transformation = settings.transformation;
 
     this.validateSettings();
   }

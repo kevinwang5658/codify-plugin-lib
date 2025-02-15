@@ -81,7 +81,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    *
    * @param desired
    */
-  inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
+  transformation?: InputTransformation;
 
   /**
    * Customize the import and destory behavior of the resource. By default, <code>codify import</code> and <code>codify destroy</code> will call
@@ -189,7 +189,7 @@ export interface DefaultParameterSetting {
    *
    * @param input The original parameter value from the desired config.
    */
-  inputTransformation?: InputTransformation;
+  transformation?: InputTransformation;
 
   /**
    * Customize the equality comparison for a parameter. This is used in the diffing algorithm for generating the plan.
@@ -354,10 +354,10 @@ export function resolveParameterTransformFn(
   parameter: ParameterSetting
 ): InputTransformation | undefined {
 
-  if (parameter.type === 'stateful' && !parameter.inputTransformation) {
+  if (parameter.type === 'stateful' && !parameter.transformation) {
     const sp = (parameter as StatefulParameterSetting).definition.getSettings();
-    if (sp.inputTransformation) {
-      return (parameter as StatefulParameterSetting).definition?.getSettings()?.inputTransformation
+    if (sp.transformation) {
+      return (parameter as StatefulParameterSetting).definition?.getSettings()?.transformation
     }
 
     return sp.type ? ParameterTransformationDefaults[sp.type] : undefined;
@@ -366,7 +366,7 @@ export function resolveParameterTransformFn(
   if (parameter.type === 'array'
     && (parameter as ArrayParameterSetting).itemType
     && ParameterTransformationDefaults[(parameter as ArrayParameterSetting).itemType!]
-    && !parameter.inputTransformation
+    && !parameter.transformation
   ) {
     const itemType = (parameter as ArrayParameterSetting).itemType!;
     const itemTransformation = ParameterTransformationDefaults[itemType]!;
@@ -381,5 +381,5 @@ export function resolveParameterTransformFn(
     }
   }
 
-  return parameter.inputTransformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
+  return parameter.transformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
 }

@@ -569,10 +569,16 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          inputTransformation: (desired) => ({
-            propA: 'propA',
-            propB: 10,
-          })
+          transformation: {
+            to: (desired) => ({
+              propA: 'propA',
+              propB: 10,
+            }),
+            from: (current) => ({
+              propA: 'propA',
+              propB: 10,
+            })
+          }
         }
       }
 
@@ -604,10 +610,16 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          inputTransformation: (desired) => ({
-            propA: 'propA',
-            propB: 10,
-          })
+          transformation: {
+            to: (desired) => ({
+              propA: 'propA',
+              propB: 10,
+            }),
+            from: (desired) => ({
+              propA: 'propA',
+              propB: 10,
+            })
+          }
         }
       }
 
@@ -852,7 +864,7 @@ describe('Resource parameter tests', () => {
           parameterSettings: {
             propD: {
               type: 'array',
-              inputTransformation: {
+              transformation: {
                 to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
                     Object.entries(h)
                       .map(([k, v]) => [
@@ -918,7 +930,7 @@ describe('Resource parameter tests', () => {
       getSettings(): any {
         return {
           type: 'array',
-          inputTransformation: {
+          transformation: {
             to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
                 Object.entries(h)
                   .map(([k, v]) => [

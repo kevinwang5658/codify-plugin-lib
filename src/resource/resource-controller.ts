@@ -351,8 +351,11 @@ ${JSON.stringify(refresh, null, 2)}
         : await inputTransformation.to(config[key]);
     }
 
-    if (this.settings.inputTransformation) {
-      const transformed = await this.settings.inputTransformation({ ...config })
+    if (this.settings.transformation) {
+      const transformed = reverse
+        ? await this.settings.transformation.from({ ...config })
+        : await this.settings.transformation.to({ ...config })
+
       Object.keys(config).forEach((k) => delete config[k])
       Object.assign(config, transformed);
     }

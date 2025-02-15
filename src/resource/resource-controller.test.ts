@@ -7,7 +7,7 @@ import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ParameterChange } from '../plan/change-set.js';
 import { ResourceController } from './resource-controller.js';
 import { TestConfig, testPlan, TestResource, TestStatefulParameter } from '../utils/test-utils.test.js';
-import { untildify } from '../utils/utils.js';
+import { tildify, untildify } from '../utils/utils.js';
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { Plan } from '../plan/plan.js';
 
@@ -20,9 +20,11 @@ describe('Resource tests', () => {
           id: 'type',
           dependencies: ['homebrew', 'python'],
           parameterSettings: {
-            propA: { canModify: true, inputTransformation: (input) => untildify(input) },
+            propA: {
+              canModify: true,
+              transformation: { to: (input) => untildify(input), from: (input) => tildify(input) }
+            },
           },
-          inputTransformation: (config) => ({ propA: config.propA, propC: config.propB }),
         }
       }
 
@@ -544,7 +546,7 @@ describe('Resource tests', () => {
           parameterSettings: {
             propD: {
               type: 'array',
-              inputTransformation: {
+              transformation: {
                 to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
                     Object.entries(h)
                       .map(([k, v]) => [
@@ -566,6 +568,96 @@ describe('Resource tests', () => {
                 ))
               }
             }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propD: [
+            {
+              Host: 'new.com',
+              AddKeysToAgent: true,
+              IdentityFile: 'id_ed25519'
+            },
+            {
+              Host: 'github.com',
+              AddKeysToAgent: true,
+              UseKeychain: true,
+            },
+            {
+              Match: 'User bob,joe,phil',
+              PasswordAuthentication: true,
+            }
+          ],
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.import({ type: 'resourceType' }, {});
+
+    expect(plan![0]).toMatchObject({
+      'core': {
+        'type': 'resourceType'
+      },
+      'parameters': {
+        'propD': [
+          {
+            'Host': 'new.com',
+            'AddKeysToAgent': true,
+            'IdentityFile': 'id_ed25519'
+          },
+          {
+            'Host': 'github.com',
+            'AddKeysToAgent': true,
+            'UseKeychain': true
+          },
+          {
+            'Match': 'User bob,joe,phil',
+            'PasswordAuthentication': true
+          }
+        ]
+      }
+    })
+  })
+
+  it('Applies reverse input transformations for imports (object level)', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propD: {
+              type: 'array',
+            }
+          },
+          transformation: {
+            to: (input: any) => ({
+              ...input,
+              propD: input.propD?.map((h) => Object.fromEntries(
+                  Object.entries(h)
+                    .map(([k, v]) => [
+                      k,
+                      typeof v === 'boolean'
+                        ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                        : v,
+                    ])
+                )
+              )
+            }),
+            from: (output: any) => ({
+              ...output,
+              propD: output.propD?.map((h) => Object.fromEntries(
+                Object.entries(h)
+                  .map(([k, v]) => [
+                    k,
+                    v === 'yes' || v === 'no'
+                      ? (v === 'yes')
+                      : v,
+                  ])
+              ))
+            })
           }
         }
       }

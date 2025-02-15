@@ -5,6 +5,7 @@ import { StatefulParameterController } from '../stateful-parameter/stateful-para
 import {
   ArrayParameterSetting,
   DefaultParameterSetting,
+  InputTransformation,
   ParameterSetting,
   resolveElementEqualsFn,
   resolveEqualsFn,
@@ -136,7 +137,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     });
   }
 
-  get inputTransformations(): Partial<Record<keyof T, (a: unknown, parameter: ParameterSetting) => unknown>> {
+  get inputTransformations(): Partial<Record<keyof T, InputTransformation>> {
     return this.getFromCacheOrCreate('inputTransformations', () => {
       if (!this.settings.parameterSettings) {
         return {};
@@ -145,8 +146,8 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       return Object.fromEntries(
         Object.entries(this.settings.parameterSettings)
           .filter(([_, v]) => resolveParameterTransformFn(v!) !== undefined)
-          .map(([k, v]) => [k, resolveParameterTransformFn(v!)!.to] as const)
-      ) as Record<keyof T, (a: unknown) => unknown>;
+          .map(([k, v]) => [k, resolveParameterTransformFn(v!)] as const)
+      ) as Record<keyof T, InputTransformation>;
     });
   }
 

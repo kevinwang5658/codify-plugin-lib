@@ -254,7 +254,10 @@ export class ResourceController<T extends StringIndexedObject> {
     }
 
     const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, parametersToRefresh);
-    return [{ core, parameters: { ...currentParametersArray[0], ...statefulCurrentParameters } }];
+    const resultParameters = { ...currentParametersArray[0], ...statefulCurrentParameters };
+
+    await this.applyTransformParameters(resultParameters, true);
+    return [{ core, parameters: resultParameters }];
   }
 
   private async applyCreate(plan: Plan<T>): Promise<void> {
@@ -333,7 +336,7 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(config: Partial<T> | null): Promise<void> {
+  private async applyTransformParameters(config: Partial<T> | null, reverse = false): Promise<void> {
     if (!config) {
       return;
     }
@@ -343,7 +346,9 @@ ${JSON.stringify(refresh, null, 2)}
         continue;
       }
 
-      (config as Record<string, unknown>)[key] = await inputTransformation(config[key], this.settings.parameterSettings![key]!);
+      (config as Record<string, unknown>)[key] = reverse
+        ? await inputTransformation.from(config[key])
+        : await inputTransformation.to(config[key]);
     }
 
     if (this.settings.inputTransformation) {

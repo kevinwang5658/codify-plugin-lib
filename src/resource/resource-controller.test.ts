@@ -535,4 +535,88 @@ describe('Resource tests', () => {
     expect(parameter1.modify.calledOnce).to.be.true;
     expect(parameter2.addItem.calledOnce).to.be.true;
   });
+
+  it('Applies reverse input transformations for imports', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propD: {
+              type: 'array',
+              inputTransformation: {
+                to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                    Object.entries(h)
+                      .map(([k, v]) => [
+                        k,
+                        typeof v === 'boolean'
+                          ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                          : v,
+                      ])
+                  )
+                ),
+                from: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                  Object.entries(h)
+                    .map(([k, v]) => [
+                      k,
+                      v === 'yes' || v === 'no'
+                        ? (v === 'yes')
+                        : v,
+                    ])
+                ))
+              }
+            }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propD: [
+            {
+              Host: 'new.com',
+              AddKeysToAgent: true,
+              IdentityFile: 'id_ed25519'
+            },
+            {
+              Host: 'github.com',
+              AddKeysToAgent: true,
+              UseKeychain: true,
+            },
+            {
+              Match: 'User bob,joe,phil',
+              PasswordAuthentication: true,
+            }
+          ],
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.import({ type: 'resourceType' }, {});
+
+    expect(plan![0]).toMatchObject({
+      'core': {
+        'type': 'resourceType'
+      },
+      'parameters': {
+        'propD': [
+          {
+            'Host': 'new.com',
+            'AddKeysToAgent': true,
+            'IdentityFile': 'id_ed25519'
+          },
+          {
+            'Host': 'github.com',
+            'AddKeysToAgent': true,
+            'UseKeychain': true
+          },
+          {
+            'Match': 'User bob,joe,phil',
+            'PasswordAuthentication': true
+          }
+        ]
+      }
+    })
+  })
 });

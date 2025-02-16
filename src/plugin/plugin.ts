@@ -72,14 +72,21 @@ export class Plugin {
       ?? null
     ) as null | string[];
 
+    const allowMultiple = resource.settings.allowMultiple !== undefined
+      ? (typeof resource.settings.allowMultiple === 'boolean'
+          ? { requiredParameters: schema?.required ?? [] }
+          : { requiredParameters: resource.settings.allowMultiple.requiredParameters ?? schema?.required ?? [] }
+      ) : undefined
+
     return {
       plugin: this.name,
       type: data.type,
       dependencies: resource.dependencies,
       schema: schema as Record<string, unknown> | undefined,
-      import: {
+      importAndDestroy: {
         requiredParameters: requiredPropertyNames,
       },
+      allowMultiple
     }
   }
 

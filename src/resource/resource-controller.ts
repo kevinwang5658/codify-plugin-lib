@@ -261,6 +261,8 @@ export class ResourceController<T extends StringIndexedObject> {
     const resultParameters = { ...currentParametersArray[0], ...statefulCurrentParameters };
 
     await this.applyTransformParameters(resultParameters, true);
+    this.removeDefaultValues(resultParameters, parameters)
+
     return [{ core, parameters: resultParameters }];
   }
 
@@ -375,6 +377,19 @@ ${JSON.stringify(refresh, null, 2)}
         (config as Record<string, unknown>)[key] = defaultValue;
       }
     }
+  }
+
+  private removeDefaultValues(newConfig: Partial<T> | null, originalConfig: Partial<T>): void {
+    if (!newConfig) {
+      return;
+    }
+
+    for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
+      if (defaultValue !== undefined && (newConfig[key] === defaultValue || originalConfig[key] === undefined || originalConfig[key] === null)) {
+        delete newConfig[key];
+      }
+    }
+
   }
 
   private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Array<Partial<T>> | null> {

@@ -368,6 +368,10 @@ const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, Inpu
   'string': {
     to: String,
     from: String,
+  },
+  'boolean': {
+    to: Boolean,
+    from: Boolean,
   }
 }
 

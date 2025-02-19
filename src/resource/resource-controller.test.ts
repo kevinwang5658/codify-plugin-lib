@@ -711,4 +711,39 @@ describe('Resource tests', () => {
       }
     })
   })
+
+  it('Applies removes default values if they remain default for imports', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'string', default: 'defaultValue' },
+            propB: { type: 'boolean', default: true }
+          },
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: 'defaultValue',
+          propB: false,
+          propC: 'newPropC'
+        }
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.import({ type: 'resourceType' }, {});
+
+    expect(plan![0]).toMatchObject({
+      'core': {
+        'type': 'resourceType'
+      },
+      'parameters': {
+        propB: false,
+        propC: 'newPropC'
+      }
+    })
+  })
 });

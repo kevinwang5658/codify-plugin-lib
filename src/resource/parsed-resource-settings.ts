@@ -9,6 +9,7 @@ import {
   ParameterSetting,
   resolveElementEqualsFn,
   resolveEqualsFn,
+  resolveMatcher,
   resolveParameterTransformFn,
   ResourceSettings,
   StatefulParameterSetting
@@ -38,7 +39,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
   id!: string;
   schema?: Partial<JSONSchemaType<T | any>>;
   allowMultiple?: {
-    matcher?: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>;
+    matcher?: (desired: Partial<T>, current: Partial<T>) => boolean;
     requiredParameters?: string[]
   } | boolean;
 
@@ -170,6 +171,10 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
 
       return new Map(resultArray.map((key, idx) => [key, idx]));
     });
+  }
+
+  get matcher(): (desired: Partial<T>, current: Partial<T>) => boolean {
+    return resolveMatcher(this);
   }
 
   private validateSettings(): void {

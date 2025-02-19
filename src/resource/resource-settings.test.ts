@@ -1054,4 +1054,69 @@ describe('Resource parameter tests', () => {
       operation: ResourceOperation.NOOP,
     })
   })
+
+  it('Supports matching using the identfying parameters', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'directory' }
+          },
+          allowMultiple: {
+            identifyingParameters: ['propA']
+          }
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    expect(controller.parsedSettings.matcher({
+      propA: [testPath],
+      propB: 'random1',
+    }, {
+      propA: [testPath],
+      propB: 'random2',
+    })).to.be.true;
+
+    expect(controller.parsedSettings.matcher({
+      propA: [testPath],
+      propB: 'random1',
+    }, {
+      propA: [testPath, testPath],
+      propB: 'random2',
+    })).to.be.false;
+  })
+
+  it('Supports matching using custom matcher', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'directory' }
+          },
+          allowMultiple: {
+            identifyingParameters: ['propA'],
+            matcher: () => false,
+          }
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    expect(controller.parsedSettings.matcher({
+      propA: [testPath],
+      propB: 'random1',
+    }, {
+      propA: [testPath],
+      propB: 'random2',
+    })).to.be.false;
+  })
 })

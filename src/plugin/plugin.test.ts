@@ -343,27 +343,51 @@ describe('Plugin tests', () => {
       type: 'testResource',
     })
 
-    expect(resourceInfo.allowMultiple?.requiredParameters).toMatchObject([
-      'path', 'paths'
-    ])
+    expect(resourceInfo.allowMultiple).to.be.true;
   })
 
-  it('Returns an empty array by default for allowMultiple for getResourceInfo', async () => {
+  it('Can match resources together', async () => {
     const resource = spy(new class extends TestResource {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           ...super.getSettings(),
-          allowMultiple: true
+          parameterSettings: {
+            path: { type: 'directory' },
+            paths: { type: 'array', itemType: 'directory' }
+          },
+          allowMultiple: {
+            identifyingParameters: ['path', 'paths']
+          }
         }
       }
     })
 
     const testPlugin = Plugin.create('testPlugin', [resource as any]);
 
-    const resourceInfo = await testPlugin.getResourceInfo({
-      type: 'testResource',
+    const { match } = await testPlugin.match({
+      resource: {
+        core: { type: 'testResource' },
+        parameters: { path: '/my/path', propA: 'abc' },
+      },
+      array: [
+        {
+          core: { type: 'testResource' },
+          parameters: { path: '/my/other/path', propA: 'abc' },
+        },
+        {
+          core: { type: 'testResource' },
+          parameters: { paths: ['/my/path'], propA: 'def' },
+        },
+        {
+          core: { type: 'testResource' },
+          parameters: { path: '/my/path', propA: 'hig' },
+        },
+      ]
+    })
+    expect(match).toMatchObject({
+      core: { type: 'testResource' },
+      parameters: { path: '/my/path', propA: 'hig' },
     })
 
-    expect(resourceInfo.allowMultiple?.requiredParameters).toMatchObject([])
   })
 });

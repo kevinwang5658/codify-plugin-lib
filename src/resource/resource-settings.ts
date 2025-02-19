@@ -53,7 +53,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      *
      * @return The matched resource.
      */
-    matcher?: (desired: Partial<T>, current: Partial<T>[],) => Partial<T>
+    matcher?: (desired: Partial<T>, current: Partial<T>) => boolean
   } | boolean
 
   /**
@@ -407,4 +407,45 @@ export function resolveParameterTransformFn(
   }
 
   return parameter.transformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
+}
+
+export function resolveMatcher<T extends StringIndexedObject>(
+  settings: ResourceSettings<T>
+): (desired: Partial<T>, current: Partial<T>) => boolean {
+
+  return typeof settings.allowMultiple === 'boolean' || !settings.allowMultiple?.matcher
+    ? ((desired: Partial<T>, current: Partial<T>) => {
+      if (!desired || !current) {
+        return false;
+      }
+
+      const requiredParameters = typeof settings.allowMultiple === 'object'
+        ? settings.allowMultiple?.identifyingParameters ?? (settings.schema?.required as string[]) ?? []
+        : (settings.schema?.required as string[]) ?? []
+
+      return requiredParameters.every((key) => {
+        const currentParameter = current[key];
+        const desiredParameter = desired[key];
+
+        // If both desired and current don't have a certain parameter then we assume they are the same
+        if (!currentParameter && !desiredParameter) {
+          return true;
+        }
+
+        if (!currentParameter) {
+          console.warn(`Unable to find required parameter for current ${currentParameter}`)
+          return false;
+        }
+
+        if (!desiredParameter) {
+          console.warn(`Unable to find required parameter for current ${currentParameter}`)
+          return false;
+        }
+
+        const parameterSetting = settings.parameterSettings?.[key];
+        const isEq = parameterSetting ? resolveEqualsFn(parameterSetting) : null
+        return isEq?.(desiredParameter, currentParameter) ?? currentParameter === desiredParameter;
+      })
+    })
+    : settings.allowMultiple.matcher
 }

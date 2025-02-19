@@ -6,6 +6,8 @@ import {
   ImportRequestData,
   ImportResponseData,
   InitializeResponseData,
+  MatchRequestData,
+  MatchResponseData,
   PlanRequestData,
   PlanResponseData,
   ResourceConfig,
@@ -69,14 +71,11 @@ export class Plugin {
     const requiredPropertyNames = (
       resource.settings.importAndDestroy?.requiredParameters
       ?? schema?.required
-      ?? null
-    ) as null | string[];
+      ?? undefined
+    ) as any;
 
     const allowMultiple = resource.settings.allowMultiple !== undefined
-      ? (typeof resource.settings.allowMultiple === 'boolean'
-          ? { identifyingParameters: schema?.required ?? [] }
-          : { identifyingParameters: resource.settings.allowMultiple.identifyingParameters ?? schema?.required ?? [] }
-      ) : undefined
+      && resource.settings.allowMultiple !== false;
 
     return {
       plugin: this.name,
@@ -92,6 +91,34 @@ export class Plugin {
       },
       allowMultiple
     }
+  }
+
+  async match(data: MatchRequestData): Promise<MatchResponseData> {
+    const { resource: resourceConfig, array } = data;
+
+    const resource = this.resourceControllers.get(resourceConfig.core.type);
+    if (!resource) {
+      throw new Error(`Resource of type ${resourceConfig.core.type} could not be found for match`);
+    }
+
+    const parameterMatcher = resource?.parsedSettings.matcher;
+    const match = array.find((r) => {
+      if (resourceConfig.core.type !== r.core.type) {
+        return false;
+      }
+
+      // If the user specifies the same name for the resource and it's not auto-generated (a number) then it's the same resource
+      if (resourceConfig.core.name === r.core.name
+        && resourceConfig.core.name
+        && Number.isInteger(Number.parseInt(resourceConfig.core.name, 10))
+      ) {
+        return true;
+      }
+
+      return parameterMatcher(resourceConfig.parameters, r.parameters);
+    });
+
+    return { match }
   }
 
   async import(data: ImportRequestData): Promise<ImportResponseData> {

@@ -13,6 +13,8 @@ import {
   IpcMessageSchema,
   IpcMessageV2,
   IpcMessageV2Schema,
+  MatchRequestDataSchema,
+  MatchResponseDataSchema,
   MessageStatus,
   PlanRequestDataSchema,
   PlanResponseDataSchema,
@@ -39,6 +41,11 @@ const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) =
     handler: async (plugin: Plugin, data: any) => plugin.getResourceInfo(data),
     requestValidator: GetResourceInfoRequestDataSchema,
     responseValidator: GetResourceInfoResponseDataSchema
+  },
+  'match': {
+    handler: async (plugin: Plugin, data: any) => plugin.match(data),
+    requestValidator: MatchRequestDataSchema,
+    responseValidator: MatchResponseDataSchema
   },
   'import': {
     handler: async (plugin: Plugin, data: any) => plugin.import(data),
@@ -106,7 +113,7 @@ export class MessageHandler {
 
       const responseValidator = this.responseValidators.get(message.cmd);
       if (responseValidator && !responseValidator(result)) {
-        throw new Error(`Plugin: ${this.plugin}. Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}`)
+        throw new Error(`Plugin: ${this.plugin.name}. Malformed response data: ${JSON.stringify(responseValidator.errors, null, 2)}. Received ${JSON.stringify(result, null, 2)}`);
       }
 
       process.send!({

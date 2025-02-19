@@ -263,7 +263,7 @@ export class Plan<T extends StringIndexedObject> {
     const matcher = typeof settings.allowMultiple === 'boolean' || !settings.allowMultiple.matcher
       ? ((desired: Partial<T>, currentArr: Array<Partial<T>>) => {
         const requiredParameters = typeof settings.allowMultiple === 'object'
-          ? settings.allowMultiple?.requiredParameters ?? (settings.schema?.required as string[]) ?? []
+          ? settings.allowMultiple?.identifyingParameters ?? (settings.schema?.required as string[]) ?? []
           : (settings.schema?.required as string[]) ?? []
 
         const matched = currentArr.filter((c) => requiredParameters.every((key) => {

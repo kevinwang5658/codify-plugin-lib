@@ -42,7 +42,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * If paramA is required, then if resource1.paramA === resource2.paramA then are the same resource.
      * If resource1.paramA !== resource1.paramA, then they are different.
      */
-    requiredParameters?: string[]
+    identifyingParameters?: string[]
 
     /**
      * If multiple copies are allowed then a matcher must be defined to match the desired
@@ -103,6 +103,13 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * ```
    */
   importAndDestroy?: {
+    /**
+     * Can this resources be imported? If set to false then the codifyCLI will skip over/not consider this
+     * resource valid for imports. Defaults to true.
+     *
+     * Resources that can't be imported in the core library for example are: action resources
+     */
+    preventImport?: boolean;
 
     /**
      * Customize the required parameters needed to import this resource. By default, the `requiredParameters` are taken
@@ -133,7 +140,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      *
      * See {@link importAndDestroy} for more information on how importing works.
      */
-    defaultRefreshValues?: Partial<T>
+    defaultRefreshValues?: Partial<T>;
   }
 }
 

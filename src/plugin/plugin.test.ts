@@ -324,4 +324,46 @@ describe('Plugin tests', () => {
 
     console.log(result);
   })
+
+  it('Returns allowMultiple for getResourceInfo', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          ...super.getSettings(),
+          allowMultiple: {
+            identifyingParameters: ['path', 'paths']
+          }
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const resourceInfo = await testPlugin.getResourceInfo({
+      type: 'testResource',
+    })
+
+    expect(resourceInfo.allowMultiple?.requiredParameters).toMatchObject([
+      'path', 'paths'
+    ])
+  })
+
+  it('Returns an empty array by default for allowMultiple for getResourceInfo', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          ...super.getSettings(),
+          allowMultiple: true
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const resourceInfo = await testPlugin.getResourceInfo({
+      type: 'testResource',
+    })
+
+    expect(resourceInfo.allowMultiple?.requiredParameters).toMatchObject([])
+  })
 });

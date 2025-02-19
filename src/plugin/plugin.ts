@@ -74,8 +74,8 @@ export class Plugin {
 
     const allowMultiple = resource.settings.allowMultiple !== undefined
       ? (typeof resource.settings.allowMultiple === 'boolean'
-          ? { requiredParameters: schema?.required ?? [] }
-          : { requiredParameters: resource.settings.allowMultiple.requiredParameters ?? schema?.required ?? [] }
+          ? { identifyingParameters: schema?.required ?? [] }
+          : { identifyingParameters: resource.settings.allowMultiple.identifyingParameters ?? schema?.required ?? [] }
       ) : undefined
 
     return {
@@ -84,6 +84,10 @@ export class Plugin {
       dependencies: resource.dependencies,
       schema: schema as Record<string, unknown> | undefined,
       importAndDestroy: {
+        preventImport: resource.settings.importAndDestroy?.preventImport,
+        requiredParameters: requiredPropertyNames,
+      },
+      import: {
         requiredParameters: requiredPropertyNames,
       },
       allowMultiple

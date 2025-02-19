@@ -241,7 +241,7 @@ describe('Plan entity tests', () => {
             propB: { type: 'string', canModify: true },
           },
           allowMultiple: {
-            requiredParameters: ['propA']
+            identifyingParameters: ['propA']
           }
         }
       }

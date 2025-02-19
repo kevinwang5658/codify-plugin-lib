@@ -214,6 +214,10 @@ export class ResourceController<T extends StringIndexedObject> {
     core: ResourceConfig,
     parameters: Partial<T>
   ): Promise<Array<ResourceJson> | null> {
+    if (this.settings.importAndDestroy?.preventImport) {
+      throw new Error(`Type: ${this.typeId} cannot be imported`);
+    }
+
     this.addDefaultValues(parameters);
     await this.applyTransformParameters(parameters);
 

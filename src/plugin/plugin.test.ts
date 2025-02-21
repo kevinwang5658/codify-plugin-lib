@@ -482,13 +482,12 @@ describe('Plugin tests', () => {
 
     const testPlugin = Plugin.create('testPlugin', [resource as any]);
 
-    const validate1 = await testPlugin.validate({
-      configs: [{ core: { type: 'ssh-config' }, parameters: { propA: 'a' } }, {
-        core: { type: 'ssh-config' },
-        parameters: { propB: 'b' }
-      }]
-    })
-
-    expect(validate1.resourceValidations.every((r) => r.isValid)).to.be.false;
+    await expect(() => testPlugin.validate({
+        configs: [{ core: { type: 'ssh-config' }, parameters: { propA: 'a' } }, {
+          core: { type: 'ssh-config' },
+          parameters: { propB: 'b' }
+        }]
+      })
+    ).rejects.toThrowError();
   })
 });

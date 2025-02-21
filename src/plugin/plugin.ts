@@ -178,12 +178,11 @@ export class Plugin {
     });
 
     if (invalidMultipleConfigs.length > 0) {
-      validationResults.push(...invalidMultipleConfigs.map(([k, v]) => ({
-        resourceType: k,
-        schemaValidationErrors: [],
-        customValidationErrorMessage: `Multiple of resource type: ${k} found in configs. Only allowed 1.`,
-        isValid: false,
-      })));
+      throw new Error(
+        `Multiples of the following configs were found but only 1 is allowed.
+
+[${invalidMultipleConfigs.map(([k]) => k).join(', ')}]
+`)
     }
 
     await this.crossValidateResources(data.configs);

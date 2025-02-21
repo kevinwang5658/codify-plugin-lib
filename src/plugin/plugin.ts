@@ -145,7 +145,7 @@ export class Plugin {
   }
 
   async validate(data: ValidateRequestData): Promise<ValidateResponseData> {
-    const validationResults = [];
+    const validationResults: ValidateResponseData['resourceValidations'] = [];
     for (const config of data.configs) {
       const { core, parameters } = config;
 
@@ -158,6 +158,32 @@ export class Plugin {
         .validate(core, parameters);
 
       validationResults.push(validation);
+    }
+
+    // Validate that if allow multiple is false, then only 1 of each resource exists
+    const countMap = data.configs.reduce((map, resource) => {
+      if (!map.has(resource.core.type)) {
+        map.set(resource.core.type, 0);
+      }
+
+      const count = map.get(resource.core.type)!;
+      map.set(resource.core.type, count + 1)
+
+      return map;
+    }, new Map<string, number>())
+
+    const invalidMultipleConfigs = [...countMap.entries()].filter(([k, v]) => {
+      const controller = this.resourceControllers.get(k)!;
+      return !controller.parsedSettings.allowMultiple && v > 1;
+    });
+
+    if (invalidMultipleConfigs.length > 0) {
+      validationResults.push(...invalidMultipleConfigs.map(([k, v]) => ({
+        resourceType: k,
+        schemaValidationErrors: [],
+        customValidationErrorMessage: `Multiple of resource type: ${k} found in configs. Only allowed 1.`,
+        isValid: false,
+      })));
     }
 
     await this.crossValidateResources(data.configs);

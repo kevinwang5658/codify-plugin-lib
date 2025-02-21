@@ -448,4 +448,47 @@ describe('Plugin tests', () => {
 
     console.log(match)
   })
+
+  it('Validates that a config correctly allows multiple of a config when allowMultiple is true', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'ssh-config',
+          allowMultiple: true
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const validate1 = await testPlugin.validate({
+      configs: [{ core: { type: 'ssh-config' }, parameters: { propA: 'a' } }, {
+        core: { type: 'ssh-config' },
+        parameters: { propB: 'b' }
+      }]
+    })
+
+    expect(validate1.resourceValidations.every((r) => r.isValid)).to.be.true;
+  })
+
+  it('Validates that a config correctly dis-allows multiple of a config when allowMultiple is false', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'ssh-config',
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const validate1 = await testPlugin.validate({
+      configs: [{ core: { type: 'ssh-config' }, parameters: { propA: 'a' } }, {
+        core: { type: 'ssh-config' },
+        parameters: { propB: 'b' }
+      }]
+    })
+
+    expect(validate1.resourceValidations.every((r) => r.isValid)).to.be.false;
+  })
 });

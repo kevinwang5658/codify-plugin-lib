@@ -119,7 +119,6 @@ export class ResourceController<T extends StringIndexedObject> {
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(desired, state, this.parsedSettings.statefulParameters)
     const {
-      allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
@@ -130,7 +129,6 @@ export class ResourceController<T extends StringIndexedObject> {
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentArray === null
       || currentArray === undefined
-      || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
       || currentArray.length === 0
       || currentArray.filter(Boolean).length === 0
     ) {
@@ -144,13 +142,13 @@ export class ResourceController<T extends StringIndexedObject> {
       });
     }
 
-    // Refresh stateful parameters. These parameters have state external to the resource. allowMultiple
-    // does not work together with stateful parameters
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, allParameters);
+    // Refresh stateful parameters. These parameters have state external to the resource. Each variation of the
+    // current parameters (each array element) is passed into the stateful parameter refresh.
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentArray);
 
     return Plan.calculate({
       desired,
-      currentArray: [{ ...currentArray[0], ...statefulCurrentParameters }] as Partial<T>[],
+      currentArray: currentArray.map((c, idx) => ({ ...c, ...statefulCurrentParameters[idx] })),
       state,
       core,
       settings: this.parsedSettings,
@@ -249,26 +247,21 @@ export class ResourceController<T extends StringIndexedObject> {
 
     if (currentParametersArray === null
       || currentParametersArray === undefined
-      || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
       || currentParametersArray.filter(Boolean).length === 0
     ) {
-      for (const result of currentParametersArray ?? []) {
-        await this.applyTransformParameters(result, true);
-        this.removeDefaultValues(result, parameters)
-      }
-
-      return currentParametersArray
-          ?.map((r) => ({ core, parameters: r }))
-        ?? null;
+      return [];
     }
 
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, parametersToRefresh);
-    const resultParameters = { ...currentParametersArray[0], ...statefulCurrentParameters };
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentParametersArray);
+    const resultParametersArray = currentParametersArray
+      ?.map((r, idx) => ({ ...r, ...statefulCurrentParameters[idx] }))
 
-    await this.applyTransformParameters(resultParameters, true);
-    this.removeDefaultValues(resultParameters, parameters)
+    for (const result of resultParametersArray) {
+      await this.applyTransformParameters(result, true);
+      this.removeDefaultValues(result, parameters);
+    }
 
-    return [{ core, parameters: resultParameters }];
+    return resultParametersArray?.map((r) => ({ core, parameters: r }))
   }
 
   private async applyCreate(plan: Plan<T>): Promise<void> {
@@ -410,21 +403,23 @@ ${JSON.stringify(refresh, null, 2)}
 
   // Refresh stateful parameters
   // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, allParameters: Partial<T>): Promise<Partial<T>> {
-    const result: Partial<T> = {}
+  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, allParameters: Array<Partial<T>>): Promise<Array<Partial<T>>> {
+    const result: Array<Partial<T>> = Array.from({ length: allParameters.length }, () => ({}))
     const sortedEntries = Object.entries(statefulParametersConfig)
       .sort(
         ([key1], [key2]) => this.parsedSettings.statefulParameterOrder.get(key1)! - this.parsedSettings.statefulParameterOrder.get(key2)!
       )
 
-    await Promise.all(sortedEntries.map(async ([key, desiredValue]) => {
-      const statefulParameter = this.parsedSettings.statefulParameters.get(key);
-      if (!statefulParameter) {
-        throw new Error(`Stateful parameter ${key} was not found`);
-      }
+    for (const [idx, refreshedParams] of allParameters.entries()) {
+      await Promise.all(sortedEntries.map(async ([key, desiredValue]) => {
+        const statefulParameter = this.parsedSettings.statefulParameters.get(key);
+        if (!statefulParameter) {
+          throw new Error(`Stateful parameter ${key} was not found`);
+        }
 
-      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null, allParameters)
-    }))
+        (result[idx][key] as T[keyof T] | null) = await statefulParameter.refresh(desiredValue ?? null, refreshedParams)
+      }))
+    }
 
     return result;
   }
@@ -461,39 +456,5 @@ ${JSON.stringify(refresh, null, 2)}
       ? Object.keys((this.settings.schema as any)?.properties)
       : Object.keys(this.parsedSettings.parameterSettings);
   }
-
-  /**
-   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
-   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
-   * the application name and location to match it to our desired configs name and location.
-   *
-   * @param params
-   * @private
-   */
-  private matchParameters(
-    desired: Partial<T> | null,
-    currentArray: Partial<T>[] | null
-  ): Partial<T> | null {
-    if (!this.parsedSettings.allowMultiple) {
-      return currentArray?.[0] ?? null;
-    }
-
-    if (!currentArray) {
-      return null;
-    }
-
-    const { matcher: parameterMatcher, id } = this.parsedSettings;
-    const matcher = (desired: Partial<T>, currentArray: Partial<T>[]): Partial<T> | undefined => {
-      const matched = currentArray.filter((c) => parameterMatcher(desired, c))
-      if (matched.length > 0) {
-        console.log(`Resource: ${id} did not uniquely match resources when allow multiple is set to true`)
-      }
-
-      return matched[0];
-    }
-
-    return matcher(desired!, currentArray) ?? null;
-  }
-
 }
 

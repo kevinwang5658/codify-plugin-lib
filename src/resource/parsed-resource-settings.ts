@@ -188,9 +188,10 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       }
     }
 
-    if (this.allowMultiple
-      && Object.values(this.parameterSettings).some((v) => v.type === 'stateful')) {
-      throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed if multiples of a resource exist`)
+    if (Object.entries(this.parameterSettings).some(([k, v]) =>
+      v.type === 'stateful'
+      && typeof this.settings.allowMultiple === 'object' && this.settings.allowMultiple?.identifyingParameters?.includes(k))) {
+      throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed to be identifying parameters for allowMultiple.`)
     }
 
     const schema = this.settings.schema as JSONSchemaType<any>;

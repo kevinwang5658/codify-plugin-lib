@@ -5,7 +5,7 @@ import { Resource } from '../resource/resource.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ResourceSettings } from '../resource/resource-settings.js';
-import { TestConfig } from '../utils/test-utils.test.js';
+import { TestConfig, TestStatefulParameter } from '../utils/test-utils.test.js';
 import { getPty } from '../pty/index.js';
 
 interface TestConfig extends StringIndexedObject {
@@ -389,5 +389,63 @@ describe('Plugin tests', () => {
       parameters: { path: '/my/path', propA: 'hig' },
     })
 
+    const match2 = await testPlugin.match({
+      resource: {
+        core: { type: 'testResource' },
+        parameters: { path: '/my/path', propA: 'abc' },
+      },
+      array: []
+    })
+
+    expect(match2).toMatchObject({
+      match: undefined,
+    })
+  })
+
+  it('Can match resources together 2', { timeout: 3000000 }, async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'ssh-config',
+          parameterSettings: {
+            hosts: { type: 'stateful', definition: new TestStatefulParameter() }
+          },
+          importAndDestroy: {
+            refreshKeys: ['hosts'],
+            defaultRefreshValues: { hosts: [] },
+            requiredParameters: []
+          },
+          dependencies: ['ssh-key'],
+          allowMultiple: {
+            matcher: (a, b) => a.hosts === b.hosts
+          }
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const { match } = await testPlugin.match({
+      resource: {
+        core: { type: 'ssh-config' },
+        parameters: { hosts: 'a' },
+      },
+      array: [
+        {
+          core: { type: 'ssh-config' },
+          parameters: { hosts: 'b' },
+        },
+        {
+          core: { type: 'ssh-config' },
+          parameters: { hosts: 'a' },
+        },
+        {
+          core: { type: 'ssh-config' },
+          parameters: { hosts: 'c' },
+        },
+      ]
+    })
+
+    console.log(match)
   })
 });

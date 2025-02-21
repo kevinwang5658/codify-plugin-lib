@@ -92,7 +92,6 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
               ...v,
               controller: spController,
               nestedSettings: spController?.parsedSettings,
-              definition: undefined,
             };
 
             return [k, parsed as ParsedStatefulParameterSetting];

@@ -230,56 +230,6 @@ export class Plan<T extends StringIndexedObject> {
   }
 
   /**
-   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
-   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
-   * the application name and location to match it to our desired configs name and location.
-   *
-   * @param params
-   * @private
-   */
-  private static matchCurrentParameters<T extends StringIndexedObject>(params: {
-    desired: Partial<T> | null,
-    currentArray: Partial<T>[] | null,
-    state: Partial<T> | null,
-    settings: ParsedResourceSettings<T>,
-    isStateful: boolean,
-  }): Partial<T> | null {
-    const {
-      desired,
-      currentArray,
-      state,
-      settings,
-      isStateful
-    } = params;
-
-    if (!settings.allowMultiple) {
-      return currentArray?.[0] ?? null;
-    }
-
-    if (!currentArray) {
-      return null;
-    }
-
-    const { matcher: parameterMatcher, id } = settings;
-    const matcher = (desired: Partial<T>, currentArray: Partial<T>[]): Partial<T> | undefined => {
-      const matched = currentArray.filter((c) => parameterMatcher(desired, c))
-      if (matched.length > 0) {
-        console.log(`Resource: ${id} did not uniquely match resources when allow multiple is set to true`)
-      }
-
-      return matched[0];
-    }
-
-    if (isStateful) {
-      return state
-        ? matcher(state, currentArray) ?? null
-        : null
-    }
-
-    return matcher(desired!, currentArray) ?? null;
-  }
-
-  /**
    *  Only keep relevant params for the plan. We don't want to change settings that were not already
    *  defined.
    *

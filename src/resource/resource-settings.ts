@@ -412,11 +412,14 @@ export function resolveParameterTransformFn(
 export function resolveMatcher<T extends StringIndexedObject>(
   settings: ResourceSettings<T>
 ): (desired: Partial<T>, current: Partial<T>) => boolean {
-
   return typeof settings.allowMultiple === 'boolean' || !settings.allowMultiple?.matcher
     ? ((desired: Partial<T>, current: Partial<T>) => {
       if (!desired || !current) {
         return false;
+      }
+
+      if (!settings.allowMultiple) {
+        throw new Error(`Matching only works when allow multiple is enabled. Type: ${settings.id}`)
       }
 
       const requiredParameters = typeof settings.allowMultiple === 'object'

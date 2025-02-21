@@ -101,6 +101,10 @@ export class Plugin {
       throw new Error(`Resource of type ${resourceConfig.core.type} could not be found for match`);
     }
 
+    if (!resource.settings.allowMultiple) {
+      return { match: array.find((r) => r.core.type === resourceConfig.core.type) }
+    }
+
     const parameterMatcher = resource?.parsedSettings.matcher;
     const match = array.find((r) => {
       if (resourceConfig.core.type !== r.core.type) {

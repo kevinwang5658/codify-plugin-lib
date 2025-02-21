@@ -252,6 +252,11 @@ export class ResourceController<T extends StringIndexedObject> {
       || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
       || currentParametersArray.filter(Boolean).length === 0
     ) {
+      for (const result of currentParametersArray ?? []) {
+        await this.applyTransformParameters(result, true);
+        this.removeDefaultValues(result, parameters)
+      }
+
       return currentParametersArray
           ?.map((r) => ({ core, parameters: r }))
         ?? null;
@@ -456,5 +461,39 @@ ${JSON.stringify(refresh, null, 2)}
       ? Object.keys((this.settings.schema as any)?.properties)
       : Object.keys(this.parsedSettings.parameterSettings);
   }
+
+  /**
+   * When multiples of the same resource are allowed, this matching function will match a given config with one of the
+   * existing configs on the system. For example if there are multiple versions of Android Studios installed, we can use
+   * the application name and location to match it to our desired configs name and location.
+   *
+   * @param params
+   * @private
+   */
+  private matchParameters(
+    desired: Partial<T> | null,
+    currentArray: Partial<T>[] | null
+  ): Partial<T> | null {
+    if (!this.parsedSettings.allowMultiple) {
+      return currentArray?.[0] ?? null;
+    }
+
+    if (!currentArray) {
+      return null;
+    }
+
+    const { matcher: parameterMatcher, id } = this.parsedSettings;
+    const matcher = (desired: Partial<T>, currentArray: Partial<T>[]): Partial<T> | undefined => {
+      const matched = currentArray.filter((c) => parameterMatcher(desired, c))
+      if (matched.length > 0) {
+        console.log(`Resource: ${id} did not uniquely match resources when allow multiple is set to true`)
+      }
+
+      return matched[0];
+    }
+
+    return matcher(desired!, currentArray) ?? null;
+  }
+
 }
 

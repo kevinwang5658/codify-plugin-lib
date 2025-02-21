@@ -113,7 +113,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
 
     /**
      * Customize the required parameters needed to import this resource. By default, the `requiredParameters` are taken
-     * from the JSON schema. The `requiredParameters` parameter must be declared if a complex required is declared in
+     * from the identifyingParameters for allowMultiple. The `requiredParameters` parameter must be declared if a complex required is declared in
      * the schema (contains `oneOf`, `anyOf`, `allOf`, `if`, `then`, `else`).
      * <br>
      * The user will be prompted for the required parameters before the import starts. This is done because for most resources

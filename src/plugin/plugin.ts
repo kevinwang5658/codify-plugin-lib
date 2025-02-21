@@ -70,6 +70,7 @@ export class Plugin {
     const schema = resource.settings.schema as JSONSchemaType<any> | undefined;
     const requiredPropertyNames = (
       resource.settings.importAndDestroy?.requiredParameters
+      ?? (typeof resource.settings.allowMultiple === 'object' ? resource.settings.allowMultiple.identifyingParameters : null)
       ?? schema?.required
       ?? undefined
     ) as any;
@@ -101,27 +102,7 @@ export class Plugin {
       throw new Error(`Resource of type ${resourceConfig.core.type} could not be found for match`);
     }
 
-    if (!resource.settings.allowMultiple) {
-      return { match: array.find((r) => r.core.type === resourceConfig.core.type) }
-    }
-
-    const parameterMatcher = resource?.parsedSettings.matcher;
-    const match = array.find((r) => {
-      if (resourceConfig.core.type !== r.core.type) {
-        return false;
-      }
-
-      // If the user specifies the same name for the resource and it's not auto-generated (a number) then it's the same resource
-      if (resourceConfig.core.name === r.core.name
-        && resourceConfig.core.name
-        && Number.isInteger(Number.parseInt(resourceConfig.core.name, 10))
-      ) {
-        return true;
-      }
-
-      return parameterMatcher(resourceConfig.parameters, r.parameters);
-    });
-
+    const match = await resource.match(resourceConfig, array);
     return { match }
   }
 
@@ -179,10 +160,7 @@ export class Plugin {
 
     if (invalidMultipleConfigs.length > 0) {
       throw new Error(
-        `Multiples of the following configs were found but only 1 is allowed.
-
-[${invalidMultipleConfigs.map(([k]) => k).join(', ')}]
-`)
+        `Multiples of the following configs were found but only 1 is allowed. [${invalidMultipleConfigs.map(([k, v]) => `${v}x ${k}`).join(', ')}] found.`)
     }
 
     await this.crossValidateResources(data.configs);

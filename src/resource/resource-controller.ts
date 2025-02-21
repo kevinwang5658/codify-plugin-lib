@@ -102,6 +102,48 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
+  async match(resource: ResourceJson, array: Array<ResourceJson>): Promise<ResourceJson | undefined> {
+    if (resource.core.type !== this.typeId) {
+      throw new Error(`Unknown type passed into match method: ${resource.core.type} for ${this.typeId}`);
+    }
+
+    if (!this.parsedSettings.allowMultiple) {
+      return array.find((r) => r.core.type === resource.core.type)
+    }
+
+
+    const { name, type } = resource.core;
+    const parameterMatcher = this.parsedSettings.matcher;
+
+    for (const resourceToMatch of array) {
+      if (type !== resourceToMatch.core.type) {
+        return undefined;
+      }
+
+      // If the user specifies the same name for the resource and it's not auto-generated (a number) then it's the same resource
+      if (name === resourceToMatch.core.name
+        && name
+        && Number.isInteger(Number.parseInt(name, 10))
+      ) {
+        return resourceToMatch;
+      }
+
+      const originalParams = structuredClone(resource.parameters) as Partial<T>;
+      const paramsToMatch = structuredClone(resourceToMatch.parameters) as Partial<T>;
+
+      this.addDefaultValues(originalParams);
+      await this.applyTransformParameters(originalParams);
+
+      this.addDefaultValues(paramsToMatch);
+      await this.applyTransformParameters(paramsToMatch);
+
+      const match = parameterMatcher(originalParams, paramsToMatch);
+      if (match) {
+        return resourceToMatch;
+      }
+    }
+  }
+
   async plan(
     core: ResourceConfig,
     desired: Partial<T> | null,

@@ -119,6 +119,7 @@ export class ResourceController<T extends StringIndexedObject> {
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(desired, state, this.parsedSettings.statefulParameters)
     const {
+      allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
@@ -144,7 +145,7 @@ export class ResourceController<T extends StringIndexedObject> {
 
     // Refresh stateful parameters. These parameters have state external to the resource. Each variation of the
     // current parameters (each array element) is passed into the stateful parameter refresh.
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentArray);
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentArray, allParameters);
 
     return Plan.calculate({
       desired,
@@ -239,6 +240,7 @@ export class ResourceController<T extends StringIndexedObject> {
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(parametersToRefresh, null, this.parsedSettings.statefulParameters)
     const {
+      allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
@@ -252,7 +254,7 @@ export class ResourceController<T extends StringIndexedObject> {
       return [];
     }
 
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentParametersArray);
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentParametersArray, allParameters);
     const resultParametersArray = currentParametersArray
       ?.map((r, idx) => ({ ...r, ...statefulCurrentParameters[idx] }))
 
@@ -403,21 +405,25 @@ ${JSON.stringify(refresh, null, 2)}
 
   // Refresh stateful parameters
   // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, allParameters: Array<Partial<T>>): Promise<Array<Partial<T>>> {
-    const result: Array<Partial<T>> = Array.from({ length: allParameters.length }, () => ({}))
+  private async refreshStatefulParameters(
+    statefulParametersConfig: Partial<T>,
+    currentArray: Array<Partial<T>>,
+    allParameters: Partial<T>
+  ): Promise<Array<Partial<T>>> {
+    const result: Array<Partial<T>> = Array.from({ length: currentArray.length }, () => ({}))
     const sortedEntries = Object.entries(statefulParametersConfig)
       .sort(
         ([key1], [key2]) => this.parsedSettings.statefulParameterOrder.get(key1)! - this.parsedSettings.statefulParameterOrder.get(key2)!
       )
 
-    for (const [idx, refreshedParams] of allParameters.entries()) {
+    for (const [idx, refreshedParams] of currentArray.entries()) {
       await Promise.all(sortedEntries.map(async ([key, desiredValue]) => {
         const statefulParameter = this.parsedSettings.statefulParameters.get(key);
         if (!statefulParameter) {
           throw new Error(`Stateful parameter ${key} was not found`);
         }
 
-        (result[idx][key] as T[keyof T] | null) = await statefulParameter.refresh(desiredValue ?? null, refreshedParams)
+        (result[idx][key] as T[keyof T] | null) = await statefulParameter.refresh(desiredValue ?? null, { ...allParameters, ...refreshedParams })
       }))
     }
 

@@ -281,6 +281,14 @@ export class ResourceController<T extends StringIndexedObject> {
         ),
         ...this.settings.importAndDestroy?.defaultRefreshValues,
         ...parameters,
+        ...(Object.fromEntries( // If a default value was used, but it was also declared in the defaultRefreshValues, prefer the defaultRefreshValue instead
+          Object.entries(parameters).filter(([k, v]) =>
+            this.parsedSettings.defaultValues[k] !== undefined
+            && v === this.parsedSettings.defaultValues[k]
+            && context.originalDesiredConfig?.[k] === undefined
+            && this.settings.importAndDestroy?.defaultRefreshValues?.[k] !== undefined
+          ).map(([k]) => [k, this.settings.importAndDestroy!.defaultRefreshValues![k]])
+        ))
       }
       : {
         ...Object.fromEntries(

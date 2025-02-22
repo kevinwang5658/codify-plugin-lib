@@ -767,10 +767,6 @@ describe('Resource tests', () => {
           },
           allowMultiple: {
             matcher: (desired, current) => {
-              // console.log('Matcher');
-              // console.log(desired);
-              // console.log(current);
-
               if (desired.path) {
                 return desired.path === current.path;
               }
@@ -791,6 +787,47 @@ describe('Resource tests', () => {
     const plan = await controller.plan({ type: 'path' }, { path: '$HOME/.bun/bin' }, null, false);
 
     expect(plan.requiresChanges()).to.be.false;
-    console.log(JSON.stringify(plan, null, 2));
+  })
+
+  it('Can import with the correct default parameters', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'path',
+          parameterSettings: {
+            path: { type: 'string', isEqual: 'directory' },
+            paths: { canModify: true, type: 'array', isElementEqual: 'directory' },
+            prepend: { default: false, setting: true },
+            declarationsOnly: { default: false, setting: true },
+          },
+          importAndDestroy: {
+            refreshKeys: ['paths', 'declarationsOnly'],
+            defaultRefreshValues: {
+              paths: [],
+              declarationsOnly: true,
+            }
+          },
+          allowMultiple: {
+            matcher: (desired, current) => {
+              if (desired.path) {
+                return desired.path === current.path;
+              }
+
+              const currentPaths = new Set(current.paths)
+              return desired.paths?.some((p) => currentPaths.has(p));
+            }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        expect(parameters.declarationsOnly).to.be.true;
+
+        return null;
+      }
+    }
+
+    const controller = new ResourceController(resource);
+    const plan = await controller.import({ type: 'path' }, {});
   })
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { splitUserConfig } from './utils.js';
+import { addVariablesToPath, resolvePathWithVariables, splitUserConfig } from './utils.js';
+import os from 'node:os';
 
 describe('Utils tests', () => {
   it('Can split a config correctly', () => {
@@ -25,5 +26,26 @@ describe('Utils tests', () => {
       propC: 'propC',
       propD: 'propD',
     })
+  })
+
+  it('Can remove variables from a path', () => {
+    const testPath1 = '$HOME/my/path';
+    const result1 = resolvePathWithVariables(testPath1);
+
+    const home = os.homedir();
+    expect(result1).to.eq(home + '/my/path');
+
+
+    const testPath2 = '/var$HOME/my/path';
+    const result2 = resolvePathWithVariables(testPath2);
+    expect(result2).to.eq('/var' + home + '/my/path');
+  })
+
+  it('Can add variables to a path', () => {
+    const testPath1 = os.homedir() + '/my/path';
+    const result1 = addVariablesToPath(testPath1);
+
+    const home = os.homedir();
+    expect(result1).to.eq('$HOME/my/path');
   })
 })

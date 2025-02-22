@@ -4,7 +4,7 @@ import isObjectsEqual from 'lodash.isequal'
 import path from 'node:path';
 
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
-import { areArraysEqual, tildify, untildify } from '../utils/utils.js';
+import { addVariablesToPath, areArraysEqual, resolvePathWithVariables, tildify, untildify } from '../utils/utils.js';
 
 export interface InputTransformation {
   to: (input: any) => Promise<any> | any;
@@ -302,7 +302,13 @@ export interface StatefulParameterSetting extends DefaultParameterSetting {
 
 const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown, b: unknown) => boolean>> = {
   'boolean': (a: unknown, b: unknown) => Boolean(a) === Boolean(b),
-  'directory': (a: unknown, b: unknown) => path.resolve(untildify(String(a))) === path.resolve(untildify(String(b))),
+  'directory': (a: unknown, b: unknown) => {
+    const notCaseSensitive = process.platform === 'darwin';
+    const transformedA = path.resolve(resolvePathWithVariables(untildify(notCaseSensitive ? String(a).toLowerCase() : String(a))))
+    const transformedB = path.resolve(resolvePathWithVariables(untildify(notCaseSensitive ? String(b).toLowerCase() : String(b))))
+
+    return transformedA === transformedB;
+  },
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
   'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
@@ -362,8 +368,8 @@ export function resolveFnFromEqualsFnOrString(
 
 const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, InputTransformation>> = {
   'directory': {
-    to: (a: unknown) => path.resolve(untildify(String(a))),
-    from: (a: unknown) => tildify(String(a)),
+    to: (a: unknown) => path.resolve(resolvePathWithVariables((untildify(String(a))))),
+    from: (a: unknown) => addVariablesToPath(tildify(String(a))),
   },
   'string': {
     to: String,

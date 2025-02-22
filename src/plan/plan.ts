@@ -263,7 +263,7 @@ export class Plan<T extends StringIndexedObject> {
     const { matcher: parameterMatcher, id } = settings;
     const matcher = (desired: Partial<T>, currentArray: Partial<T>[]): Partial<T> | undefined => {
       const matched = currentArray.filter((c) => parameterMatcher(desired, c))
-      if (matched.length > 0) {
+      if (matched.length > 1) {
         console.log(`Resource: ${id} did not uniquely match resources when allow multiple is set to true`)
       }
 

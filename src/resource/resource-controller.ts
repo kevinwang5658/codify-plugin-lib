@@ -13,7 +13,7 @@ import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
-import { Resource } from './resource.js';
+import { RefreshContext, Resource } from './resource.js';
 import { ResourceSettings } from './resource-settings.js';
 
 export class ResourceController<T extends StringIndexedObject> {
@@ -151,6 +151,11 @@ export class ResourceController<T extends StringIndexedObject> {
     isStateful = false,
   ): Promise<Plan<T>> {
     this.validatePlanInputs(core, desired, state, isStateful);
+    const context: RefreshContext<T> = {
+      commandType: 'plan',
+      isStateful,
+      originalDesiredConfig: structuredClone(desired),
+    };
 
     this.addDefaultValues(desired);
     await this.applyTransformParameters(desired);
@@ -167,7 +172,7 @@ export class ResourceController<T extends StringIndexedObject> {
     } = parsedConfig;
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
-    const currentArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
+    const currentArray = await this.refreshNonStatefulParameters(allNonStatefulParameters, context);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentArray === null
@@ -259,6 +264,12 @@ export class ResourceController<T extends StringIndexedObject> {
       throw new Error(`Type: ${this.typeId} cannot be imported`);
     }
 
+    const context: RefreshContext<T> = {
+      commandType: 'import',
+      isStateful: true,
+      originalDesiredConfig: structuredClone(parameters),
+    };
+
     this.addDefaultValues(parameters);
     await this.applyTransformParameters(parameters);
 
@@ -287,7 +298,7 @@ export class ResourceController<T extends StringIndexedObject> {
       allStatefulParameters,
     } = parsedConfig;
 
-    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
+    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters, context);
 
     if (currentParametersArray === null
       || currentParametersArray === undefined
@@ -434,8 +445,8 @@ ${JSON.stringify(refresh, null, 2)}
 
   }
 
-  private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Array<Partial<T>> | null> {
-    const result = await this.resource.refresh(resourceParameters);
+  private async refreshNonStatefulParameters(resourceParameters: Partial<T>, context: RefreshContext<T>): Promise<Array<Partial<T>> | null> {
+    const result = await this.resource.refresh(resourceParameters, context);
 
     const currentParametersArray = Array.isArray(result) || result === null
       ? result

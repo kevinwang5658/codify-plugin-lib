@@ -4,6 +4,12 @@ import { ParameterChange } from '../plan/change-set.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ResourceSettings } from './resource-settings.js';
 
+export interface RefreshContext<T extends StringIndexedObject> {
+  isStateful: boolean;
+  commandType: 'destroy' | 'import' | 'plan';
+  originalDesiredConfig: Partial<T> | null;
+}
+
 /**
  * A resource represents an object on the system (application, CLI tool, or setting)
  * that has state and can be created and destroyed. Examples of resources include CLI tools
@@ -73,10 +79,12 @@ export abstract class Resource<T extends StringIndexedObject> {
    * of the desired config. In stateful mode, this will be parameters of the state config + the desired
    * config of any new parameters.
    *
+   * @param context Context surrounding the request
+   *
    * @return A config or an array of configs representing the status of the resource on the
    * system currently
    */
-  abstract refresh(parameters: Partial<T>): Promise<Array<Partial<T>> | Partial<T> | null>;
+  abstract refresh(parameters: Partial<T>, context: RefreshContext<T>): Promise<Array<Partial<T>> | Partial<T> | null>;
 
   /**
    * Create the resource (install) based on the parameters passed in. Only the desired parameters will

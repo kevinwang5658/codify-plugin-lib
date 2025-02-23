@@ -5,10 +5,11 @@ import path from 'node:path';
 
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { addVariablesToPath, areArraysEqual, resolvePathWithVariables, tildify, untildify } from '../utils/utils.js';
+import { RefreshContext } from './resource.js';
 
 export interface InputTransformation {
   to: (input: any) => Promise<any> | any;
-  from: (current: any) => Promise<any> | any;
+  from: (current: any, original: any) => Promise<any> | any;
 }
 
 /**
@@ -141,6 +142,15 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * See {@link importAndDestroy} for more information on how importing works.
      */
     defaultRefreshValues?: Partial<T>;
+
+    /**
+     * A custom function that maps the input to what gets passed to refresh for imports. If this is set, then refreshKeys and
+     * defaultRefreshValues are ignored.
+     *
+     * @param input
+     * @param context
+     */
+    refreshMapper?: (input: Partial<T>, context: RefreshContext<T>) => Partial<T>
   }
 }
 
@@ -369,7 +379,13 @@ export function resolveFnFromEqualsFnOrString(
 const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, InputTransformation>> = {
   'directory': {
     to: (a: unknown) => path.resolve(resolvePathWithVariables((untildify(String(a))))),
-    from: (a: unknown) => addVariablesToPath(tildify(String(a))),
+    from: (a: unknown, original) => {
+      if (ParameterEqualsDefaults.directory!(a, original)) {
+        return original;
+      }
+
+      return tildify(addVariablesToPath(String(a)))
+    },
   },
   'string': {
     to: String,
@@ -406,8 +422,8 @@ export function resolveParameterTransformFn(
       to(input: unknown[]) {
         return input.map((i) => itemTransformation.to(i))
       },
-      from(input: unknown[]) {
-        return input.map((i) => itemTransformation.from(i))
+      from(input: unknown[], original) {
+        return input.map((i) => itemTransformation.from(i, original))
       }
     }
   }

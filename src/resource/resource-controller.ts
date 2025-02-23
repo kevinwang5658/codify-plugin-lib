@@ -274,29 +274,7 @@ export class ResourceController<T extends StringIndexedObject> {
     await this.applyTransformParameters(parameters);
 
     // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
-    const parametersToRefresh = this.settings.importAndDestroy?.refreshKeys
-      ? {
-        ...Object.fromEntries(
-          this.settings.importAndDestroy?.refreshKeys.map((k) => [k, null])
-        ),
-        ...this.settings.importAndDestroy?.defaultRefreshValues,
-        ...parameters,
-        ...(Object.fromEntries( // If a default value was used, but it was also declared in the defaultRefreshValues, prefer the defaultRefreshValue instead
-          Object.entries(parameters).filter(([k, v]) =>
-            this.parsedSettings.defaultValues[k] !== undefined
-            && v === this.parsedSettings.defaultValues[k]
-            && context.originalDesiredConfig?.[k] === undefined
-            && this.settings.importAndDestroy?.defaultRefreshValues?.[k] !== undefined
-          ).map(([k]) => [k, this.settings.importAndDestroy!.defaultRefreshValues![k]])
-        ))
-      }
-      : {
-        ...Object.fromEntries(
-          this.getAllParameterKeys().map((k) => [k, null])
-        ),
-        ...this.settings.importAndDestroy?.defaultRefreshValues,
-        ...parameters,
-      };
+    const parametersToRefresh = this.getParametersToRefreshForImport(parameters, context);
 
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(parametersToRefresh, null, this.parsedSettings.statefulParameters)
@@ -320,7 +298,7 @@ export class ResourceController<T extends StringIndexedObject> {
       ?.map((r, idx) => ({ ...r, ...statefulCurrentParameters[idx] }))
 
     for (const result of resultParametersArray) {
-      await this.applyTransformParameters(result, true);
+      await this.applyTransformParameters(result, { original: parameters });
       this.removeDefaultValues(result, parameters);
     }
 
@@ -403,7 +381,7 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(config: Partial<T> | null, reverse = false): Promise<void> {
+  private async applyTransformParameters(config: Partial<T> | null, reverse?: { original: Partial<T> }): Promise<void> {
     if (!config) {
       return;
     }
@@ -414,13 +392,13 @@ ${JSON.stringify(refresh, null, 2)}
       }
 
       (config as Record<string, unknown>)[key] = reverse
-        ? await inputTransformation.from(config[key])
+        ? await inputTransformation.from(config[key], reverse.original?.[key])
         : await inputTransformation.to(config[key]);
     }
 
     if (this.settings.transformation) {
       const transformed = reverse
-        ? await this.settings.transformation.from({ ...config })
+        ? await this.settings.transformation.from({ ...config }, reverse.original)
         : await this.settings.transformation.to({ ...config })
 
       Object.keys(config).forEach((k) => delete config[k])
@@ -522,6 +500,36 @@ ${JSON.stringify(refresh, null, 2)}
     return this.settings.schema
       ? Object.keys((this.settings.schema as any)?.properties)
       : Object.keys(this.parsedSettings.parameterSettings);
+  }
+
+  private getParametersToRefreshForImport(parameters: Partial<T>, context: RefreshContext<T>): Partial<T> {
+    if (this.settings.importAndDestroy?.refreshMapper) {
+      return this.settings.importAndDestroy?.refreshMapper(parameters, context);
+    }
+
+    return this.settings.importAndDestroy?.refreshKeys
+      ? {
+        ...Object.fromEntries(
+          this.settings.importAndDestroy?.refreshKeys.map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+        ...(Object.fromEntries( // If a default value was used, but it was also declared in the defaultRefreshValues, prefer the defaultRefreshValue instead
+          Object.entries(parameters).filter(([k, v]) =>
+            this.parsedSettings.defaultValues[k] !== undefined
+            && v === this.parsedSettings.defaultValues[k]
+            && context.originalDesiredConfig?.[k] === undefined
+            && this.settings.importAndDestroy?.defaultRefreshValues?.[k] !== undefined
+          ).map(([k]) => [k, this.settings.importAndDestroy!.defaultRefreshValues![k]])
+        ))
+      }
+      : {
+        ...Object.fromEntries(
+          this.getAllParameterKeys().map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+      };
   }
 }
 

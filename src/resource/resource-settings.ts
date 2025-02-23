@@ -423,7 +423,13 @@ export function resolveParameterTransformFn(
         return input.map((i) => itemTransformation.to(i))
       },
       from(input: unknown[], original) {
-        return input.map((i) => itemTransformation.from(i, original))
+        return input.map((i, idx) => {
+          const originalElement = Array.isArray(original)
+            ? original.find((o) => resolveEqualsFn(parameter)(o, i)) ?? original[idx]
+            : original;
+
+          return itemTransformation.from(i, originalElement);
+        })
       }
     }
   }

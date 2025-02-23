@@ -298,7 +298,7 @@ export class ResourceController<T extends StringIndexedObject> {
       ?.map((r, idx) => ({ ...r, ...statefulCurrentParameters[idx] }))
 
     for (const result of resultParametersArray) {
-      await this.applyTransformParameters(result, { original: parameters });
+      await this.applyTransformParameters(result, { original: context.originalDesiredConfig });
       this.removeDefaultValues(result, parameters);
     }
 
@@ -381,7 +381,9 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(config: Partial<T> | null, reverse?: { original: Partial<T> }): Promise<void> {
+  private async applyTransformParameters(config: Partial<T> | null, reverse?: {
+    original: Partial<T> | null
+  }): Promise<void> {
     if (!config) {
       return;
     }

@@ -438,7 +438,7 @@ export function resolveParameterTransformFn(
       from(input: unknown[], original) {
         return input.map((i, idx) => {
           const originalElement = Array.isArray(original)
-            ? original.find((o) => resolveEqualsFn(parameter)(o, i)) ?? original[idx]
+            ? original.find((o) => resolveElementEqualsFn(parameter as ArrayParameterSetting)(o, i)) ?? original[idx]
             : original;
 
           return itemTransformation.from(i, originalElement);

@@ -10,6 +10,7 @@ import { TestConfig, testPlan, TestResource, TestStatefulParameter } from '../ut
 import { tildify, untildify } from '../utils/utils.js';
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
 import { Plan } from '../plan/plan.js';
+import os from 'node:os';
 
 describe('Resource tests', () => {
 
@@ -828,6 +829,107 @@ describe('Resource tests', () => {
     }
 
     const controller = new ResourceController(resource);
-    const plan = await controller.import({ type: 'path' }, {});
+    await controller.import({ type: 'path' }, {});
+    ;
+  })
+
+  it('Can import and return all of the imported parameters', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<any> {
+        return {
+          id: 'path',
+          parameterSettings: {
+            path: { type: 'directory' },
+            paths: { canModify: true, type: 'array', itemType: 'directory' },
+            prepend: { default: false, setting: true },
+            declarationsOnly: { default: false, setting: true },
+          },
+          importAndDestroy: {
+            refreshMapper: (input, context) => {
+              if (Object.keys(input).length === 0) {
+                return { paths: [], declarationsOnly: true };
+              }
+
+              return input;
+            }
+          },
+          allowMultiple: {
+            matcher: (desired, current) => {
+              if (desired.path) {
+                return desired.path === current.path;
+              }
+
+              const currentPaths = new Set(current.paths)
+              return desired.paths?.some((p) => currentPaths.has(p));
+            }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          paths: [
+            `${os.homedir()}/.pyenv/bin`,
+            `${os.homedir()}/.bun/bin`,
+            `${os.homedir()}/.deno/bin`,
+            `${os.homedir()}/.jenv/bin`,
+            `${os.homedir()}/a/random/path`,
+            `${os.homedir()}/.nvm/.bin/2`,
+            `${os.homedir()}/.nvm/.bin/3`
+          ]
+        }
+      }
+    }
+
+    const oldProcessEnv = structuredClone(process.env);
+
+    process.env['PYENV_ROOT'] = `${os.homedir()}/.pyenv`
+    process.env['BUN_INSTALL'] = `${os.homedir()}/.bun`
+    process.env['DENO_INSTALL'] = `${os.homedir()}/.deno`
+    process.env['JENV'] = `${os.homedir()}/.jenv`
+    process.env['NVM_DIR'] = `${os.homedir()}/.nvm`
+
+    const controller = new ResourceController(resource);
+    const importResult1 = await controller.import({ type: 'path' }, {});
+    expect(importResult1).toMatchObject([
+      {
+        'core': {
+          'type': 'path'
+        },
+        'parameters': {
+          'paths': [
+            '$PYENV_ROOT/bin',
+            '$BUN_INSTALL/bin',
+            '$DENO_INSTALL/bin',
+            '$JENV/bin',
+            '~/a/random/path',
+            '$NVM_DIR/.bin/2',
+            '$NVM_DIR/.bin/3'
+          ]
+        }
+      }
+    ])
+
+    const importResult2 = await controller.import({ type: 'path' }, { paths: ['$PYENV_ROOT/bin', '$BUN_INSTALL/bin'] });
+    expect(importResult2).toMatchObject([
+      {
+        'core': {
+          'type': 'path'
+        },
+        'parameters': {
+          'paths': [
+            '$PYENV_ROOT/bin',
+            '$BUN_INSTALL/bin',
+            '$DENO_INSTALL/bin',
+            '$JENV/bin',
+            '~/a/random/path',
+            '$NVM_DIR/.bin/2',
+            '$NVM_DIR/.bin/3'
+          ]
+        }
+      }
+    ])
+
+    process.env = oldProcessEnv;
   })
 });

@@ -1119,4 +1119,30 @@ describe('Resource parameter tests', () => {
       propB: 'random2',
     })).to.be.false;
   })
+
+  it('Can match directories 1', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'directory' }
+          },
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    const transformations = controller.parsedSettings.inputTransformations.propA;
+
+    const to = transformations!.to('$HOME/abc/def')
+    expect(to).to.eq(os.homedir() + '/abc/def')
+
+    const from = transformations!.from(os.homedir() + '/abc/def')
+    expect(from).to.eq('~/abc/def')
+
+    const from2 = transformations!.from(os.homedir() + '/abc/def', '$HOME/abc/def')
+    expect(from2).to.eq('$HOME/abc/def')
+
+  })
 })

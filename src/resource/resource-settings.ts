@@ -313,9 +313,22 @@ export interface StatefulParameterSetting extends DefaultParameterSetting {
 const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown, b: unknown) => boolean>> = {
   'boolean': (a: unknown, b: unknown) => Boolean(a) === Boolean(b),
   'directory': (a: unknown, b: unknown) => {
+    let transformedA = resolvePathWithVariables(untildify(String(a)))
+    let transformedB = resolvePathWithVariables(untildify(String(b)))
+
+    if (transformedA.startsWith('.')) { // Only relative paths start with '.'
+      transformedA = path.resolve(transformedA)
+    }
+
+    if (transformedB.startsWith('.')) { // Only relative paths start with '.'
+      transformedB = path.resolve(transformedB)
+    }
+
     const notCaseSensitive = process.platform === 'darwin';
-    const transformedA = path.resolve(resolvePathWithVariables(untildify(notCaseSensitive ? String(a).toLowerCase() : String(a))))
-    const transformedB = path.resolve(resolvePathWithVariables(untildify(notCaseSensitive ? String(b).toLowerCase() : String(b))))
+    if (notCaseSensitive) {
+      transformedA = transformedA.toLowerCase();
+      transformedB = transformedB.toLowerCase();
+    }
 
     return transformedA === transformedB;
   },

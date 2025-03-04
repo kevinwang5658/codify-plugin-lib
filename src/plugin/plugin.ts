@@ -6,6 +6,8 @@ import {
   ImportRequestData,
   ImportResponseData,
   InitializeResponseData,
+  MatchRequestData,
+  MatchResponseData,
   PlanRequestData,
   PlanResponseData,
   ResourceConfig,
@@ -67,20 +69,41 @@ export class Plugin {
 
     const schema = resource.settings.schema as JSONSchemaType<any> | undefined;
     const requiredPropertyNames = (
-      resource.settings.import?.requiredParameters
+      resource.settings.importAndDestroy?.requiredParameters
+      ?? (typeof resource.settings.allowMultiple === 'object' ? resource.settings.allowMultiple.identifyingParameters : null)
       ?? schema?.required
-      ?? null
-    ) as null | string[];
+      ?? undefined
+    ) as any;
+
+    const allowMultiple = resource.settings.allowMultiple !== undefined
+      && resource.settings.allowMultiple !== false;
 
     return {
       plugin: this.name,
       type: data.type,
       dependencies: resource.dependencies,
       schema: schema as Record<string, unknown> | undefined,
+      importAndDestroy: {
+        preventImport: resource.settings.importAndDestroy?.preventImport,
+        requiredParameters: requiredPropertyNames,
+      },
       import: {
         requiredParameters: requiredPropertyNames,
       },
+      allowMultiple
     }
+  }
+
+  async match(data: MatchRequestData): Promise<MatchResponseData> {
+    const { resource: resourceConfig, array } = data;
+
+    const resource = this.resourceControllers.get(resourceConfig.core.type);
+    if (!resource) {
+      throw new Error(`Resource of type ${resourceConfig.core.type} could not be found for match`);
+    }
+
+    const match = await resource.match(resourceConfig, array);
+    return { match }
   }
 
   async import(data: ImportRequestData): Promise<ImportResponseData> {
@@ -103,7 +126,7 @@ export class Plugin {
   }
 
   async validate(data: ValidateRequestData): Promise<ValidateResponseData> {
-    const validationResults = [];
+    const validationResults: ValidateResponseData['resourceValidations'] = [];
     for (const config of data.configs) {
       const { core, parameters } = config;
 
@@ -116,6 +139,28 @@ export class Plugin {
         .validate(core, parameters);
 
       validationResults.push(validation);
+    }
+
+    // Validate that if allow multiple is false, then only 1 of each resource exists
+    const countMap = data.configs.reduce((map, resource) => {
+      if (!map.has(resource.core.type)) {
+        map.set(resource.core.type, 0);
+      }
+
+      const count = map.get(resource.core.type)!;
+      map.set(resource.core.type, count + 1)
+
+      return map;
+    }, new Map<string, number>())
+
+    const invalidMultipleConfigs = [...countMap.entries()].filter(([k, v]) => {
+      const controller = this.resourceControllers.get(k)!;
+      return !controller.parsedSettings.allowMultiple && v > 1;
+    });
+
+    if (invalidMultipleConfigs.length > 0) {
+      throw new Error(
+        `Multiples of the following configs were found but only 1 is allowed. [${invalidMultipleConfigs.map(([k, v]) => `${v}x ${k}`).join(', ')}] found.`)
     }
 
     await this.crossValidateResources(data.configs);

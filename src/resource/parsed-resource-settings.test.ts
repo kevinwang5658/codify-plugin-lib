@@ -81,7 +81,7 @@ describe('Resource options parser tests', () => {
     const option: ResourceSettings<TestConfig> = {
       id: 'typeId',
       schema,
-      import: {
+      importAndDestroy: {
         requiredParameters: ['import-error']
       }
     }
@@ -104,7 +104,7 @@ describe('Resource options parser tests', () => {
     const option: ResourceSettings<TestConfig> = {
       id: 'typeId',
       schema,
-      import: {
+      importAndDestroy: {
         refreshKeys: ['import-error']
       }
     }
@@ -127,7 +127,7 @@ describe('Resource options parser tests', () => {
     const option: ResourceSettings<TestConfig> = {
       id: 'typeId',
       schema,
-      import: {
+      importAndDestroy: {
         refreshKeys: ['remote'],
       }
     }
@@ -150,7 +150,7 @@ describe('Resource options parser tests', () => {
     const option: ResourceSettings<TestConfig> = {
       id: 'typeId',
       schema,
-      import: {
+      importAndDestroy: {
         defaultRefreshValues: {
           repository: 'abc'
         }

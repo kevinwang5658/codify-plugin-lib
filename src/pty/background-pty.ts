@@ -123,6 +123,7 @@ export class BackgroundPty implements IPty {
       let outputBuffer = '';
 
       return new Promise(resolve => {
+        this.basePty.write('set +o history;\n');
         this.basePty.write('unset PS1;\n');
         this.basePty.write('unset PS0;\n')
         this.basePty.write('echo setup complete\\"\n')

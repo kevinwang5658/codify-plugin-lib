@@ -5,9 +5,11 @@ import { StatefulParameterController } from '../stateful-parameter/stateful-para
 import {
   ArrayParameterSetting,
   DefaultParameterSetting,
+  InputTransformation,
   ParameterSetting,
+  resolveElementEqualsFn,
   resolveEqualsFn,
-  resolveFnFromEqualsFnOrString,
+  resolveMatcher,
   resolveParameterTransformFn,
   ResourceSettings,
   StatefulParameterSetting
@@ -35,11 +37,15 @@ export type ParsedParameterSetting =
 export class ParsedResourceSettings<T extends StringIndexedObject> implements ResourceSettings<T> {
   private cache = new Map<string, unknown>();
   id!: string;
-  schema?: unknown;
-  allowMultiple?: { matcher: (desired: Partial<T>, current: Partial<T>[]) => Partial<T>; } | undefined;
+  schema?: Partial<JSONSchemaType<T | any>>;
+  allowMultiple?: {
+    matcher?: (desired: Partial<T>, current: Partial<T>) => boolean;
+    requiredParameters?: string[]
+  } | boolean;
+
   removeStatefulParametersBeforeDestroy?: boolean | undefined;
   dependencies?: string[] | undefined;
-  inputTransformation?: ((desired: Partial<T>) => unknown) | undefined;
+  transformation?: InputTransformation;
   private settings: ResourceSettings<T>;
 
   constructor(settings: ResourceSettings<T>) {
@@ -49,7 +55,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     this.allowMultiple = settings.allowMultiple;
     this.removeStatefulParametersBeforeDestroy = settings.removeStatefulParametersBeforeDestroy;
     this.dependencies = settings.dependencies;
-    this.inputTransformation = settings.inputTransformation;
+    this.transformation = settings.transformation;
 
     this.validateSettings();
   }
@@ -86,7 +92,6 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
               ...v,
               controller: spController,
               nestedSettings: spController?.parsedSettings,
-              definition: undefined,
             };
 
             return [k, parsed as ParsedStatefulParameterSetting];
@@ -95,8 +100,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
           if (v.type === 'array') {
             const parsed = {
               ...v,
-              isElementEqual: resolveFnFromEqualsFnOrString((v as ArrayParameterSetting).isElementEqual)
-                ?? ((a: unknown, b: unknown) => a === b),
+              isElementEqual: resolveElementEqualsFn(v as ArrayParameterSetting)
             }
 
             return [k, parsed as ParsedArrayParameterSetting];
@@ -133,7 +137,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     });
   }
 
-  get inputTransformations(): Partial<Record<keyof T, (a: unknown, parameter: ParameterSetting) => unknown>> {
+  get inputTransformations(): Partial<Record<keyof T, InputTransformation>> {
     return this.getFromCacheOrCreate('inputTransformations', () => {
       if (!this.settings.parameterSettings) {
         return {};
@@ -143,7 +147,7 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
         Object.entries(this.settings.parameterSettings)
           .filter(([_, v]) => resolveParameterTransformFn(v!) !== undefined)
           .map(([k, v]) => [k, resolveParameterTransformFn(v!)] as const)
-      ) as Record<keyof T, (a: unknown) => unknown>;
+      ) as Record<keyof T, InputTransformation>;
     });
   }
 
@@ -168,6 +172,10 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     });
   }
 
+  get matcher(): (desired: Partial<T>, current: Partial<T>) => boolean {
+    return resolveMatcher(this);
+  }
+
   private validateSettings(): void {
     // validate parameter settings
     if (this.settings.parameterSettings) {
@@ -180,13 +188,14 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       }
     }
 
-    if (this.allowMultiple
-      && Object.values(this.parameterSettings).some((v) => v.type === 'stateful')) {
-      throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed if multiples of a resource exist`)
+    if (Object.entries(this.parameterSettings).some(([k, v]) =>
+      v.type === 'stateful'
+      && typeof this.settings.allowMultiple === 'object' && this.settings.allowMultiple?.identifyingParameters?.includes(k))) {
+      throw new Error(`Resource: ${this.id}. Stateful parameters are not allowed to be identifying parameters for allowMultiple.`)
     }
 
     const schema = this.settings.schema as JSONSchemaType<any>;
-    if (!this.settings.import && (schema?.oneOf
+    if (!this.settings.importAndDestroy && (schema?.oneOf
         && Array.isArray(schema.oneOf)
         && schema.oneOf.some((s) => s.required)
       )
@@ -214,8 +223,8 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
       )
     }
 
-    if (this.settings.import) {
-      const { requiredParameters, refreshKeys, defaultRefreshValues } = this.settings.import;
+    if (this.settings.importAndDestroy) {
+      const { requiredParameters, refreshKeys, defaultRefreshValues } = this.settings.importAndDestroy;
 
       const requiredParametersNotInSchema = requiredParameters
         ?.filter(

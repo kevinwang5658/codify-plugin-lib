@@ -569,10 +569,16 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          inputTransformation: (desired) => ({
-            propA: 'propA',
-            propB: 10,
-          })
+          transformation: {
+            to: (desired) => ({
+              propA: 'propA',
+              propB: 10,
+            }),
+            from: (current) => ({
+              propA: 'propA',
+              propB: 10,
+            })
+          }
         }
       }
 
@@ -604,10 +610,16 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          inputTransformation: (desired) => ({
-            propA: 'propA',
-            propB: 10,
-          })
+          transformation: {
+            to: (desired) => ({
+              propA: 'propA',
+              propB: 10,
+            }),
+            from: (desired) => ({
+              propA: 'propA',
+              propB: 10,
+            })
+          }
         }
       }
 
@@ -637,7 +649,7 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          import: {
+          importAndDestroy: {
             requiredParameters: [
               'propA',
               'propB',
@@ -684,7 +696,7 @@ describe('Resource parameter tests', () => {
         return {
           id: 'resourceType',
           parameterSettings: {
-            propA: { type: 'setting' },
+            propA: { type: 'string', setting: true },
             propB: { type: 'number' }
           }
         }
@@ -723,7 +735,7 @@ describe('Resource parameter tests', () => {
       getSettings(): ResourceSettings<TestConfig> {
         return {
           id: 'resourceType',
-          import: {
+          importAndDestroy: {
             requiredParameters: ['propA'],
             refreshKeys: ['propB', 'propA'],
             defaultRefreshValues: {
@@ -852,16 +864,25 @@ describe('Resource parameter tests', () => {
           parameterSettings: {
             propD: {
               type: 'array',
-              inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+              transformation: {
+                to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                    Object.entries(h)
+                      .map(([k, v]) => [
+                        k,
+                        typeof v === 'boolean'
+                          ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                          : v,
+                      ])
+                  )
+                ),
+                from: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
                   Object.entries(h)
                     .map(([k, v]) => [
                       k,
-                      typeof v === 'boolean'
-                        ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
-                        : v,
+                      v === 'yes',
                     ])
-                )
-              )
+                ))
+              }
             }
           }
         }
@@ -909,16 +930,25 @@ describe('Resource parameter tests', () => {
       getSettings(): any {
         return {
           type: 'array',
-          inputTransformation: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+          transformation: {
+            to: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
+                Object.entries(h)
+                  .map(([k, v]) => [
+                    k,
+                    typeof v === 'boolean'
+                      ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
+                      : v,
+                  ])
+              )
+            ),
+            from: (hosts: Record<string, unknown>[]) => hosts.map((h) => Object.fromEntries(
               Object.entries(h)
                 .map(([k, v]) => [
                   k,
-                  typeof v === 'boolean'
-                    ? (v ? 'yes' : 'no') // The file takes 'yes' or 'no' instead of booleans
-                    : v,
+                  v === 'yes',
                 ])
-            )
-          )
+            ))
+          }
         }
       }
 
@@ -967,6 +997,152 @@ describe('Resource parameter tests', () => {
       null,
       false
     );
+
+  })
+
+  it('Supports equality check for itemType', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'version' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: ['10.0.0']
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({ type: 'resourceType' }, { propA: ['10.0'] }, null, false);
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.NOOP,
+    })
+  })
+
+  it('Supports transformations for itemType', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'directory' }
+          }
+        }
+      }
+
+      async refresh(parameters: Partial<TestConfig>): Promise<Partial<TestConfig> | null> {
+        return {
+          propA: [testPath]
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+
+    const result = await controller.plan({ type: 'resourceType' }, { propA: ['~/test/folder'] }, null, false);
+    expect(result.changeSet).toMatchObject({
+      operation: ResourceOperation.NOOP,
+    })
+  })
+
+  it('Supports matching using the identfying parameters', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'directory' }
+          },
+          allowMultiple: {
+            identifyingParameters: ['propA']
+          }
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    expect(controller.parsedSettings.matcher({
+      propA: [testPath],
+      propB: 'random1',
+    }, {
+      propA: [testPath],
+      propB: 'random2',
+    })).to.be.true;
+
+    expect(controller.parsedSettings.matcher({
+      propA: [testPath],
+      propB: 'random1',
+    }, {
+      propA: [testPath, testPath],
+      propB: 'random2',
+    })).to.be.false;
+  })
+
+  it('Supports matching using custom matcher', async () => {
+    const home = os.homedir()
+    const testPath = path.join(home, 'test/folder');
+
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'array', itemType: 'directory' }
+          },
+          allowMultiple: {
+            identifyingParameters: ['propA'],
+            matcher: () => false,
+          }
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    expect(controller.parsedSettings.matcher({
+      propA: [testPath],
+      propB: 'random1',
+    }, {
+      propA: [testPath],
+      propB: 'random2',
+    })).to.be.false;
+  })
+
+  it('Can match directories 1', async () => {
+    const resource = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'resourceType',
+          parameterSettings: {
+            propA: { type: 'directory' }
+          },
+        }
+      }
+    };
+
+    const controller = new ResourceController(resource);
+    const transformations = controller.parsedSettings.inputTransformations.propA;
+
+    const to = transformations!.to('$HOME/abc/def')
+    expect(to).to.eq(os.homedir() + '/abc/def')
+
+    const from = transformations!.from(os.homedir() + '/abc/def')
+    expect(from).to.eq('~/abc/def')
+
+    const from2 = transformations!.from(os.homedir() + '/abc/def', '$HOME/abc/def')
+    expect(from2).to.eq('$HOME/abc/def')
 
   })
 })

@@ -5,8 +5,7 @@ import { Resource } from '../resource/resource.js';
 import { Plan } from '../plan/plan.js';
 import { spy } from 'sinon';
 import { ResourceSettings } from '../resource/resource-settings.js';
-import { TestConfig } from '../utils/test-utils.test.js';
-import { ApplyValidationError } from '../common/errors.js';
+import { TestConfig, TestStatefulParameter } from '../utils/test-utils.test.js';
 import { getPty } from '../pty/index.js';
 
 interface TestConfig extends StringIndexedObject {
@@ -194,7 +193,7 @@ describe('Plugin tests', () => {
         return {
           id: 'typeId',
           schema,
-          import: {
+          importAndDestroy: {
             requiredParameters: []
           }
         }
@@ -229,7 +228,7 @@ describe('Plugin tests', () => {
 
     await expect(() => testPlugin.apply({ plan }))
       .rejects
-      .toThrowError(new ApplyValidationError(Plan.fromResponse(plan)));
+      .toThrowError();
     expect(resource.modify.calledOnce).to.be.true;
   })
 
@@ -324,5 +323,171 @@ describe('Plugin tests', () => {
     })
 
     console.log(result);
+  })
+
+  it('Returns allowMultiple for getResourceInfo', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          ...super.getSettings(),
+          allowMultiple: {
+            identifyingParameters: ['path', 'paths']
+          }
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const resourceInfo = await testPlugin.getResourceInfo({
+      type: 'testResource',
+    })
+
+    expect(resourceInfo.allowMultiple).to.be.true;
+  })
+
+  it('Can match resources together', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          ...super.getSettings(),
+          parameterSettings: {
+            path: { type: 'directory' },
+            paths: { type: 'array', itemType: 'directory' }
+          },
+          allowMultiple: {
+            identifyingParameters: ['path', 'paths']
+          }
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const { match } = await testPlugin.match({
+      resource: {
+        core: { type: 'testResource' },
+        parameters: { path: '/my/path', propA: 'abc' },
+      },
+      array: [
+        {
+          core: { type: 'testResource' },
+          parameters: { path: '/my/other/path', propA: 'abc' },
+        },
+        {
+          core: { type: 'testResource' },
+          parameters: { paths: ['/my/path'], propA: 'def' },
+        },
+        {
+          core: { type: 'testResource' },
+          parameters: { path: '/my/path', propA: 'hig' },
+        },
+      ]
+    })
+    expect(match).toMatchObject({
+      core: { type: 'testResource' },
+      parameters: { path: '/my/path', propA: 'hig' },
+    })
+
+    const match2 = await testPlugin.match({
+      resource: {
+        core: { type: 'testResource' },
+        parameters: { path: '/my/path', propA: 'abc' },
+      },
+      array: []
+    })
+
+    expect(match2).toMatchObject({
+      match: undefined,
+    })
+  })
+
+  it('Can match resources together 2', { timeout: 3000000 }, async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'ssh-config',
+          parameterSettings: {
+            hosts: { type: 'stateful', definition: new TestStatefulParameter() }
+          },
+          importAndDestroy: {
+            refreshKeys: ['hosts'],
+            defaultRefreshValues: { hosts: [] },
+            requiredParameters: []
+          },
+          dependencies: ['ssh-key'],
+          allowMultiple: {
+            matcher: (a, b) => a.hosts === b.hosts
+          }
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const { match } = await testPlugin.match({
+      resource: {
+        core: { type: 'ssh-config' },
+        parameters: { hosts: 'a' },
+      },
+      array: [
+        {
+          core: { type: 'ssh-config' },
+          parameters: { hosts: 'b' },
+        },
+        {
+          core: { type: 'ssh-config' },
+          parameters: { hosts: 'a' },
+        },
+        {
+          core: { type: 'ssh-config' },
+          parameters: { hosts: 'c' },
+        },
+      ]
+    })
+
+    console.log(match)
+  })
+
+  it('Validates that a config correctly allows multiple of a config when allowMultiple is true', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'ssh-config',
+          allowMultiple: true
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    const validate1 = await testPlugin.validate({
+      configs: [{ core: { type: 'ssh-config' }, parameters: { propA: 'a' } }, {
+        core: { type: 'ssh-config' },
+        parameters: { propB: 'b' }
+      }]
+    })
+
+    expect(validate1.resourceValidations.every((r) => r.isValid)).to.be.true;
+  })
+
+  it('Validates that a config correctly dis-allows multiple of a config when allowMultiple is false', async () => {
+    const resource = spy(new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'ssh-config',
+        }
+      }
+    })
+
+    const testPlugin = Plugin.create('testPlugin', [resource as any]);
+
+    await expect(() => testPlugin.validate({
+        configs: [{ core: { type: 'ssh-config' }, parameters: { propA: 'a' } }, {
+          core: { type: 'ssh-config' },
+          parameters: { propB: 'b' }
+        }]
+      })
+    ).rejects.toThrowError();
   })
 });

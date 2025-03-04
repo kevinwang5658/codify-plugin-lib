@@ -1,9 +1,16 @@
+import { JSONSchemaType } from 'ajv';
 import { StringIndexedObject } from 'codify-schemas';
 import isObjectsEqual from 'lodash.isequal'
 import path from 'node:path';
 
 import { ArrayStatefulParameter, StatefulParameter } from '../stateful-parameter/stateful-parameter.js';
-import { areArraysEqual, untildify } from '../utils/utils.js';
+import { addVariablesToPath, areArraysEqual, resolvePathWithVariables, tildify, untildify } from '../utils/utils.js';
+import { RefreshContext } from './resource.js';
+
+export interface InputTransformation {
+  to: (input: any) => Promise<any> | any;
+  from: (current: any, original: any) => Promise<any> | any;
+}
 
 /**
  * The configuration and settings for a resource.
@@ -18,7 +25,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   /**
    * Schema to validate user configs with. Must be in the format JSON Schema draft07
    */
-  schema?: unknown;
+  schema?: Partial<JSONSchemaType<T | any>>;
 
   /**
    * Allow multiple of the same resource to unique. Set truthy if
@@ -26,6 +33,17 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * on the system. Or there can be multiple git repos. Defaults to false.
    */
   allowMultiple?: {
+
+    /**
+     * A set of parameters that uniquely identifies a resource. The value of these parameters is used to determine which
+     * resource is which when multiple can exist at the same time. Defaults to the required parameters inside the json
+     * schema.
+     *
+     * For example:
+     * If paramA is required, then if resource1.paramA === resource2.paramA then are the same resource.
+     * If resource1.paramA !== resource1.paramA, then they are different.
+     */
+    identifyingParameters?: string[]
 
     /**
      * If multiple copies are allowed then a matcher must be defined to match the desired
@@ -36,8 +54,8 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      *
      * @return The matched resource.
      */
-    matcher: (desired: Partial<T>, current: Partial<T>[],) => Partial<T>
-  }
+    matcher?: (desired: Partial<T>, current: Partial<T>) => boolean
+  } | boolean
 
   /**
    * If true, {@link StatefulParameter} remove() will be called before resource destruction. This is useful
@@ -64,12 +82,12 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    *
    * @param desired
    */
-  inputTransformation?: (desired: Partial<T>) => Promise<unknown> | unknown;
+  transformation?: InputTransformation;
 
   /**
-   * Customize the import behavior of the resource. By default, <code>codify import</code> will call `refresh()` with
-   * every parameter set to null and return the result of the refresh as the imported config. It looks for required parameters
-   * in the schema and will prompt the user for these values before performing the import.
+   * Customize the import and destory behavior of the resource. By default, <code>codify import</code> and <code>codify destroy</code> will call
+   * `refresh()` with every parameter set to null and return the result of the refresh as the imported config. It looks for required parameters
+   * in the schema and will prompt the user for these values before performing the import or destroy.
    *
    * <b>Example:</b><br>
    * Resource `alias` with parameters
@@ -85,18 +103,25 @@ export interface ResourceSettings<T extends StringIndexedObject> {
    * { type: 'alias', alias: 'user-input', value: 'git push' }
    * ```
    */
-  import?: {
+  importAndDestroy?: {
+    /**
+     * Can this resources be imported? If set to false then the codifyCLI will skip over/not consider this
+     * resource valid for imports. Defaults to true.
+     *
+     * Resources that can't be imported in the core library for example are: action resources
+     */
+    preventImport?: boolean;
 
     /**
      * Customize the required parameters needed to import this resource. By default, the `requiredParameters` are taken
-     * from the JSON schema. The `requiredParameters` parameter must be declared if a complex required is declared in
+     * from the identifyingParameters for allowMultiple. The `requiredParameters` parameter must be declared if a complex required is declared in
      * the schema (contains `oneOf`, `anyOf`, `allOf`, `if`, `then`, `else`).
      * <br>
      * The user will be prompted for the required parameters before the import starts. This is done because for most resources
      * the required parameters change the behaviour of the refresh (for example for the `alias` resource, the `alias` parmaeter
      * chooses which alias the resource is managing).
      *
-     * See {@link import} for more information on how importing works.
+     * See {@link importAndDestroy} for more information on how importing works.
      */
     requiredParameters?: Array<Partial<keyof T>>;
 
@@ -107,16 +132,25 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * By default all parameters (except for {@link requiredParameters }) are passed in with the value `null`. The passed
      * in value can be customized using {@link defaultRefreshValues}
      *
-     * See {@link import} for more information on how importing works.
+     * See {@link importAndDestroy} for more information on how importing works.
      */
     refreshKeys?: Array<Partial<keyof T>>;
 
     /**
      * Customize the value that is passed into refresh when importing. This must only contain keys found in {@link refreshKeys}.
      *
-     * See {@link import} for more information on how importing works.
+     * See {@link importAndDestroy} for more information on how importing works.
      */
-    defaultRefreshValues?: Partial<T>
+    defaultRefreshValues?: Partial<T>;
+
+    /**
+     * A custom function that maps the input to what gets passed to refresh for imports. If this is set, then refreshKeys and
+     * defaultRefreshValues are ignored.
+     *
+     * @param input
+     * @param context
+     */
+    refreshMapper?: (input: Partial<T>, context: RefreshContext<T>) => Partial<T>
   }
 }
 
@@ -166,12 +200,13 @@ export interface DefaultParameterSetting {
   default?: unknown;
 
   /**
-   * A transformation of the input value for this parameter. This transformation is only applied to the desired parameter
-   * value supplied by the user.
+   * A transformation of the input value for this parameter. Two transformations need to be provided: to (from desired to
+   * the internal type), and from (from the internal type back to desired). All transformations need to be bi-directional
+   * to support imports properly
    *
    * @param input The original parameter value from the desired config.
    */
-  inputTransformation?: (input: any) => Promise<any> | any;
+  transformation?: InputTransformation;
 
   /**
    * Customize the equality comparison for a parameter. This is used in the diffing algorithm for generating the plan.
@@ -194,6 +229,16 @@ export interface DefaultParameterSetting {
    * 2. AWS profile secret keys that can be updated without the re-installation of AWS CLI
    */
   canModify?: boolean
+
+  /**
+   * This option allows the plan to skip this parameter entirely as it is used for setting purposes only. The value
+   * of this parameter is used to configure the resource or other parameters.
+   *
+   * Examples:
+   * 1. homebrew.onlyPlanUserInstalled option will tell homebrew to filter by --installed-on-request. But the value,
+   * of the parameter itself (true or false) does not have an impact on the plan
+   */
+  setting?: boolean
 }
 
 /**
@@ -233,6 +278,12 @@ export interface ArrayParameterSetting extends DefaultParameterSetting {
    * Defaults to true.
    */
   filterInStatelessMode?: ((desired: any[], current: any[]) => any[]) | boolean,
+
+  /**
+   * The type of the array item. See {@link ParameterSettingType} for the available options. This value
+   * is mainly used to determine the equality method when performing diffing.
+   */
+  itemType?: ParameterSettingType,
 }
 
 /**
@@ -261,22 +312,42 @@ export interface StatefulParameterSetting extends DefaultParameterSetting {
 
 const ParameterEqualsDefaults: Partial<Record<ParameterSettingType, (a: unknown, b: unknown) => boolean>> = {
   'boolean': (a: unknown, b: unknown) => Boolean(a) === Boolean(b),
-  'directory': (a: unknown, b: unknown) => path.resolve(untildify(String(a))) === path.resolve(untildify(String(b))),
+  'directory': (a: unknown, b: unknown) => {
+    let transformedA = resolvePathWithVariables(untildify(String(a)))
+    let transformedB = resolvePathWithVariables(untildify(String(b)))
+
+    if (transformedA.startsWith('.')) { // Only relative paths start with '.'
+      transformedA = path.resolve(transformedA)
+    }
+
+    if (transformedB.startsWith('.')) { // Only relative paths start with '.'
+      transformedB = path.resolve(transformedB)
+    }
+
+    const notCaseSensitive = process.platform === 'darwin';
+    if (notCaseSensitive) {
+      transformedA = transformedA.toLowerCase();
+      transformedB = transformedB.toLowerCase();
+    }
+
+    return transformedA === transformedB;
+  },
   'number': (a: unknown, b: unknown) => Number(a) === Number(b),
   'string': (a: unknown, b: unknown) => String(a) === String(b),
   'version': (desired: unknown, current: unknown) => String(current).includes(String(desired)),
-  'setting': () => true,
   'object': isObjectsEqual,
 }
 
 export function resolveEqualsFn(parameter: ParameterSetting): (desired: unknown, current: unknown) => boolean {
+  // Setting parameters do not impact the plan
+  if (parameter.setting) {
+    return () => true;
+  }
+
   const isEqual = resolveFnFromEqualsFnOrString(parameter.isEqual);
 
   if (parameter.type === 'array') {
-    const arrayParameter = parameter as ArrayParameterSetting;
-    const isElementEqual = resolveFnFromEqualsFnOrString(arrayParameter.isElementEqual);
-
-    return isEqual ?? areArraysEqual.bind(areArraysEqual, isElementEqual)
+    return isEqual ?? areArraysEqual.bind(areArraysEqual, resolveElementEqualsFn(parameter as ArrayParameterSetting))
   }
 
   if (parameter.type === 'stateful') {
@@ -284,6 +355,21 @@ export function resolveEqualsFn(parameter: ParameterSetting): (desired: unknown,
   }
 
   return isEqual ?? ParameterEqualsDefaults[parameter.type as ParameterSettingType] ?? (((a, b) => a === b));
+}
+
+export function resolveElementEqualsFn(parameter: ArrayParameterSetting): (desired: unknown, current: unknown) => boolean {
+  if (parameter.isElementEqual) {
+    const elementEq = resolveFnFromEqualsFnOrString(parameter.isElementEqual);
+    if (elementEq) {
+      return elementEq;
+    }
+  }
+
+  if (parameter.itemType && ParameterEqualsDefaults[parameter.itemType]) {
+    return ParameterEqualsDefaults[parameter.itemType]!
+  }
+
+  return (a, b) => a === b;
 }
 
 // This resolves the fn if it is a string.
@@ -303,19 +389,107 @@ export function resolveFnFromEqualsFnOrString(
   return fnOrString as ((a: unknown, b: unknown) => boolean) | undefined;
 }
 
-const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, (input: any, parameter: ParameterSetting) => Promise<any> | any>> = {
-  'directory': (a: unknown) => path.resolve(untildify(String(a))),
-  'stateful': (a: unknown, b: ParameterSetting) => {
-    const sp = b as StatefulParameterSetting;
-    return (sp.definition?.getSettings()?.inputTransformation)
-      ? (sp.definition.getSettings().inputTransformation!(a))
-      : a;
+const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, InputTransformation>> = {
+  'directory': {
+    to: (a: unknown) => path.resolve(resolvePathWithVariables((untildify(String(a))))),
+    from: (a: unknown, original) => {
+      if (ParameterEqualsDefaults.directory!(a, original)) {
+        return original;
+      }
+
+      return tildify(addVariablesToPath(String(a)))
+    },
   },
-  'string': String,
+  'string': {
+    to: String,
+    from: String,
+  },
+  'boolean': {
+    to: Boolean,
+    from: Boolean,
+  }
 }
 
 export function resolveParameterTransformFn(
   parameter: ParameterSetting
-): ((input: any, parameter: ParameterSetting) => Promise<any> | any) | undefined {
-  return parameter.inputTransformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
+): InputTransformation | undefined {
+
+  if (parameter.type === 'stateful' && !parameter.transformation) {
+    const sp = (parameter as StatefulParameterSetting).definition.getSettings();
+    if (sp.transformation) {
+      return (parameter as StatefulParameterSetting).definition?.getSettings()?.transformation
+    }
+
+    return sp.type ? ParameterTransformationDefaults[sp.type] : undefined;
+  }
+
+  if (parameter.type === 'array'
+    && (parameter as ArrayParameterSetting).itemType
+    && ParameterTransformationDefaults[(parameter as ArrayParameterSetting).itemType!]
+    && !parameter.transformation
+  ) {
+    const itemType = (parameter as ArrayParameterSetting).itemType!;
+    const itemTransformation = ParameterTransformationDefaults[itemType]!;
+
+    return {
+      to(input: unknown[]) {
+        return input.map((i) => itemTransformation.to(i))
+      },
+      from(input: unknown[], original) {
+        return input.map((i, idx) => {
+          const originalElement = Array.isArray(original)
+            ? original.find((o) => resolveElementEqualsFn(parameter as ArrayParameterSetting)(o, i)) ?? original[idx]
+            : original;
+
+          return itemTransformation.from(i, originalElement);
+        })
+      }
+    }
+  }
+
+  return parameter.transformation ?? ParameterTransformationDefaults[parameter.type as ParameterSettingType] ?? undefined;
+}
+
+export function resolveMatcher<T extends StringIndexedObject>(
+  settings: ResourceSettings<T>
+): (desired: Partial<T>, current: Partial<T>) => boolean {
+  return typeof settings.allowMultiple === 'boolean' || !settings.allowMultiple?.matcher
+    ? ((desired: Partial<T>, current: Partial<T>) => {
+      if (!desired || !current) {
+        return false;
+      }
+
+      if (!settings.allowMultiple) {
+        throw new Error(`Matching only works when allow multiple is enabled. Type: ${settings.id}`)
+      }
+
+      const requiredParameters = typeof settings.allowMultiple === 'object'
+        ? settings.allowMultiple?.identifyingParameters ?? (settings.schema?.required as string[]) ?? []
+        : (settings.schema?.required as string[]) ?? []
+
+      return requiredParameters.every((key) => {
+        const currentParameter = current[key];
+        const desiredParameter = desired[key];
+
+        // If both desired and current don't have a certain parameter then we assume they are the same
+        if (!currentParameter && !desiredParameter) {
+          return true;
+        }
+
+        if (!currentParameter) {
+          console.warn(`Unable to find required parameter for current ${currentParameter}`)
+          return false;
+        }
+
+        if (!desiredParameter) {
+          console.warn(`Unable to find required parameter for current ${currentParameter}`)
+          return false;
+        }
+
+        const parameterSetting = settings.parameterSettings?.[key];
+        const isEq = parameterSetting ? resolveEqualsFn(parameterSetting) : null
+        return isEq?.(desiredParameter, currentParameter) ?? currentParameter === desiredParameter;
+      })
+    })
+    : settings.allowMultiple.matcher
 }

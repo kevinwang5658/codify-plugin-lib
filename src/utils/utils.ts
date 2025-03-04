@@ -1,5 +1,6 @@
 import { ResourceConfig, StringIndexedObject } from 'codify-schemas';
 import os from 'node:os';
+import path from 'node:path';
 
 export function isDebug(): boolean {
   return process.env.DEBUG != null && process.env.DEBUG.includes('codify'); // TODO: replace with debug library
@@ -31,6 +32,32 @@ const homeDirectory = os.homedir();
 
 export function untildify(pathWithTilde: string) {
   return homeDirectory ? pathWithTilde.replace(/^~(?=$|\/|\\)/, homeDirectory) : pathWithTilde;
+}
+
+export function tildify(pathWithTilde: string) {
+  return homeDirectory ? pathWithTilde.replace(homeDirectory, '~') : pathWithTilde;
+}
+
+export function resolvePathWithVariables(pathWithVariables: string) {
+  // @ts-expect-error Ignore this for now
+  return pathWithVariables.replace(/\$([A-Z_]+[A-Z0-9_]*)|\${([A-Z0-9_]*)}/ig, (_, a, b) => process.env[a || b])
+}
+
+export function addVariablesToPath(pathWithoutVariables: string) {
+  let result = pathWithoutVariables;
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!value || !path.isAbsolute(value) || value === '/' || key === 'HOME' || key === 'PATH' || key === 'SHELL' || key === 'PWD') {
+      continue;
+    }
+
+    result = result.replaceAll(value, `$${key}`)
+  }
+
+  return result;
+}
+
+export function unhome(pathWithHome: string): string {
+  return pathWithHome.includes('$HOME') ? pathWithHome.replaceAll('$HOME', os.homedir()) : pathWithHome;
 }
 
 export function areArraysEqual(

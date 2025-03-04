@@ -230,6 +230,120 @@ describe('Plan entity tests', () => {
       ])
     })
   })
+
+  it('Can use the requiredParameters to match the correct resources together', async () => {
+    const resource1 = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          parameterSettings: {
+            propA: { type: 'string' },
+            propB: { type: 'string', canModify: true },
+          },
+          allowMultiple: {
+            identifyingParameters: ['propA']
+          }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return [{
+          propA: 'same',
+          propB: 'old',
+        }, {
+          propA: 'different',
+          propB: 'different',
+        }]
+      }
+    }
+
+    const controller = new ResourceController(resource1);
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propA: 'same', propB: 'new' },
+      null,
+      false
+    )
+
+    expect(plan.changeSet).toMatchObject({
+      operation: ResourceOperation.MODIFY,
+      parameterChanges: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'propA',
+          previousValue: 'same',
+          newValue: 'same',
+          operation: 'noop'
+        }),
+        expect.objectContaining({
+          name: 'propB',
+          previousValue: 'old',
+          newValue: 'new',
+          operation: 'modify'
+        })
+      ])
+    })
+  })
+
+  it('Can use the schema to determine required parameters for multiple allowed', async () => {
+    const resource1 = new class extends TestResource {
+      getSettings(): ResourceSettings<TestConfig> {
+        return {
+          id: 'type',
+          parameterSettings: {
+            propA: { type: 'string' },
+            propB: { type: 'string', canModify: true },
+          },
+          allowMultiple: true,
+          schema: {
+            '$schema': 'http://json-schema.org/draft-07/schema',
+            '$id': 'https://www.codifycli.com/type.json',
+            'type': 'object',
+            'properties': {
+              propA: { type: 'string' },
+              propB: { type: 'string' }
+            },
+            required: ['propA']
+          }
+        }
+      }
+
+      async refresh(): Promise<Partial<any> | null> {
+        return [{
+          propA: 'same',
+          propB: 'old',
+        }, {
+          propA: 'different',
+          propB: 'different',
+        }]
+      }
+    }
+
+    const controller = new ResourceController(resource1);
+    const plan = await controller.plan(
+      { type: 'type' },
+      { propA: 'same', propB: 'new' },
+      null,
+      false
+    )
+
+    expect(plan.changeSet).toMatchObject({
+      operation: ResourceOperation.MODIFY,
+      parameterChanges: expect.arrayContaining([
+        expect.objectContaining({
+          name: 'propA',
+          previousValue: 'same',
+          newValue: 'same',
+          operation: 'noop'
+        }),
+        expect.objectContaining({
+          name: 'propB',
+          previousValue: 'old',
+          newValue: 'new',
+          operation: 'modify'
+        })
+      ])
+    })
+  })
 })
 
 function createTestResource() {

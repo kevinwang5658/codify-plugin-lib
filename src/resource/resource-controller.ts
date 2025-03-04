@@ -13,7 +13,7 @@ import { Plan } from '../plan/plan.js';
 import { CreatePlan, DestroyPlan, ModifyPlan } from '../plan/plan-types.js';
 import { ConfigParser } from './config-parser.js';
 import { ParsedResourceSettings } from './parsed-resource-settings.js';
-import { Resource } from './resource.js';
+import { RefreshContext, Resource } from './resource.js';
 import { ResourceSettings } from './resource-settings.js';
 
 export class ResourceController<T extends StringIndexedObject> {
@@ -102,6 +102,48 @@ export class ResourceController<T extends StringIndexedObject> {
     }
   }
 
+  async match(resource: ResourceJson, array: Array<ResourceJson>): Promise<ResourceJson | undefined> {
+    if (resource.core.type !== this.typeId) {
+      throw new Error(`Unknown type passed into match method: ${resource.core.type} for ${this.typeId}`);
+    }
+
+    if (!this.parsedSettings.allowMultiple) {
+      return array.find((r) => r.core.type === resource.core.type)
+    }
+
+
+    const { name, type } = resource.core;
+    const parameterMatcher = this.parsedSettings.matcher;
+
+    for (const resourceToMatch of array) {
+      if (type !== resourceToMatch.core.type) {
+        return undefined;
+      }
+
+      // If the user specifies the same name for the resource and it's not auto-generated (a number) then it's the same resource
+      if (name === resourceToMatch.core.name
+        && name
+        && Number.isInteger(Number.parseInt(name, 10))
+      ) {
+        return resourceToMatch;
+      }
+
+      const originalParams = structuredClone(resource.parameters) as Partial<T>;
+      const paramsToMatch = structuredClone(resourceToMatch.parameters) as Partial<T>;
+
+      this.addDefaultValues(originalParams);
+      await this.applyTransformParameters(originalParams);
+
+      this.addDefaultValues(paramsToMatch);
+      await this.applyTransformParameters(paramsToMatch);
+
+      const match = parameterMatcher(originalParams, paramsToMatch);
+      if (match) {
+        return resourceToMatch;
+      }
+    }
+  }
+
   async plan(
     core: ResourceConfig,
     desired: Partial<T> | null,
@@ -109,6 +151,11 @@ export class ResourceController<T extends StringIndexedObject> {
     isStateful = false,
   ): Promise<Plan<T>> {
     this.validatePlanInputs(core, desired, state, isStateful);
+    const context: RefreshContext<T> = {
+      commandType: 'plan',
+      isStateful,
+      originalDesiredConfig: structuredClone(desired),
+    };
 
     this.addDefaultValues(desired);
     await this.applyTransformParameters(desired);
@@ -125,12 +172,11 @@ export class ResourceController<T extends StringIndexedObject> {
     } = parsedConfig;
 
     // Refresh resource parameters. This refreshes the parameters that configure the resource itself
-    const currentArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
+    const currentArray = await this.refreshNonStatefulParameters(allNonStatefulParameters, context);
 
     // Short circuit here. If the resource is non-existent, there's no point checking stateful parameters
     if (currentArray === null
       || currentArray === undefined
-      || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
       || currentArray.length === 0
       || currentArray.filter(Boolean).length === 0
     ) {
@@ -144,18 +190,45 @@ export class ResourceController<T extends StringIndexedObject> {
       });
     }
 
-    // Refresh stateful parameters. These parameters have state external to the resource. allowMultiple
-    // does not work together with stateful parameters
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, allParameters);
+    // Refresh stateful parameters. These parameters have state external to the resource. Each variation of the
+    // current parameters (each array element) is passed into the stateful parameter refresh.
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentArray, allParameters);
 
     return Plan.calculate({
       desired,
-      currentArray: [{ ...currentArray[0], ...statefulCurrentParameters }] as Partial<T>[],
+      currentArray: currentArray.map((c, idx) => ({ ...c, ...statefulCurrentParameters[idx] })),
       state,
       core,
       settings: this.parsedSettings,
       isStateful
     })
+  }
+
+  async planDestroy(
+    core: ResourceConfig,
+    parameters: Partial<T>
+  ): Promise<Plan<T>> {
+    this.addDefaultValues(parameters);
+    await this.applyTransformParameters(parameters);
+
+    // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
+    const parametersToRefresh = this.settings.importAndDestroy?.refreshKeys
+      ? {
+        ...Object.fromEntries(
+          this.settings.importAndDestroy?.refreshKeys.map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+      }
+      : {
+        ...Object.fromEntries(
+          this.getAllParameterKeys().map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+      };
+
+    return this.plan(core, null, parametersToRefresh, true);
   }
 
   async apply(plan: Plan<T>): Promise<void> {
@@ -187,47 +260,49 @@ export class ResourceController<T extends StringIndexedObject> {
     core: ResourceConfig,
     parameters: Partial<T>
   ): Promise<Array<ResourceJson> | null> {
+    if (this.settings.importAndDestroy?.preventImport) {
+      throw new Error(`Type: ${this.typeId} cannot be imported`);
+    }
+
+    const context: RefreshContext<T> = {
+      commandType: 'import',
+      isStateful: true,
+      originalDesiredConfig: structuredClone(parameters),
+    };
+
     this.addDefaultValues(parameters);
     await this.applyTransformParameters(parameters);
 
     // Use refresh parameters if specified, otherwise try to refresh as many parameters as possible here
-    const parametersToRefresh = this.settings.import?.refreshKeys
-      ? {
-        ...Object.fromEntries(
-          this.settings.import?.refreshKeys.map((k) => [k, null])
-        ),
-        ...this.settings.import?.defaultRefreshValues,
-        ...parameters,
-      }
-      : {
-        ...Object.fromEntries(
-          this.getAllParameterKeys().map((k) => [k, null])
-        ),
-        ...this.settings.import?.defaultRefreshValues,
-        ...parameters,
-      };
+    const parametersToRefresh = this.getParametersToRefreshForImport(parameters, context);
 
     // Parse data from the user supplied config
     const parsedConfig = new ConfigParser(parametersToRefresh, null, this.parsedSettings.statefulParameters)
     const {
+      allParameters,
       allNonStatefulParameters,
       allStatefulParameters,
     } = parsedConfig;
 
-    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters);
+    const currentParametersArray = await this.refreshNonStatefulParameters(allNonStatefulParameters, context);
 
     if (currentParametersArray === null
       || currentParametersArray === undefined
-      || this.settings.allowMultiple // Stateful parameters are not supported currently if allowMultiple is true
       || currentParametersArray.filter(Boolean).length === 0
     ) {
-      return currentParametersArray
-          ?.map((r) => ({ core, parameters: r }))
-        ?? null;
+      return [];
     }
 
-    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, parametersToRefresh);
-    return [{ core, parameters: { ...currentParametersArray[0], ...statefulCurrentParameters } }];
+    const statefulCurrentParameters = await this.refreshStatefulParameters(allStatefulParameters, currentParametersArray, allParameters);
+    const resultParametersArray = currentParametersArray
+      ?.map((r, idx) => ({ ...r, ...statefulCurrentParameters[idx] }))
+
+    for (const result of resultParametersArray) {
+      await this.applyTransformParameters(result, { original: context.originalDesiredConfig });
+      this.removeDefaultValues(result, parameters);
+    }
+
+    return resultParametersArray?.map((r) => ({ core, parameters: r }))
   }
 
   private async applyCreate(plan: Plan<T>): Promise<void> {
@@ -306,7 +381,9 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async applyTransformParameters(config: Partial<T> | null): Promise<void> {
+  private async applyTransformParameters(config: Partial<T> | null, reverse?: {
+    original: Partial<T> | null
+  }): Promise<void> {
     if (!config) {
       return;
     }
@@ -316,11 +393,16 @@ ${JSON.stringify(refresh, null, 2)}
         continue;
       }
 
-      (config as Record<string, unknown>)[key] = await inputTransformation(config[key], this.settings.parameterSettings![key]!);
+      (config as Record<string, unknown>)[key] = reverse
+        ? await inputTransformation.from(config[key], reverse.original?.[key])
+        : await inputTransformation.to(config[key]);
     }
 
-    if (this.settings.inputTransformation) {
-      const transformed = await this.settings.inputTransformation({ ...config })
+    if (this.settings.transformation) {
+      const transformed = reverse
+        ? await this.settings.transformation.from({ ...config }, reverse.original)
+        : await this.settings.transformation.to({ ...config })
+
       Object.keys(config).forEach((k) => delete config[k])
       Object.assign(config, transformed);
     }
@@ -338,8 +420,21 @@ ${JSON.stringify(refresh, null, 2)}
     }
   }
 
-  private async refreshNonStatefulParameters(resourceParameters: Partial<T>): Promise<Array<Partial<T>> | null> {
-    const result = await this.resource.refresh(resourceParameters);
+  private removeDefaultValues(newConfig: Partial<T> | null, originalConfig: Partial<T>): void {
+    if (!newConfig) {
+      return;
+    }
+
+    for (const [key, defaultValue] of Object.entries(this.parsedSettings.defaultValues)) {
+      if (defaultValue !== undefined && (newConfig[key] === defaultValue || originalConfig[key] === undefined || originalConfig[key] === null)) {
+        delete newConfig[key];
+      }
+    }
+
+  }
+
+  private async refreshNonStatefulParameters(resourceParameters: Partial<T>, context: RefreshContext<T>): Promise<Array<Partial<T>> | null> {
+    const result = await this.resource.refresh(resourceParameters, context);
 
     const currentParametersArray = Array.isArray(result) || result === null
       ? result
@@ -351,21 +446,27 @@ ${JSON.stringify(refresh, null, 2)}
 
   // Refresh stateful parameters
   // This refreshes parameters that are stateful (they can be added, deleted separately from the resource)
-  private async refreshStatefulParameters(statefulParametersConfig: Partial<T>, allParameters: Partial<T>): Promise<Partial<T>> {
-    const result: Partial<T> = {}
+  private async refreshStatefulParameters(
+    statefulParametersConfig: Partial<T>,
+    currentArray: Array<Partial<T>>,
+    allParameters: Partial<T>
+  ): Promise<Array<Partial<T>>> {
+    const result: Array<Partial<T>> = Array.from({ length: currentArray.length }, () => ({}))
     const sortedEntries = Object.entries(statefulParametersConfig)
       .sort(
         ([key1], [key2]) => this.parsedSettings.statefulParameterOrder.get(key1)! - this.parsedSettings.statefulParameterOrder.get(key2)!
       )
 
-    await Promise.all(sortedEntries.map(async ([key, desiredValue]) => {
-      const statefulParameter = this.parsedSettings.statefulParameters.get(key);
-      if (!statefulParameter) {
-        throw new Error(`Stateful parameter ${key} was not found`);
-      }
+    for (const [idx, refreshedParams] of currentArray.entries()) {
+      await Promise.all(sortedEntries.map(async ([key, desiredValue]) => {
+        const statefulParameter = this.parsedSettings.statefulParameters.get(key);
+        if (!statefulParameter) {
+          throw new Error(`Stateful parameter ${key} was not found`);
+        }
 
-      (result as Record<string, unknown>)[key] = await statefulParameter.refresh(desiredValue ?? null, allParameters)
-    }))
+        (result[idx][key] as T[keyof T] | null) = await statefulParameter.refresh(desiredValue ?? null, { ...allParameters, ...refreshedParams })
+      }))
+    }
 
     return result;
   }
@@ -401,6 +502,36 @@ ${JSON.stringify(refresh, null, 2)}
     return this.settings.schema
       ? Object.keys((this.settings.schema as any)?.properties)
       : Object.keys(this.parsedSettings.parameterSettings);
+  }
+
+  private getParametersToRefreshForImport(parameters: Partial<T>, context: RefreshContext<T>): Partial<T> {
+    if (this.settings.importAndDestroy?.refreshMapper) {
+      return this.settings.importAndDestroy?.refreshMapper(parameters, context);
+    }
+
+    return this.settings.importAndDestroy?.refreshKeys
+      ? {
+        ...Object.fromEntries(
+          this.settings.importAndDestroy?.refreshKeys.map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+        ...(Object.fromEntries( // If a default value was used, but it was also declared in the defaultRefreshValues, prefer the defaultRefreshValue instead
+          Object.entries(parameters).filter(([k, v]) =>
+            this.parsedSettings.defaultValues[k] !== undefined
+            && v === this.parsedSettings.defaultValues[k]
+            && context.originalDesiredConfig?.[k] === undefined
+            && this.settings.importAndDestroy?.defaultRefreshValues?.[k] !== undefined
+          ).map(([k]) => [k, this.settings.importAndDestroy!.defaultRefreshValues![k]])
+        ))
+      }
+      : {
+        ...Object.fromEntries(
+          this.getAllParameterKeys().map((k) => [k, null])
+        ),
+        ...this.settings.importAndDestroy?.defaultRefreshValues,
+        ...parameters,
+      };
   }
 }
 

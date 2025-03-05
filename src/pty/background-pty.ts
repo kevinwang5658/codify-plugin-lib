@@ -6,6 +6,7 @@ import * as fs from 'node:fs/promises';
 import stripAnsi from 'strip-ansi';
 
 import { debugLog } from '../utils/debug.js';
+import { VerbosityLevel } from '../utils/utils.js';
 import { IPty, SpawnError, SpawnOptions, SpawnResult } from './index.js';
 import { PromiseQueue } from './promise-queue.js';
 
@@ -76,7 +77,10 @@ export class BackgroundPty implements IPty {
             data: strippedData,
           });
         } else {
-          process.stdout.write(data);
+          // Print to stdout if the verbosity level is above 0
+          if (VerbosityLevel.get() > 0) {
+            process.stdout.write(data);
+          }
         }
       })
 

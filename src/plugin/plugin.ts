@@ -113,7 +113,7 @@ export class Plugin {
   }
 
   async import(data: ImportRequestData): Promise<ImportResponseData> {
-    const { core, parameters } = data;
+    const { core, parameters, autoSearchAll } = data;
 
     if (!this.resourceControllers.has(core.type)) {
       throw new Error(`Cannot get info for resource ${core.type}, resource doesn't exist`);
@@ -122,7 +122,7 @@ export class Plugin {
     const result = await ptyLocalStorage.run(this.planPty, () =>
       this.resourceControllers
         .get(core.type!)
-        ?.import(core, parameters, data.autoSearchAll)
+        ?.import(core, parameters, autoSearchAll)
     )
 
     return {

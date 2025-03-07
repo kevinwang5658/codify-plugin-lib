@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 export const VerbosityLevel = new class {
-  private level = 0;
+  level = 0;
 
   get() {
     return this.level;

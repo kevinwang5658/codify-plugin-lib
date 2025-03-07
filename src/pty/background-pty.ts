@@ -101,7 +101,7 @@ export class BackgroundPty implements IPty {
           }
         });
 
-        console.log(`Running command ${cmd}`)
+        console.log(`Running command ${cmd}${options?.cwd ? ` (cwd: ${options.cwd})` : ''}`)
         this.basePty.write(`${command}\r`);
 
       }));

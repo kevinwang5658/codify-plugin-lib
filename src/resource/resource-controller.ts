@@ -279,7 +279,9 @@ export class ResourceController<T extends StringIndexedObject> {
       }
 
       const parametersToImport = await this.settings.allowMultiple.findAllParameters?.();
-      const results = await Promise.all(parametersToImport.map((p) => this.import(core, p)));
+      const results = await Promise.all(parametersToImport.map((p) =>
+        this.import(core, p).catch(() => null))
+      );
       return results.filter(Boolean).flat() as ResourceJson[];
     }
 

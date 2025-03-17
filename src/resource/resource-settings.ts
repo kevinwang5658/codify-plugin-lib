@@ -398,7 +398,7 @@ export function resolveFnFromEqualsFnOrString(
 
 const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, InputTransformation>> = {
   'directory': {
-    to: (a: unknown) => path.resolve(resolvePathWithVariables((untildify(String(a))))),
+    to: (a: unknown) => resolvePathWithVariables((untildify(String(a)))),
     from: (a: unknown, original) => {
       if (ParameterEqualsDefaults.directory!(a, original)) {
         return original;

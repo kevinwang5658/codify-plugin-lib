@@ -5,6 +5,7 @@ import {
   GetResourceInfoResponseData,
   ImportRequestData,
   ImportResponseData,
+  InitializeRequestData,
   InitializeResponseData,
   MatchRequestData,
   MatchResponseData,
@@ -23,6 +24,7 @@ import { getPty } from '../pty/index.js';
 import { Resource } from '../resource/resource.js';
 import { ResourceController } from '../resource/resource-controller.js';
 import { ptyLocalStorage } from '../utils/pty-local-storage.js';
+import { VerbosityLevel } from '../utils/utils.js';
 
 export class Plugin {
   planStorage: Map<string, Plan<any>>;
@@ -46,7 +48,11 @@ export class Plugin {
     return new Plugin(name, controllersMap);
   }
 
-  async initialize(): Promise<InitializeResponseData> {
+  async initialize(data: InitializeRequestData): Promise<InitializeResponseData> {
+    if (data.verbosityLevel) {
+      VerbosityLevel.set(data.verbosityLevel);
+    }
+
     for (const controller of this.resourceControllers.values()) {
       await controller.initialize();
     }
@@ -107,7 +113,7 @@ export class Plugin {
   }
 
   async import(data: ImportRequestData): Promise<ImportResponseData> {
-    const { core, parameters } = data;
+    const { core, parameters, autoSearchAll } = data;
 
     if (!this.resourceControllers.has(core.type)) {
       throw new Error(`Cannot get info for resource ${core.type}, resource doesn't exist`);
@@ -116,7 +122,7 @@ export class Plugin {
     const result = await ptyLocalStorage.run(this.planPty, () =>
       this.resourceControllers
         .get(core.type!)
-        ?.import(core, parameters)
+        ?.import(core, parameters, autoSearchAll)
     )
 
     return {

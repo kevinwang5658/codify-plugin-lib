@@ -258,7 +258,8 @@ export class ResourceController<T extends StringIndexedObject> {
 
   async import(
     core: ResourceConfig,
-    parameters: Partial<T>
+    parameters: Partial<T>,
+    autoSearchAll = false,
   ): Promise<Array<ResourceJson> | null> {
     if (this.settings.importAndDestroy?.preventImport) {
       throw new Error(`Type: ${this.typeId} cannot be imported`);
@@ -269,6 +270,20 @@ export class ResourceController<T extends StringIndexedObject> {
       isStateful: true,
       originalDesiredConfig: structuredClone(parameters),
     };
+
+    // Auto search means that no required parameters will be provided. We will try to generate it ourselves or return an
+    // empty array if they can't be.
+    if (autoSearchAll && this.settings.allowMultiple) {
+      if (this.settings.allowMultiple === true || !this.settings.allowMultiple.findAllParameters?.()) {
+        return [];
+      }
+
+      const parametersToImport = await this.settings.allowMultiple.findAllParameters?.();
+      const results = await Promise.all(parametersToImport.map((p) =>
+        this.import(core, p).catch(() => null))
+      );
+      return results.filter(Boolean).flat() as ResourceJson[];
+    }
 
     this.addDefaultValues(parameters);
     await this.applyTransformParameters(parameters);

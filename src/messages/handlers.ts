@@ -28,7 +28,7 @@ import { Plugin } from '../plugin/plugin.js';
 
 const SupportedRequests: Record<string, { handler: (plugin: Plugin, data: any) => Promise<unknown>; requestValidator: SchemaObject; responseValidator: SchemaObject }> = {
   'initialize': {
-    handler: async (plugin: Plugin) => plugin.initialize(),
+    handler: async (plugin: Plugin, data: any) => plugin.initialize(data),
     requestValidator: InitializeRequestDataSchema,
     responseValidator: InitializeResponseDataSchema
   },

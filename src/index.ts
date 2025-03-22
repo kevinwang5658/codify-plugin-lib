@@ -2,6 +2,7 @@ import { MessageHandler } from './messages/handlers.js';
 import { Plugin } from './plugin/plugin.js';
 
 export * from './errors.js'
+export * from './messages/sender.js'
 export * from './plan/change-set.js'
 export * from './plan/plan.js'
 export * from './plan/plan-types.js'

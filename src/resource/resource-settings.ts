@@ -43,7 +43,7 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      * If paramA is required, then if resource1.paramA === resource2.paramA then are the same resource.
      * If resource1.paramA !== resource1.paramA, then they are different.
      */
-    identifyingParameters?: string[]
+    identifyingParameters?: string[];
 
     /**
      * If multiple copies are allowed then a matcher must be defined to match the desired
@@ -54,7 +54,14 @@ export interface ResourceSettings<T extends StringIndexedObject> {
      *
      * @return The matched resource.
      */
-    matcher?: (desired: Partial<T>, current: Partial<T>) => boolean
+    matcher?: (desired: Partial<T>, current: Partial<T>) => boolean;
+
+    /**
+     * This method if supported by the resource returns an array of parameters that represent all of the possible
+     * instances of a resource on the system. An example of this is for the git-repository resource, this method returns
+     * a list of directories which are git repositories.
+     */
+    findAllParameters?: () => Promise<Array<Partial<T>>>
   } | boolean
 
   /**
@@ -391,7 +398,7 @@ export function resolveFnFromEqualsFnOrString(
 
 const ParameterTransformationDefaults: Partial<Record<ParameterSettingType, InputTransformation>> = {
   'directory': {
-    to: (a: unknown) => path.resolve(resolvePathWithVariables((untildify(String(a))))),
+    to: (a: unknown) => resolvePathWithVariables((untildify(String(a)))),
     from: (a: unknown, original) => {
       if (ParameterEqualsDefaults.directory!(a, original)) {
         return original;

@@ -6,6 +6,7 @@ import * as fs from 'node:fs/promises';
 import stripAnsi from 'strip-ansi';
 
 import { debugLog } from '../utils/debug.js';
+import { VerbosityLevel } from '../utils/utils.js';
 import { IPty, SpawnError, SpawnOptions, SpawnResult } from './index.js';
 import { PromiseQueue } from './promise-queue.js';
 
@@ -76,7 +77,10 @@ export class BackgroundPty implements IPty {
             data: strippedData,
           });
         } else {
-          process.stdout.write(data);
+          // Print to stdout if the verbosity level is above 0
+          if (VerbosityLevel.get() > 0) {
+            process.stdout.write(data);
+          }
         }
       })
 
@@ -85,7 +89,7 @@ export class BackgroundPty implements IPty {
         // Redirecting everything to the pipe and running in theb background avoids most if not all back-pressure problems
         // Done is used to denote the end of the command
         // Use the \\" at the end differentiate between command and response. \\" will evaluate to " in the terminal
-        const command = `((${cdCommand}${cmd}; echo %%%$?%%%done%%%\\") > "/tmp/${cid}" 2>&1 &); echo %%%done%%%${cid}\\";`
+        const command = ` ((${cdCommand}${cmd}; echo %%%$?%%%done%%%\\") > "/tmp/${cid}" 2>&1 &); echo %%%done%%%${cid}\\";`
 
         let output = '';
         const listener = this.basePty.onData((data: any) => {
@@ -97,7 +101,7 @@ export class BackgroundPty implements IPty {
           }
         });
 
-        console.log(`Running command ${cmd}`)
+        console.log(`Running command ${cmd}${options?.cwd ? ` (cwd: ${options.cwd})` : ''}`)
         this.basePty.write(`${command}\r`);
 
       }));
@@ -123,10 +127,10 @@ export class BackgroundPty implements IPty {
       let outputBuffer = '';
 
       return new Promise(resolve => {
-        this.basePty.write('set +o history;\n');
-        this.basePty.write('unset PS1;\n');
-        this.basePty.write('unset PS0;\n')
-        this.basePty.write('echo setup complete\\"\n')
+        this.basePty.write('setopt hist_ignore_space;\n');
+        this.basePty.write(' unset PS1;\n');
+        this.basePty.write(' unset PS0;\n')
+        this.basePty.write(' echo setup complete\\"\n')
 
         const listener = this.basePty.onData((data: string) => {
           outputBuffer += data;

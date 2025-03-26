@@ -1,4 +1,5 @@
 import { Ajv, ValidateFunction } from 'ajv';
+import cleanDeep from 'clean-deep';
 import {
   ParameterOperation,
   ResourceConfig,
@@ -63,7 +64,10 @@ export class ResourceController<T extends StringIndexedObject> {
 
     if (this.schemaValidator) {
       // Schema validator uses pre transformation parameters
-      const isValid = this.schemaValidator(originalParameters);
+      const isValid = this.schemaValidator(
+        // @ts-expect-error Non esm package
+        cleanDeep(originalParameters, { nullValues: true })
+      );
 
       if (!isValid) {
         return {

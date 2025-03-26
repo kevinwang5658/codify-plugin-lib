@@ -64,6 +64,10 @@ export class ParsedResourceSettings<T extends StringIndexedObject> implements Re
     return this.id;
   }
 
+  get canDestroy(): boolean {
+    return !this.settings.importAndDestroy?.preventDestroy;
+  }
+
   get statefulParameters(): Map<keyof T, StatefulParameterController<T, T[keyof T]>> {
     return this.getFromCacheOrCreate('statefulParameters', () => {
 

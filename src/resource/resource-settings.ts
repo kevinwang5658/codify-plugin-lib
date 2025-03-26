@@ -113,11 +113,17 @@ export interface ResourceSettings<T extends StringIndexedObject> {
   importAndDestroy?: {
     /**
      * Can this resources be imported? If set to false then the codifyCLI will skip over/not consider this
-     * resource valid for imports. Defaults to true.
+     * resource valid for imports. Defaults to false.
      *
      * Resources that can't be imported in the core library for example are: action resources
      */
     preventImport?: boolean;
+
+    /**
+     * Can this resources be destroyed? If set to false then the codifyCLI will skip over/not consider this
+     * resource valid for destroys. Defaults to false.
+     */
+    preventDestroy?: boolean;
 
     /**
      * Customize the required parameters needed to import this resource. By default, the `requiredParameters` are taken

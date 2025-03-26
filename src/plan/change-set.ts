@@ -72,6 +72,18 @@ export class ChangeSet<T extends StringIndexedObject> {
     return new ChangeSet(ResourceOperation.CREATE, parameterChanges);
   }
 
+  static noop<T extends StringIndexedObject>(parameters: Partial<T>): ChangeSet<T> {
+    const parameterChanges = Object.entries(parameters)
+      .map(([k, v]) => ({
+        name: k,
+        operation: ParameterOperation.NOOP,
+        previousValue: v ?? null,
+        newValue: v ?? null,
+      }))
+
+    return new ChangeSet(ResourceOperation.NOOP, parameterChanges);
+  }
+
   static destroy<T extends StringIndexedObject>(current: Partial<T>): ChangeSet<T> {
     const parameterChanges = Object.entries(current)
       .map(([k, v]) => ({

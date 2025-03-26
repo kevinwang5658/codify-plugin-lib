@@ -126,6 +126,16 @@ export class Plan<T extends StringIndexedObject> {
 
     // DESTROY
     if (filteredCurrentParameters && !desired) {
+      // We can manually override destroys. If a resource cannot be destroyed (for instance the npm resource relies on NodeJS being created and destroyed)
+      if (!settings.canDestroy) {
+        return new Plan(
+          uuidV4(),
+          ChangeSet.noop(filteredCurrentParameters),
+          core,
+          isStateful,
+        )
+      }
+
       return new Plan(
         uuidV4(),
         ChangeSet.destroy(filteredCurrentParameters),

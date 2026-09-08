@@ -172,18 +172,17 @@ export const Utils = {
     const homeDir = os.homedir();
 
     if (shell.endsWith('bash')) {
-      // Linux typically uses .bashrc, macOS uses .bash_profile
-      if (Utils.isLinux()) {
+      if (Utils.needsLoginShell()) {
         return [
-          path.join(homeDir, '.bashrc'),
           path.join(homeDir, '.bash_profile'),
+          path.join(homeDir, '.bashrc'),
           path.join(homeDir, '.profile'),
         ];
       }
 
       return [
-        path.join(homeDir, '.bash_profile'),
         path.join(homeDir, '.bashrc'),
+        path.join(homeDir, '.bash_profile'),
         path.join(homeDir, '.profile'),
       ];
     }
